@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { View, ScrollView, Switch, Pressable, ActionSheetIOS, Alert } from 'react-native';
+import { View, ScrollView, Switch, Pressable, ActionSheetIOS, Alert, Linking } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Txt } from '../../src/components/Txt';
@@ -11,6 +11,7 @@ import { radius, space } from '../../src/theme/tokens';
 import { usePlanStore } from '../../src/store/usePlanStore';
 import { dateKey, formatDuration } from '../../src/lib/time';
 import { haptic } from '../../src/lib/haptics';
+import { requestNotificationPermission } from '../../src/lib/notifications';
 import type { SymbolViewProps } from 'expo-symbols';
 
 export default function Me() {
@@ -42,6 +43,25 @@ export default function Me() {
     const planned = todays.reduce((n, t) => n + t.minutes, 0);
     return { done: done.length, total: todays.length, planned };
   }, [tasks]);
+
+  const toggleReminders = async (on: boolean) => {
+    haptic.tick();
+    // Turning this on has to survive an earlier "Don't Allow": iOS answers the
+    // second request instantly with the stored denial and shows no prompt, so
+    // the only honest move is to leave the switch off and point at Settings.
+    if (on && !(await requestNotificationPermission())) {
+      Alert.alert(
+        'Notifications are off',
+        'Allow notifications for Oneplan in Settings to get a nudge when an activity starts.',
+        [
+          { text: 'Not now', style: 'cancel' },
+          { text: 'Open Settings', onPress: () => Linking.openSettings() },
+        ]
+      );
+      return;
+    }
+    usePlanStore.setState((s) => ({ profile: { ...s.profile, reminders: on } }));
+  };
 
   const pickLayout = () => {
     haptic.tap();
@@ -118,15 +138,7 @@ export default function Me() {
           <RowItem
             icon="bell"
             label="Reminders"
-            trailing={
-              <Switch
-                value={profile.reminders}
-                onValueChange={(v) => {
-                  haptic.tick();
-                  usePlanStore.setState((s) => ({ profile: { ...s.profile, reminders: v } }));
-                }}
-              />
-            }
+            trailing={<Switch value={profile.reminders} onValueChange={toggleReminders} />}
           />
         </Section>
 

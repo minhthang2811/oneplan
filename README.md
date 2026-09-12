@@ -75,7 +75,7 @@ src/
   components/           Shared UI primitives (Button, Chip, Ring, Glass, TabBar, ...)
   data/seed.ts           Sample/seed data
   data/routines.ts       The morning/afternoon/evening routine catalogue
-  lib/                   Small utilities (time formatting, haptics, a now-minute hook)
+  lib/                   Small utilities (time formatting, haptics, local reminders)
   store/                 Zustand store, MMKV-backed storage, and types
   theme/                 Design tokens and the light/dark theme hook
 assets/                 App icons and splash images
