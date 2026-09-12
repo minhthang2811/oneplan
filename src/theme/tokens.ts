@@ -38,6 +38,14 @@ export type Colors = {
   solid: string;
   onSolid: string;
   scrim: string;
+  /** Legibility scrim laid over a blur. Without it, chrome text sits directly
+   *  on whatever scrolled underneath and contrast becomes unpredictable. */
+  glassTint: string;
+  /** The lit top edge that makes a blurred pane read as a pane of glass rather
+   *  than as a smudge. This is the whole illusion. */
+  glassEdge: string;
+  /** Active chip ON glass. Lifts in both themes — see `surfaceSelected`. */
+  glassChip: string;
 };
 
 export const palette: Record<'light' | 'dark', Colors> = {
@@ -59,6 +67,9 @@ export const palette: Record<'light' | 'dark', Colors> = {
     solid: '#17130F',
     onSolid: '#FFFFFF',
     scrim: 'rgba(23,19,15,0.28)',
+    glassTint: 'rgba(252,250,247,0.62)',
+    glassEdge: 'rgba(255,255,255,0.90)',
+    glassChip: 'rgba(255,255,255,0.92)',
   },
   dark: {
     canvas: '#0C0B0A',
@@ -78,6 +89,9 @@ export const palette: Record<'light' | 'dark', Colors> = {
     solid: '#F6F2ED',
     onSolid: '#17130F',
     scrim: 'rgba(0,0,0,0.5)',
+    glassTint: 'rgba(26,23,21,0.55)',
+    glassEdge: 'rgba(255,255,255,0.14)',
+    glassChip: 'rgba(255,255,255,0.13)',
   },
 };
 
@@ -105,6 +119,22 @@ export const TINTS: Record<TintName, { light: { bg: string; fg: string }; dark: 
 
 /** The pickable data hues — `stone` is reserved for neutral chrome. */
 export const TINT_NAMES: TintName[] = ['lilac', 'peach', 'rose', 'mint', 'sky', 'butter'];
+
+/**
+ * Glass material.
+ *
+ * `intensity` is expo-blur's 1-100 scale. 55-70 is the band where iOS material
+ * still reads as translucent; below it the pane looks merely dim, above it the
+ * content behind stops being legible as motion and the depth cue is lost.
+ *
+ * Android divides intensity by `reductionFactor` — its blur renders visibly
+ * stronger than iOS at the same number.
+ */
+export const glass = {
+  intensity: 64,
+  reductionFactor: 4.6,
+  edgeWidth: 1,
+} as const;
 
 export const radius = {
   bar: 8,

@@ -37,4 +37,12 @@ export type Profile = {
   need: string | null;
   rhythm: string | null;
   reminders: boolean;
+  /**
+   * Routine option ids the user picked per time-of-day during onboarding.
+   *
+   * Kept alongside the tasks it generated, because the tasks are editable: once
+   * someone renames or deletes a step, the task can no longer tell us what was
+   * originally chosen, and "Me" needs that to show the routine back to them.
+   */
+  routines: Record<Exclude<Slot, 'anytime'>, string[]>;
 };

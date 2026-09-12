@@ -28,7 +28,7 @@ export default function Rhythm() {
         haptic.tap();
         usePlanStore.setState((s) => ({ profile: { ...s.profile, rhythm: picked } }));
         setLayout(picked === OPTIONS[1] ? 'timeline' : 'compact');
-        router.push('/onboarding/reminders');
+        router.push('/onboarding/routines');
       }}
     >
       <View style={{ gap: space.md }}>

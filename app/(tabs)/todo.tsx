@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
-import { View, TextInput, Pressable } from 'react-native';
+import { View, TextInput } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
