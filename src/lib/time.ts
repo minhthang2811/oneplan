@@ -80,6 +80,11 @@ export function slotForMinutes(m: number): Slot {
   return 'evening';
 }
 
+/** Wall-clock time `mins` from now — "Ends at 3:42 PM". Wraps past midnight. */
+export function clockFromNow(mins: number): string {
+  return formatClock((minutesNow() + Math.round(mins)) % (24 * 60));
+}
+
 export function minutesNow(): number {
   const d = new Date();
   return d.getHours() * 60 + d.getMinutes();

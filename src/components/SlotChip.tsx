@@ -1,4 +1,3 @@
-import { View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming, useReducedMotion } from 'react-native-reanimated';
 import { useEffect } from 'react';
 import { Txt } from './Txt';
@@ -9,11 +8,11 @@ import { radius, space, type TintName } from '../theme/tokens';
 import type { Slot } from '../lib/time';
 import type { SymbolViewProps } from 'expo-symbols';
 
-const SLOT_TINT: Record<Slot, TintName> = {
+export const SLOT_TINT: Record<Slot, TintName> = {
   anytime: 'stone', morning: 'peach', afternoon: 'rose', evening: 'lilac',
 };
 
-const SLOT_ICON: Record<Slot, SymbolViewProps['name']> = {
+export const SLOT_ICON: Record<Slot, SymbolViewProps['name']> = {
   anytime: 'clock', morning: 'sunrise', afternoon: 'sun.max', evening: 'moon',
 };
 

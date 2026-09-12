@@ -15,12 +15,25 @@ import type { SymbolViewProps } from 'expo-symbols';
 
 export default function Me() {
   const insets = useSafeAreaInsets();
-  const { c, shadow } = useTheme();
+  const { c } = useTheme();
   const tasks = usePlanStore((s) => s.tasks);
   const profile = usePlanStore((s) => s.profile);
   const layout = usePlanStore((s) => s.layout);
   const setLayout = usePlanStore((s) => s.setLayout);
   const resetOnboarding = usePlanStore((s) => s.resetOnboarding);
+
+  /**
+   * What onboarding picked, read back. Without this the routine choice becomes
+   * invisible the moment the tasks it created are edited, and there is nowhere
+   * to check what the plan thinks your day looks like.
+   */
+  const routineSummary = useMemo(() => {
+    const r = profile.routines;
+    const parts = ([ 'morning', 'afternoon', 'evening' ] as const).filter((k) => r[k]?.length);
+    const total = parts.reduce((n, k) => n + r[k].length, 0);
+    if (total === 0) return 'None set';
+    return `${total} picked`;
+  }, [profile.routines]);
 
   const stats = useMemo(() => {
     const today = dateKey(new Date());
@@ -101,6 +114,7 @@ export default function Me() {
             value={layout === 'compact' ? 'Compact' : 'Timeline'}
             onPress={pickLayout}
           />
+          <RowItem icon="repeat" label="Routines" value={routineSummary} />
           <RowItem
             icon="bell"
             label="Reminders"
@@ -176,8 +190,21 @@ function RowItem({
       }}
     >
       <Icon name={icon} size={17} color={c.inkMuted} />
-      <Txt variant="body" style={{ flex: 1 }}>{label}</Txt>
-      {value ? <Txt variant="body" tone="muted">{value}</Txt> : null}
+      {/* The label keeps priority on space and the value gives way. Without
+          `flexShrink` on the value, a long one takes its full natural width and
+          squeezes the label to nothing — at large Dynamic Type sizes the label
+          then wraps to ONE CHARACTER PER LINE rather than truncating. */}
+      <Txt variant="body" style={{ flex: 1 }} numberOfLines={2}>{label}</Txt>
+      {value ? (
+        <Txt
+          variant="body"
+          tone="muted"
+          numberOfLines={1}
+          style={{ flexShrink: 1, textAlign: 'right' }}
+        >
+          {value}
+        </Txt>
+      ) : null}
       {trailing}
       {onPress ? <Icon name="chevron.right" size={12} color={c.inkFaint} weight="semibold" /> : null}
     </View>

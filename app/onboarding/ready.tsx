@@ -2,7 +2,6 @@ import { View } from 'react-native';
 import { router } from 'expo-router';
 import Animated, { FadeIn, useReducedMotion } from 'react-native-reanimated';
 import { OnboardingScaffold } from '../../src/components/OnboardingScaffold';
-import { Txt } from '../../src/components/Txt';
 import { Bloom } from '../../src/components/Bloom';
 import { space } from '../../src/theme/tokens';
 import { haptic } from '../../src/lib/haptics';
@@ -14,7 +13,7 @@ export default function Ready() {
 
   return (
     <OnboardingScaffold
-      step={4}
+      step={5}
       title={'Your day is\nready to look at'}
       subtitle="We have put a starter day in for you. Change anything, delete anything — it is yours."
       ctaLabel="Start planning"

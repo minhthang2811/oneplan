@@ -7,13 +7,15 @@
     "icon": "./assets/icon.png",
     "scheme": "oneplan",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.oneplan.app",
       "infoPlist": {
         "_comment": "YES lets iOS derive the status bar style from the view controller's trait collection, so it follows light/dark with no JS. It is incompatible with expo-status-bar's imperative API, which is therefore not used.",
         "UIViewControllerBasedStatusBarAppearance": true
+      },
+      "config": {
+        "usesNonExemptEncryption": false
       }
     },
     "android": {
