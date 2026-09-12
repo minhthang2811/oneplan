@@ -1,6 +1,5 @@
 import { View } from 'react-native';
 import { router } from 'expo-router';
-import * as Notifications from 'expo-notifications';
 import { Pressable } from 'react-native';
 import { OnboardingScaffold } from '../../src/components/OnboardingScaffold';
 import { Txt } from '../../src/components/Txt';
@@ -8,6 +7,7 @@ import { EmojiAvatar } from '../../src/components/EmojiAvatar';
 import { useTheme } from '../../src/theme/useTheme';
 import { radius, space } from '../../src/theme/tokens';
 import { haptic } from '../../src/lib/haptics';
+import { requestNotificationPermission } from '../../src/lib/notifications';
 import { usePlanStore } from '../../src/store/usePlanStore';
 
 const PREVIEW = [
@@ -20,12 +20,8 @@ export default function Reminders() {
 
   const finish = async (ask: boolean) => {
     haptic.tap();
-    let granted = false;
-    if (ask) {
-      // A real request — the button says "Turn on reminders", so it must.
-      const res = await Notifications.requestPermissionsAsync();
-      granted = res.granted || res.ios?.status === Notifications.IosAuthorizationStatus.PROVISIONAL;
-    }
+    // A real request — the button says "Turn on reminders", so it must.
+    const granted = ask ? await requestNotificationPermission() : false;
     usePlanStore.setState((s) => ({ profile: { ...s.profile, reminders: granted } }));
     router.push('/onboarding/ready');
   };

@@ -73,7 +73,7 @@ app/                    Expo Router routes (file-based navigation)
 src/
   components/           Shared UI primitives (Button, Chip, Ring, TabBar, ...)
   data/seed.ts           Sample/seed data
-  lib/                   Small utilities (time formatting, haptics, a now-minute hook)
+  lib/                   Small utilities (time formatting, haptics, local reminders)
   store/                 Zustand store, MMKV-backed storage, and types
   theme/                 Design tokens and the light/dark theme hook
 assets/                 App icons and splash images

@@ -15,6 +15,7 @@ import {
 import { View, Pressable, Text, useColorScheme } from 'react-native';
 import type { ErrorBoundaryProps } from 'expo-router';
 import { usePlanStore } from '../src/store/usePlanStore';
+import { useTaskNotifications } from '../src/lib/notifications';
 import { useTheme } from '../src/theme/useTheme';
 import { palette, radius, space } from '../src/theme/tokens';
 
@@ -80,6 +81,11 @@ export default function RootLayout() {
   // splash has to wait for. That is why there is no onboarding flash.
   const onboarded = usePlanStore((s) => s.onboarded);
   const { c } = useTheme();
+
+  // Above the router rather than inside a tab, so the schedule tracks the plan
+  // from whichever screen edits it, and so importing the module — which is what
+  // registers the foreground notification handler — happens on the first frame.
+  useTaskNotifications();
 
   useEffect(() => {
     if (fontsLoaded) SplashScreen.hideAsync();
