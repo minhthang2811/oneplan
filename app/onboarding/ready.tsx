@@ -43,7 +43,7 @@ export default function Ready() {
               <Bloom scale={0.9} />
             </View>
           </Animated.View>
-          <PipScene pose="cheer" size={182} delay={120} idle="bob" grounded={false} />
+          <PipScene pose="cheer" size={182} delay={120} idle="bob" />
         </View>
         <PipBubble text="Right then. Let's have a look at it." delay={520} />
       </View>

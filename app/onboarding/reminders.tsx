@@ -5,7 +5,7 @@ import { Pressable } from 'react-native';
 import { OnboardingScaffold } from '../../src/components/OnboardingScaffold';
 import { Txt } from '../../src/components/Txt';
 import { EmojiAvatar } from '../../src/components/EmojiAvatar';
-import { PipScene, NotifyLines } from '../../src/components/mascot/PipScene';
+import { PipScene } from '../../src/components/mascot/PipScene';
 import { useTheme } from '../../src/theme/useTheme';
 import { radius, space } from '../../src/theme/tokens';
 import { haptic } from '../../src/lib/haptics';
@@ -39,19 +39,13 @@ export default function Reminders() {
       ctaLabel="Turn on reminders"
       onCta={() => finish(true)}
       headerSlot={
-        /* Pip holds the phone; the lines beside it are the thing that moves.
-           He is deliberately STILL here (`idle="none"`) even though breathing is
-           his default. The subject of this screen is a notification arriving, so
-           exactly one thing should be animating and it should be the
-           notification — a breathing dog next to a pulsing alert gives the eye
-           two tempos to track and neither of them means anything. */
+        /* The notification marks are part of the artwork, so there is no
+           separate pulsing overlay to add — drawing our own beside them would
+           simply give the dog two sets of the same symbol. With nothing else
+           moving here, Pip gets his ordinary slow breath rather than being held
+           unnaturally still. */
         <View style={{ alignItems: 'center', paddingBottom: space.xs }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <PipScene pose="phone" size={148} idle="none" />
-            <View style={{ marginLeft: -16, marginBottom: 30 }}>
-              <NotifyLines size={42} />
-            </View>
-          </View>
+          <PipScene pose="phone" size={168} />
         </View>
       }
       footer={

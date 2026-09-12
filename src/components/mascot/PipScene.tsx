@@ -1,12 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import { View } from 'react-native';
-import Svg, { Path } from 'react-native-svg';
 import { useFocusEffect } from 'expo-router';
 import Animated, {
   useSharedValue, useAnimatedStyle, withRepeat, withSequence, withTiming,
   withSpring, withDelay, cancelAnimation, useReducedMotion, Easing,
 } from 'react-native-reanimated';
-import { Pip, type PipPose } from './Pip';
+import { Pip, type PipImage } from './Pip';
 import { Txt } from '../Txt';
 import { EASE } from '../Press';
 import { useTheme } from '../../theme/useTheme';
@@ -17,8 +16,12 @@ import { radius, space, TINTS, motion } from '../../theme/tokens';
  *
  * The art in `Pip.tsx` is deliberately inert. Everything here is a `transform`
  * or an `opacity` on a wrapping view, which the animate-expo gate calls free:
- * no layout pass, no animated SVG props, nothing crossing to the RN runtime
- * once it has started.
+ * no layout pass, nothing crossing to the RN runtime once it has started.
+ *
+ * THERE ARE ONLY TWO PICTURES, so motion does the work a third and fourth
+ * drawing would otherwise do. `cheer` and `rest` are both the sitting artwork —
+ * what separates them is that one lands with a squash-and-stretch and floats,
+ * and the other only breathes. A pose here is a behaviour, not a file.
  *
  * WHERE PIP IS ALLOWED TO MOVE is decided by DESIGN.md's frequency gate, not by
  * where he would be cute:
@@ -38,6 +41,21 @@ import { radius, space, TINTS, motion } from '../../theme/tokens';
  * He shows up when the session ENDS.
  */
 
+/**
+ * A pose is an INTENT. It picks one of the two images and a way of moving.
+ */
+export type PipPose = 'sit' | 'phone' | 'cheer' | 'rest';
+
+const POSE_IMAGE: Record<PipPose, PipImage> = {
+  sit: 'sit',
+  phone: 'phone',
+  // Celebrating and dozing both use the sitting picture; the motion is what
+  // tells them apart. Faking a third pose by flipping or skewing the artwork
+  // would look like a bug, not a performance.
+  cheer: 'sit',
+  rest: 'sit',
+};
+
 type Idle =
   /** A slow breath. The empty-state default. */
   | 'breathe'
@@ -50,14 +68,12 @@ export function PipScene({
   pose = 'sit',
   size = 180,
   idle = 'breathe',
-  grounded = true,
   /** Delay before the entrance, to stagger Pip against the copy beside him. */
   delay = 0,
 }: {
   pose?: PipPose;
   size?: number;
   idle?: Idle;
-  grounded?: boolean;
   delay?: number;
 }) {
   const reduced = useReducedMotion();
@@ -173,75 +189,20 @@ export function PipScene({
        * that it is either meaningful and labelled, or decorative and hidden;
        * what it must never be is unlabelled and focusable.
        *
-       * An `Svg` happens not to be focusable by VoiceOver today, so this is
-       * currently belt-and-braces — which is the point. It stops the correct
-       * behaviour from depending on an implementation detail of the SVG library.
+       * `Pip` sets the same flags on the Image itself. Belt-and-braces on
+       * purpose: it stops the correct behaviour from depending on how one
+       * particular element happens to be exposed.
        */
       accessible={false}
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
     >
-      <Pip size={size} pose={pose} grounded={grounded} />
+      <Pip size={size} image={POSE_IMAGE[pose]} />
     </Animated.View>
   );
 }
 
 /* ------------------------------------------------------------- accessories */
-
-/**
- * The three radiating lines beside Pip's phone.
- *
- * They pulse rather than sit still because the subject of that screen is a
- * notification arriving, and a static glyph of a notification is just a shape.
- * The motion is the meaning here, which is the one justification that earns a
- * loop on an onboarding screen.
- */
-export function NotifyLines({ size = 44 }: { size?: number }) {
-  const { c } = useTheme();
-  const reduced = useReducedMotion();
-  const pulse = useSharedValue(0);
-
-  useEffect(() => {
-    if (reduced) return;
-    pulse.set(
-      withRepeat(
-        withSequence(
-          withTiming(1, { duration: 900, easing: Easing.out(Easing.quad) }),
-          withTiming(0, { duration: 900, easing: Easing.in(Easing.quad) }),
-          withTiming(0, { duration: 700 })
-        ),
-        -1,
-        false
-      )
-    );
-  }, [reduced, pulse]);
-
-  const anim = useAnimatedStyle(() => ({
-    opacity: reduced ? 0.9 : 0.35 + 0.65 * pulse.get(),
-    transform: [{ scale: reduced ? 1 : 0.86 + 0.14 * pulse.get() }],
-  }));
-
-  return (
-    <Animated.View
-      style={anim}
-      pointerEvents="none"
-      /* Decorative, like Pip: the screen's own title and body already say a
-         reminder is the subject. */
-      accessibilityElementsHidden
-      importantForAccessibility="no-hide-descendants"
-    >
-      <Svg width={size} height={size} viewBox="0 0 44 44">
-        {[
-          'M 8,12 L 20,7',
-          'M 11,22 L 24,22',
-          'M 8,32 L 20,37',
-        ].map((d) => (
-          <Path key={d} d={d} stroke={c.accent} strokeWidth={5} strokeLinecap="round" />
-        ))}
-      </Svg>
-    </Animated.View>
-  );
-}
 
 /**
  * Pip's speech bubble.

@@ -454,7 +454,7 @@ function Running({ task }: { task: Task | null }) {
               session the user actually finished, not a setup step. */}
           <View style={{ alignSelf: 'stretch', alignItems: 'center' }}>
             <Confetti height={250} />
-            <PipScene pose="cheer" size={148} idle="bob" grounded={false} delay={80} />
+            <PipScene pose="cheer" size={148} idle="bob" delay={80} />
           </View>
 
           <Txt variant="displaySm" style={{ textAlign: 'center' }}>

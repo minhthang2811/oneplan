@@ -73,7 +73,7 @@ app/                    Expo Router routes (file-based navigation)
   task/[id].tsx         Task detail screen
 src/
   components/           Shared UI primitives (Button, Chip, Ring, Glass, TabBar, ...)
-    mascot/             Pip — the vector mascot (art) and his motion (PipScene)
+    mascot/             Pip — the mascot image (Pip) and his motion (PipScene)
   data/seed.ts           Sample/seed data
   data/routines.ts       The morning/afternoon/evening routine catalogue
   lib/                   Small utilities (time formatting, haptics, a now-minute hook)
