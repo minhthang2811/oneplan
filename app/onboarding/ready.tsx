@@ -34,11 +34,14 @@ export default function Ready() {
           session, so that the first time it fires it means something. */}
       <View style={{ alignItems: 'center', paddingTop: space.sm, gap: space.base }}>
         <View style={{ height: 210, alignItems: 'center', justifyContent: 'center' }}>
+          {/* Dimming on an inner plain view — `entering` owns opacity. */}
           <Animated.View
             entering={reduced ? undefined : FadeIn.delay(120).duration(420)}
-            style={{ position: 'absolute', opacity: 0.5 }}
+            style={{ position: 'absolute' }}
           >
-            <Bloom scale={0.9} />
+            <View style={{ opacity: 0.5 }}>
+              <Bloom scale={0.9} />
+            </View>
           </Animated.View>
           <PipScene pose="cheer" size={182} delay={120} idle="bob" grounded={false} />
         </View>

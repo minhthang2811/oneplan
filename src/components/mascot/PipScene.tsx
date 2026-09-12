@@ -1,9 +1,10 @@
-import { useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
+import { useFocusEffect } from 'expo-router';
 import Animated, {
   useSharedValue, useAnimatedStyle, withRepeat, withSequence, withTiming,
-  withSpring, withDelay, useReducedMotion, Easing,
+  withSpring, withDelay, cancelAnimation, useReducedMotion, Easing,
 } from 'react-native-reanimated';
 import { Pip, type PipPose } from './Pip';
 import { Txt } from '../Txt';
@@ -82,7 +83,28 @@ export function PipScene({
     enter.set(withDelay(delay, withSpring(1, { duration: 620, dampingRatio: 0.68 })));
   }, [reduced, delay, enter]);
 
+  /**
+   * Whether this Pip is on the screen you are actually looking at.
+   *
+   * Expo Router keeps tab screens MOUNTED when you switch away — that is what
+   * makes re-tapping a tab return you to where you were. The cost is that a
+   * `withRepeat(-1)` loop started on Today keeps running on the UI thread while
+   * you are on To-do, and with Pip on both Today and Me that is two forever
+   * loops burning frames for something nobody can see.
+   *
+   * `Halo` already solves this with its `active` prop; this is the same idea,
+   * driven by navigation focus instead of by a timer's state.
+   */
+  const [focused, setFocused] = useState(true);
+  useFocusEffect(
+    useCallback(() => {
+      setFocused(true);
+      return () => setFocused(false);
+    }, [])
+  );
+
   useEffect(() => {
+    if (!focused) { cancelAnimation(loop); return; }
     if (reduced || idle === 'none') return;
     // 3.8s each way. Deliberately slower than a resting breath, for the same
     // reason the focus halo is: at anything near human tempo it stops being
@@ -98,7 +120,7 @@ export function PipScene({
         false
       )
     );
-  }, [reduced, idle, loop]);
+  }, [focused, reduced, idle, loop]);
 
   useEffect(() => {
     if (reduced || pose !== 'cheer') return;
@@ -139,7 +161,26 @@ export function PipScene({
   });
 
   return (
-    <Animated.View style={anim}>
+    <Animated.View
+      style={anim}
+      /*
+       * Pip is DECORATIVE, and that is a decision rather than an oversight.
+       *
+       * Every screen he appears on already states its meaning in text beside
+       * him — "Nothing here yet", "Time is up. That counted.", the speech
+       * bubble — so a screen reader that also announced "illustration of a dog"
+       * would be reading the same beat twice. The rule for an illustration is
+       * that it is either meaningful and labelled, or decorative and hidden;
+       * what it must never be is unlabelled and focusable.
+       *
+       * An `Svg` happens not to be focusable by VoiceOver today, so this is
+       * currently belt-and-braces — which is the point. It stops the correct
+       * behaviour from depending on an implementation detail of the SVG library.
+       */
+      accessible={false}
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+    >
       <Pip size={size} pose={pose} grounded={grounded} />
     </Animated.View>
   );
@@ -181,7 +222,14 @@ export function NotifyLines({ size = 44 }: { size?: number }) {
   }));
 
   return (
-    <Animated.View style={anim} pointerEvents="none">
+    <Animated.View
+      style={anim}
+      pointerEvents="none"
+      /* Decorative, like Pip: the screen's own title and body already say a
+         reminder is the subject. */
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+    >
       <Svg width={size} height={size} viewBox="0 0 44 44">
         {[
           'M 8,12 L 20,7',
@@ -284,7 +332,12 @@ export function Confetti({ height = 260 }: { height?: number }) {
   if (reduced) return null;
 
   return (
-    <View pointerEvents="none" style={{ position: 'absolute', top: 0, height, left: 0, right: 0 }}>
+    <View
+      pointerEvents="none"
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+      style={{ position: 'absolute', top: 0, height, left: 0, right: 0 }}
+    >
       {PIECES.map((p) => (
         <Piece key={`${p.x}-${p.tint}`} piece={p} height={height} />
       ))}

@@ -109,6 +109,37 @@ installed files are gitignored, like `node_modules`. To restore them:
 npx skills experimental_install
 ```
 
+## End-to-end tests
+
+[Maestro](https://maestro.mobile.dev) flows live in [.maestro/](./.maestro). They
+drive a real simulator through onboarding, the empty day, and a full one-minute
+focus session, and capture a screenshot at every screen the mascot appears on —
+a mascot passes `assertVisible` just fine while rendering as a blank box, so the
+screenshots are as much the point as the assertions.
+
+```bash
+brew install openjdk@17
+curl -Ls "https://get.maestro.mobile.dev" | bash
+```
+
+Then, with the app built and running on a simulator:
+
+```bash
+JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home PATH="$HOME/.maestro/bin:$PATH" maestro test .maestro/01-onboarding.yaml
+```
+
+Run the flows **one at a time**. Pointing Maestro at the whole directory runs
+them concurrently against the single simulator, where they fight each other and
+all fail.
+
+Two selector rules, learned the hard way and documented in the flows themselves:
+
+1. A selector is a **full regex match**, not a substring — a bare prefix fails,
+   so partial matches need an explicit `.*`.
+2. On iOS this app's text lives in `accessibilityText`, so **a control matches on
+   its `accessibilityLabel`, not its visible words**: the focus Start button is
+   `Start 1 minute focus`, `+ 1 min` is `Add one minute`, `End` is `End session`.
+
 ## Publishing to the App Store
 
 Builds and submissions go through [EAS](https://docs.expo.dev/build/introduction/);

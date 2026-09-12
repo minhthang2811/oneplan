@@ -24,11 +24,17 @@ export default function Welcome() {
             and it drops to a backdrop opacity so it reads as the ground he is
             sitting on rather than as a second thing to look at. */}
         <View style={{ height: 250, alignItems: 'center', justifyContent: 'center' }}>
+          {/* The dimming lives on an INNER plain view. `entering` is a layout
+              animation and drives opacity itself, so an opacity in the animated
+              view's own style is overwritten by it — the backdrop rendered at
+              full strength and Reanimated warned about it on every mount. */}
           <Animated.View
             entering={reduced ? undefined : FadeIn.duration(500)}
-            style={{ position: 'absolute', opacity: 0.5 }}
+            style={{ position: 'absolute' }}
           >
-            <Bloom scale={1.06} />
+            <View style={{ opacity: 0.5 }}>
+              <Bloom scale={1.06} />
+            </View>
           </Animated.View>
           <PipScene pose="sit" size={208} delay={140} idle="breathe" />
         </View>

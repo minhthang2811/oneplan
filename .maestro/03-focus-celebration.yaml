@@ -1,0 +1,45 @@
+# The celebration — the app's only confetti, and the hardest moment to catch.
+#
+# The shortest preset is 15 minutes, so the dial is set by tapping it directly:
+# the dial maps angle to minutes clockwise from the top, so a point just past
+# 12 o'clock is ~1 minute. That is the whole reason this flow can run at all.
+#
+# `extendedWaitUntil` is what makes the wait honest — it polls for the finished
+# state rather than sleeping a fixed 60s and hoping, so the flow fails loudly if
+# the timer stalls instead of passing on a lucky screenshot. Verifying this by
+# hand cost three attempts to land a capture inside the 2.2s confetti window.
+appId: com.oneplan.app
+name: Focus — completion celebration
+---
+- launchApp
+
+- tapOn: "Focus"
+- assertVisible: "Pick how long you want to disappear for"
+
+# Just clockwise of the top of the dial ≈ 1 minute.
+- tapOn:
+    point: "53%,30%"
+# "MINUTE" or "MINUTES" depending on the value.
+- assertVisible: "MINUTE.*"
+
+# The button's accessibilityLabel is "Start 1 minute focus", not "Start".
+- tapOn: "Start.*"
+# Running state: the transport controls are the proof it actually started.
+# Transport controls carry accessibilityLabels, not their visible glyphs:
+# "+ 1 min" is "Add one minute" and "End" is "End session".
+- assertVisible: "Add one minute"
+- assertVisible: "End session"
+
+# Wait for the timer rather than sleeping through it.
+- extendedWaitUntil:
+    visible: "Time is up. That counted."
+    timeout: 75000
+
+# Pip cheers and the confetti flies. Grab the frame immediately — the burst
+# lasts 2.2s and then it is gone.
+- takeScreenshot: artifacts/06-focus-confetti
+- assertVisible: "Done"
+- tapOn: "Done"
+
+# Back to the picker, session cleared.
+- assertVisible: "Pick how long you want to disappear for"
