@@ -1,20 +1,25 @@
 import type { ReactNode } from 'react';
+import { useEffect } from 'react';
 import { View, ScrollView, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Animated, { FadeInDown, useReducedMotion } from 'react-native-reanimated';
+import Animated, {
+  FadeInDown, useReducedMotion, useSharedValue, useAnimatedStyle, withTiming,
+} from 'react-native-reanimated';
 import { router } from 'expo-router';
 import { Txt } from './Txt';
 import { Icon } from './Icon';
 import { Button } from './Button';
+import { EASE } from './Press';
 import { useTheme } from '../theme/useTheme';
 import { radius, space } from '../theme/tokens';
 import { haptic } from '../lib/haptics';
 
-export const ONBOARDING_STEPS = 4;
+export const ONBOARDING_STEPS = 5;
 
 export function OnboardingScaffold({
-  step, title, subtitle, children, ctaLabel, onCta, ctaDisabled, onSkip, footer,
+  step, title, subtitle, children, ctaLabel, onCta, ctaDisabled, onSkip, onBack, footer, headerSlot,
 }: {
+  /** May be fractional — a screen with sub-steps advances the bar within its own step. */
   step?: number;
   title: string;
   subtitle?: string;
@@ -23,12 +28,28 @@ export function OnboardingScaffold({
   onCta: () => void;
   ctaDisabled?: boolean;
   onSkip?: () => void;
+  /** Overrides the back button — for screens that step backwards internally first. */
+  onBack?: () => void;
   footer?: ReactNode;
+  /** Rendered above the title, inside the same entrance animation. */
+  headerSlot?: ReactNode;
 }) {
   const { c } = useTheme();
   const insets = useSafeAreaInsets();
   const reduced = useReducedMotion();
-  const canGoBack = router.canGoBack();
+  const canGoBack = onBack != null || router.canGoBack();
+
+  /**
+   * The bar GROWS rather than jumping. Progress that animates is the only
+   * feedback that a sub-step inside one screen actually advanced the flow —
+   * without it, picking a second routine set looks like nothing happened.
+   */
+  const pct = useSharedValue(step != null ? Math.min(1, step / ONBOARDING_STEPS) : 0);
+  useEffect(() => {
+    const next = step != null ? Math.min(1, step / ONBOARDING_STEPS) : 0;
+    pct.set(reduced ? next : withTiming(next, { duration: 420, easing: EASE }));
+  }, [step, reduced, pct]);
+  const fill = useAnimatedStyle(() => ({ width: `${pct.get() * 100}%` }));
 
   return (
     <View style={{ flex: 1, backgroundColor: c.canvas }}>
@@ -43,7 +64,7 @@ export function OnboardingScaffold({
       >
         {canGoBack ? (
           <Pressable
-            onPress={() => { haptic.tap(); router.back(); }}
+            onPress={() => { haptic.tap(); onBack ? onBack() : router.back(); }}
             hitSlop={12}
             accessibilityRole="button"
             accessibilityLabel="Back"
@@ -59,13 +80,13 @@ export function OnboardingScaffold({
               borderRadius: radius.bar, backgroundColor: c.accentSoft, overflow: 'hidden',
             }}
             accessibilityRole="progressbar"
-            accessibilityLabel={`Step ${step} of ${ONBOARDING_STEPS}`}
+            accessibilityLabel={`Step ${Math.ceil(step)} of ${ONBOARDING_STEPS}`}
           >
-            <View
-              style={{
-                width: `${(step / ONBOARDING_STEPS) * 100}%`,
-                height: '100%', borderRadius: radius.bar, backgroundColor: c.accent,
-              }}
+            <Animated.View
+              style={[
+                { height: '100%', borderRadius: radius.bar, backgroundColor: c.accent },
+                fill,
+              ]}
             />
           </View>
         ) : (
@@ -94,6 +115,7 @@ export function OnboardingScaffold({
           entering={reduced ? undefined : FadeInDown.duration(320).springify().damping(18)}
           style={{ gap: space.md }}
         >
+          {headerSlot}
           <Txt variant="displayLg">{title}</Txt>
           {subtitle ? <Txt variant="body" tone="muted">{subtitle}</Txt> : null}
         </Animated.View>

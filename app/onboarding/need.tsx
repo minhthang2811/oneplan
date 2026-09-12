@@ -17,7 +17,6 @@ const OPTIONS = [
 
 export default function Need() {
   const [picked, setPicked] = useState<string | null>(null);
-  const setProfile = usePlanStore((s) => s.completeOnboarding);
 
   return (
     <OnboardingScaffold

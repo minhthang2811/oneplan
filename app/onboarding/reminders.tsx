@@ -28,7 +28,7 @@ export default function Reminders() {
 
   return (
     <OnboardingScaffold
-      step={3}
+      step={4}
       title={'A nudge when\nsomething starts'}
       subtitle="Oneplan can tell you when an activity begins, so the plan does the remembering instead of you."
       ctaLabel="Turn on reminders"

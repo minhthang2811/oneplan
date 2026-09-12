@@ -18,6 +18,10 @@ What was taken is the **pattern**, not the pixels.
 | **Nested checklist with a `0/4` progress strip** | Tiimo's routine rows | Lets a "routine" be one row when calm and four steps when stuck. |
 | **Countdown ring around the activity's own icon** | Tiimo Focus | Time becomes an area that visibly shrinks — the core idea of visual time management. |
 | **Floating pill tab bar** (To-do / Today / Focus / Me) | Tiimo | The product's most recognisable chrome. Still the real Tabs navigator underneath. |
+| **Glass navigation** — blur + scrim + lit edge, with a chip that slides between tabs | Tiimo's floating bar, read against TIDE / Calm / Apple News | Translucency is what makes a floating bar read as *above* the day rather than as a slab parked on top of it. |
+| **Routine picker**: a time-of-day badge, one question, a field of emoji chips | Tiimo's `MORNING` → "Add morning routines to your schedule" | Asks for what someone already does instead of what they intend to do. Recognition, not recall. |
+| **Ticked dial** and a wall-clock **"Ends at"** readout | Tiimo Focus | Minute ticks give the ring a scale; the end time answers the question a countdown does not ("when am I free?"). |
+| **Steps on the focus screen** | Tiimo Focus with a routine | Focusing on a four-step routine should not mean leaving the timer to tick the steps off elsewhere. |
 
 ## Colour contract
 
@@ -79,7 +83,61 @@ Decided by the frequency gate, in this order:
   haptic detent every five minutes.
 - **The countdown ring** sweeps with a single long `withTiming` on the UI
   thread; only the numeric readout re-renders, once per second.
+- **The tab selection chip** slides between tabs on a spring. This is the one
+  place a tab change animates, and it is chrome moving *within* the bar — the
+  scenes still cut instantly, so "tabs never slide" still holds. On a
+  translucent bar the chip is the only thing that says which tab is live, so
+  moving it continuously is what ties the tap to the result.
+- **Routine chips** overshoot on the way *in* only. Deselecting is a correction
+  and should not be celebrated.
+- **The focus halo** is the app's only ambient animation, confined to the one
+  screen you are meant to stop looking at. Its 4.4s period is deliberately far
+  slower than a resting breath so it never becomes something to watch, and it
+  does not render at all under Reduce Motion.
 - **Reduce Motion** collapses spatial motion to cross-fades throughout.
+
+## Onboarding shape
+
+Five steps: need → rhythm → **routines** → reminders → ready.
+
+Routines asks three questions (morning, afternoon, evening) from **one route**.
+Tiimo asks them as three consecutive screens, and one-at-a-time is right — a
+single page of thirty-six chips is the wall of choice this audience bounces off.
+But three routes would put three entries in history for what is one decision, so
+the phases are local state, the progress bar advances by a third each time, and
+back steps through the phases before it is allowed to pop the route.
+
+Each slot's picks collapse into **one parent activity whose steps are the
+picks** — the same nested-checklist row the rest of the app uses — and it
+*overwrites* that slot's seeded routine rather than sitting beside it, so nobody
+ends up with two "Morning routine" rows, one of which they did not choose.
+
+Selection is carried by **fill, plus a redundant tick**: at a dozen chips a row
+of checkboxes reads as a form to complete, while a block of filled pills reads
+as a shape. The tick is there so selection never depends on colour alone.
+
+## Glass
+
+`GlassPanel` is the one glass primitive. Three things decide whether it reads as
+glass rather than as a grey box, and all three are easy to get wrong:
+
+1. `BlurView` **ignores an explicit `borderRadius`**, so the rounding must come
+   from a parent that clips it.
+2. On iOS `overflow: 'hidden'` sets `masksToBounds`, which **clips the view's own
+   drop shadow away** — so the shadow cannot live on the clipping view. Hence an
+   outer wrapper whose only job is to cast it.
+3. Blur alone does not separate a pane from its background; the **lit edge**
+   does. A hairline of near-white along the border is what the eye reads as a
+   physical edge catching light.
+
+The scrim over the blur (`glassTint`) is not decoration: without it chrome text
+sits on whatever happened to scroll underneath, and contrast becomes a property
+of the user's data. `glassChip` lifts in both themes, for the same reason
+`surfaceSelected` exists.
+
+Intensity is **64** on a 1–100 scale. Below ~55 the pane looks merely dim rather
+than translucent; above ~70 the content behind stops being legible as motion and
+the depth cue is lost.
 
 ## Navigation grammar
 

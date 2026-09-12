@@ -1,8 +1,9 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { mmkvStorage } from './storage';
-import type { Task, Step, FocusSession, Profile, Priority } from './types';
+import type { Task, FocusSession, Profile, Priority } from './types';
 import { seedTasks } from '../data/seed';
+import { ROUTINES, ROUTINE_PARENT, ROUTINE_SLOTS, type RoutineSlot } from '../data/routines';
 import { dateKey, slotForMinutes, type Slot } from '../lib/time';
 
 let counter = 0;
@@ -30,6 +31,7 @@ interface PlanState {
 
   completeOnboarding: (p: Partial<Profile>) => void;
   resetOnboarding: () => void;
+  applyRoutines: (picks: Record<RoutineSlot, string[]>) => void;
 
   startFocus: (totalSeconds: number, taskId?: string | null) => void;
   pauseFocus: () => void;
@@ -38,7 +40,11 @@ interface PlanState {
   endFocus: () => void;
 }
 
-const emptyProfile: Profile = { name: '', need: null, rhythm: null, reminders: false };
+const emptyRoutines = (): Profile['routines'] => ({ morning: [], afternoon: [], evening: [] });
+
+const emptyProfile: Profile = {
+  name: '', need: null, rhythm: null, reminders: false, routines: emptyRoutines(),
+};
 
 export const usePlanStore = create<PlanState>()(
   persist(
@@ -126,7 +132,57 @@ export const usePlanStore = create<PlanState>()(
       completeOnboarding: (p) =>
         set((s) => ({ onboarded: true, profile: { ...s.profile, ...p } })),
 
-      resetOnboarding: () => set({ onboarded: false, profile: emptyProfile }),
+      resetOnboarding: () =>
+        set({ onboarded: false, profile: { ...emptyProfile, routines: emptyRoutines() } }),
+
+      /**
+       * Turns the onboarding picks into real activities on today.
+       *
+       * Each slot collapses to ONE parent task whose steps are the picks, which
+       * is the same nested-checklist row the rest of the app already uses — a
+       * routine reads as one line when the day is calm and as four checkboxes
+       * when it is not.
+       *
+       * It writes over the seeded routine for that slot rather than adding
+       * beside it: the seed exists only so the app is never an empty grid, and
+       * leaving it in place would show the user two "Morning routine" rows, one
+       * of which they did not choose.
+       */
+      applyRoutines: (picks) =>
+        set((s) => {
+          const today = dateKey(new Date());
+          const touched = ROUTINE_SLOTS.filter((slot) => picks[slot]?.length);
+          if (touched.length === 0) return {};
+
+          const replacedIds = new Set(touched.map((slot) => ROUTINE_PARENT[slot].id));
+          const kept = s.tasks.filter((t) => !replacedIds.has(t.id));
+
+          const built: Task[] = touched.map((slot) => {
+            const parent = ROUTINE_PARENT[slot];
+            const chosen = ROUTINES[slot].filter((o) => picks[slot].includes(o.id));
+            return {
+              id: parent.id,
+              title: parent.title,
+              emoji: parent.emoji,
+              tint: parent.tint,
+              // The routine's length is the sum of its steps, so the day's
+              // planned total stays honest instead of guessing a round number.
+              minutes: chosen.reduce((n, o) => n + o.minutes, 0),
+              slot,
+              startMinutes: parent.startMinutes,
+              date: today,
+              priority: 'todo',
+              done: false,
+              steps: chosen.map((o) => ({ id: `${parent.id}-${o.id}`, title: o.title, done: false })),
+              tag: 'Self care',
+            };
+          });
+
+          return {
+            tasks: [...kept, ...built],
+            profile: { ...s.profile, routines: { ...s.profile.routines, ...picks } },
+          };
+        }),
 
       startFocus: (totalSeconds, taskId = null) =>
         set({
@@ -180,9 +236,11 @@ export const usePlanStore = create<PlanState>()(
        * the point of encoding category as colour. Tasks saved under the retired
        * names are remapped here; without this they render an undefined swatch.
        */
-      version: 2,
+      version: 3,
       migrate: (persisted: unknown, from: number) => {
-        const state = persisted as { tasks?: Array<{ tint?: string }> } | undefined;
+        const state = persisted as
+          | { tasks?: Array<{ tint?: string }>; profile?: Partial<Profile> }
+          | undefined;
         if (!state) return state as never;
         if (from < 2 && Array.isArray(state.tasks)) {
           const RETIRED: Record<string, string> = { sage: 'sky', clay: 'rose', teal: 'mint' };
@@ -191,6 +249,16 @@ export const usePlanStore = create<PlanState>()(
               ? { ...t, tint: RETIRED[t.tint] }
               : t
           );
+        }
+        /**
+         * v3 added `profile.routines`. Zustand's persist merge is SHALLOW, so a
+         * profile saved by v2 replaces the default profile wholesale and the new
+         * key would arrive as `undefined` — every read of `routines.morning`
+         * would then throw for existing users. Backfilling it here is what makes
+         * the upgrade survivable.
+         */
+        if (from < 3 && state.profile) {
+          state.profile = { ...state.profile, routines: state.profile.routines ?? emptyRoutines() };
         }
         return state as never;
       },
