@@ -8,6 +8,7 @@ import { TaskRow } from '../../src/components/TaskRow';
 import { SlotChip, SlotEmpty } from '../../src/components/SlotChip';
 import { DayHeader } from '../../src/components/DayHeader';
 import { Bloom } from '../../src/components/Bloom';
+import { PipScene } from '../../src/components/mascot/PipScene';
 import { Button } from '../../src/components/Button';
 import { TAB_BAR_HEIGHT } from '../../src/components/TabBar';
 import { useTheme } from '../../src/theme/useTheme';
@@ -105,7 +106,17 @@ export default function Today() {
       <View style={{ flex: 1, backgroundColor: c.canvas, paddingHorizontal: space.lg, paddingTop: insets.top + space.sm }}>
         {header}
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: space.xl, paddingBottom: TAB_BAR_HEIGHT }}>
-          <Bloom scale={0.62} />
+          {/* An empty day is the ONE screen in the app that is both frequent
+              enough to matter and blank enough to afford an illustration. Pip
+              is asleep rather than waving: a day with nothing in it is not a
+              failure to be cheered at, and a dozing dog says "nothing is
+              happening yet" without implying you are behind. */}
+          <View style={{ height: 176, alignItems: 'center', justifyContent: 'center' }}>
+            <View style={{ position: 'absolute', opacity: 0.45 }}>
+              <Bloom scale={0.72} />
+            </View>
+            <PipScene pose="rest" size={150} idle="breathe" delay={80} />
+          </View>
           <View style={{ alignItems: 'center', gap: space.sm, maxWidth: 270 }}>
             <Txt variant="displaySm" style={{ textAlign: 'center' }}>Nothing here yet</Txt>
             <Txt variant="body" tone="muted" style={{ textAlign: 'center' }}>

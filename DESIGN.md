@@ -155,6 +155,58 @@ SF Symbols for **all** chrome, via a wrapper that renders a sized spacer as a
 fallback so layout never shifts. The single bespoke glyph is the Today tab's
 calendar, because it is data-bearing: it shows the current date.
 
+## Pip
+
+The mascot. A white dog in round glasses, drawn as vector (`src/components/mascot/`)
+rather than shipped as a bitmap, so he recolours from `tokens.ts`, stays crisp at
+every size from one source, and can be posed.
+
+**Where he is allowed to appear is decided by the same frequency gate as the
+motion vocabulary**, not by where he would be cute:
+
+| Tier | Screens | Pip |
+|---|---|---|
+| Rare / first-run | welcome, reminders, ready, focus-complete | Full delight budget — entrance spring, celebration, confetti |
+| Occasional | an empty day | Present, asleep, breathing slowly. Nothing else |
+| Tens of times a day | task rows, tab bar, headers, a running timer | **Absent** |
+
+The bottom row is the load-bearing one. A mascot on a FlashList row would replay
+its entrance on every recycle, and a mascot in chrome is a thing you are made to
+look at dozens of times a day until you resent it.
+
+He is also absent from Focus *while the timer runs*. That screen's only ambient
+motion is the halo and it is the one screen you are meant to stop looking at; a
+character moving there works against the product. He arrives when the session
+ends.
+
+**Confetti fires once in the whole app**, on finishing a focus session. It is
+deliberately not on the onboarding `ready` screen: answering five setup questions
+is not an achievement, and spending the gesture there means it means nothing the
+first time it is earned. The pieces are painted from `TINTS` — the same six hues
+that encode a task's identity — so the celebration is visibly made of the user's
+own day.
+
+**His colours do not invert with the theme.** Everything else in the app flips
+between light and dark; Pip is a white dog with orange ears, and a white dog is
+still white at night. Swapping his coat for `surface` would not re-theme him, it
+would make him a different animal. The coat and outline hold in both themes, with
+the white dropped to a warm off-white in dark so it does not glare. His phone is
+the one part painted in `accent`, which is what ties the character to the product
+rather than leaving him a sticker borrowed from somewhere else.
+
+Two implementation notes that are easy to get wrong:
+
+1. **The head and body are clipping regions.** Every orange patch is drawn past
+   the silhouette and trimmed by `clipPath`, because hand-fitting a patch to the
+   inside of an ellipse breaks the moment the head changes by a pixel.
+2. **Limbs are strokes, not filled outlines** — a thick `ink` stroke under a
+   thinner `coat` one. That makes a pose a change of endpoints rather than a
+   redrawn shape, and it is why `cheer` and `phone` cost four lines each.
+
+Nothing in `Pip.tsx` animates. All motion lives in `PipScene` as `transform` and
+`opacity` on wrapping views, so no animated SVG props are involved and every
+moving part stays on the UI thread.
+
 ## State
 
 - Zustand + **MMKV**. MMKV is synchronous, so the store rehydrates before the

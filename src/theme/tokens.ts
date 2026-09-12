@@ -121,6 +121,55 @@ export const TINTS: Record<TintName, { light: { bg: string; fg: string }; dark: 
 export const TINT_NAMES: TintName[] = ['lilac', 'peach', 'rose', 'mint', 'sky', 'butter'];
 
 /**
+ * Pip — the mascot's palette.
+ *
+ * This is the second and last exception to the single-accent rule, and it is a
+ * narrower one than `TINTS`: these colours are never applied to a control, a
+ * surface or a piece of chrome. They only ever paint the character.
+ *
+ * A CHARACTER DOES NOT INVERT WITH THE THEME. Every other colour here flips
+ * between light and dark, but Pip is a white dog with orange ears, and a white
+ * dog is still white at night — swapping his coat for `surface` in dark mode
+ * would not re-theme him, it would make him a different animal. So the coat
+ * stays light and the outline stays dark in BOTH themes, exactly the way a
+ * sticker keeps its own colours whatever it is stuck to. The only concession to
+ * dark mode is that the coat drops from pure white to a warm off-white, because
+ * #FFFFFF against the #0C0B0A canvas glares.
+ *
+ * `ink` is the app's own warm near-black rather than the blue-black a cartoon
+ * outline usually gets, so Pip reads as drawn from the same ink as the rest of
+ * the app. His phone is deliberately NOT in here: it uses `accent` straight
+ * from the palette above, which is what ties the character to the product.
+ */
+export const mascot: Record<'light' | 'dark', {
+  /** The body. Light, always — see above. */
+  coat: string;
+  /** Soft shading on the chest, haunch and inner paws. Reads as form, not dirt. */
+  coatShade: string;
+  /** Ears and patches. */
+  patch: string;
+  /** The outline, and the eyes and nose that are drawn solid from it. */
+  ink: string;
+  /** The contact shadow Pip sits on, so he is standing rather than floating. */
+  ground: string;
+}> = {
+  light: {
+    coat: '#FFFFFF',
+    coatShade: '#E4DCF7',
+    patch: '#D9814C',
+    ink: '#221A2E',
+    ground: 'rgba(34,26,46,0.10)',
+  },
+  dark: {
+    coat: '#F1EAE1',
+    coatShade: '#C9BEE8',
+    patch: '#D07845',
+    ink: '#1B1526',
+    ground: 'rgba(0,0,0,0.34)',
+  },
+};
+
+/**
  * Glass material.
  *
  * `intensity` is expo-blur's 1-100 scale. 55-70 is the band where iOS material

@@ -16,6 +16,7 @@ import { Halo } from '../../src/components/Halo';
 import { Checkbox } from '../../src/components/Checkbox';
 import { EmojiAvatar } from '../../src/components/EmojiAvatar';
 import { PressScale } from '../../src/components/Press';
+import { PipScene, Confetti } from '../../src/components/mascot/PipScene';
 import { TAB_BAR_HEIGHT } from '../../src/components/TabBar';
 import { useTheme } from '../../src/theme/useTheme';
 import { radius, space, motion } from '../../src/theme/tokens';
@@ -445,6 +446,17 @@ function Running({ task }: { task: Task | null }) {
           entering={reduced ? undefined : FadeInDown.duration(360).springify().damping(18)}
           style={{ alignItems: 'center', gap: space.base, alignSelf: 'stretch' }}
         >
+          {/* The app's one confetti burst, and the only place Pip appears on this
+              screen. He is absent for the whole session on purpose: this is the
+              screen you are meant to stop looking at, and its single ambient
+              animation is the halo. He arrives when the timer stops, which is
+              the moment there is finally something to celebrate — and it is a
+              session the user actually finished, not a setup step. */}
+          <View style={{ alignSelf: 'stretch', alignItems: 'center' }}>
+            <Confetti height={250} />
+            <PipScene pose="cheer" size={148} idle="bob" grounded={false} delay={80} />
+          </View>
+
           <Txt variant="displaySm" style={{ textAlign: 'center' }}>
             {allStepsDone ? 'All of it, done 🎉' : 'Time is up. That counted.'}
           </Txt>

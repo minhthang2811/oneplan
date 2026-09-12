@@ -39,3 +39,10 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# agent skills
+# Installed by `npx skills add` — treated like node_modules. `skills-lock.json`
+# IS committed: it pins the exact skills and hashes, so `npx skills install`
+# reproduces this set.
+.agents/
+.claude/skills/

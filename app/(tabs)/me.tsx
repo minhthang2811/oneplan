@@ -5,6 +5,7 @@ import { router } from 'expo-router';
 import { Txt } from '../../src/components/Txt';
 import { Icon } from '../../src/components/Icon';
 import { Bloom } from '../../src/components/Bloom';
+import { PipScene } from '../../src/components/mascot/PipScene';
 import { TAB_BAR_HEIGHT } from '../../src/components/TabBar';
 import { useTheme } from '../../src/theme/useTheme';
 import { radius, space } from '../../src/theme/tokens';
@@ -90,8 +91,16 @@ export default function Me() {
         }}
       >
         <View style={{ alignItems: 'center', gap: space.md }}>
-          <View style={{ height: 130, justifyContent: 'center' }}>
-            <Bloom scale={0.56} />
+          {/* The closest thing this app has to a profile picture. Me is visited
+              occasionally rather than constantly, which is the tier that can
+              carry a breathing idle — and the mascot in front of the brand mark
+              is the same composition as the welcome screen, so the app opens and
+              settles on the same image. */}
+          <View style={{ height: 140, alignItems: 'center', justifyContent: 'center' }}>
+            <View style={{ position: 'absolute', opacity: 0.5 }}>
+              <Bloom scale={0.62} />
+            </View>
+            <PipScene pose="sit" size={124} idle="breathe" />
           </View>
           <Txt variant="displayLg">Me</Txt>
           {profile.need ? (

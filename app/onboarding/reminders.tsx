@@ -5,6 +5,7 @@ import { Pressable } from 'react-native';
 import { OnboardingScaffold } from '../../src/components/OnboardingScaffold';
 import { Txt } from '../../src/components/Txt';
 import { EmojiAvatar } from '../../src/components/EmojiAvatar';
+import { PipScene, NotifyLines } from '../../src/components/mascot/PipScene';
 import { useTheme } from '../../src/theme/useTheme';
 import { radius, space } from '../../src/theme/tokens';
 import { haptic } from '../../src/lib/haptics';
@@ -37,6 +38,22 @@ export default function Reminders() {
       subtitle="Oneplan can tell you when an activity begins, so the plan does the remembering instead of you."
       ctaLabel="Turn on reminders"
       onCta={() => finish(true)}
+      headerSlot={
+        /* Pip holds the phone; the lines beside it are the thing that moves.
+           He is deliberately STILL here (`idle="none"`) even though breathing is
+           his default. The subject of this screen is a notification arriving, so
+           exactly one thing should be animating and it should be the
+           notification — a breathing dog next to a pulsing alert gives the eye
+           two tempos to track and neither of them means anything. */
+        <View style={{ alignItems: 'center', paddingBottom: space.xs }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <PipScene pose="phone" size={148} idle="none" />
+            <View style={{ marginLeft: -16, marginBottom: 30 }}>
+              <NotifyLines size={42} />
+            </View>
+          </View>
+        </View>
+      }
       footer={
         <Pressable
           onPress={() => finish(false)}

@@ -73,6 +73,7 @@ app/                    Expo Router routes (file-based navigation)
   task/[id].tsx         Task detail screen
 src/
   components/           Shared UI primitives (Button, Chip, Ring, Glass, TabBar, ...)
+    mascot/             Pip — the vector mascot (art) and his motion (PipScene)
   data/seed.ts           Sample/seed data
   data/routines.ts       The morning/afternoon/evening routine catalogue
   lib/                   Small utilities (time formatting, haptics, a now-minute hook)
@@ -92,6 +93,21 @@ DESIGN.md               Design system reference
 | `npm run ios` | Prebuild (if needed) and run the iOS app |
 | `npm run android` | Prebuild (if needed) and run the Android app |
 | `npm run web` | Run the app in a browser |
+
+## Agent skills
+
+This repo pins a set of AI-agent skills — Expo's official set (`expo-animation`,
+`expo-design-system`, `expo-router`, `eas-simulator`, …) plus a few animation and
+Apple-design review skills. They are instruction files that teach Claude Code,
+Cursor, Codex and friends the SDK 57 conventions this project depends on, instead
+of letting them guess from older SDKs.
+
+`skills-lock.json` is committed and pins every skill with a content hash. The
+installed files are gitignored, like `node_modules`. To restore them:
+
+```bash
+npx skills experimental_install
+```
 
 ## Publishing to the App Store
 
