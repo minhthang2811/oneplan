@@ -1,0 +1,69 @@
+# Every tab transition, in both directions.
+#
+# Guards the regression where `animation: 'fade'` plus the iOS default
+# `detachInactiveScreens: true` left an arriving tab mounted, correctly laid
+# out, and invisible — To-do -> Today rendered a blank canvas.
+#
+# READ THIS BEFORE TRUSTING A PASS. `assertVisible` matches against the view
+# HIERARCHY, and in that failure the hierarchy was perfect: every element was
+# present with correct bounds, and only the pixels were missing. So the
+# assertions below prove the screens are mounted and routed, NOT that anything
+# was actually drawn. The `takeScreenshot` calls are what catch an opacity-0
+# regression, and they need a human (or a diffing step) to look at them.
+#
+# Tabs are tapped by POINT rather than by label, because the tab labels also
+# appear as headings inside the screens ("Today", "Focus", "Me") and a text
+# selector can land on the heading instead of the bar.
+#
+# Percentages must be WHOLE NUMBERS. "16.4%,93%" throws
+# NumberFormatException at runtime, after the flow has already started.
+appId: com.oneplan.app
+name: Tab transitions — every pair
+---
+- launchApp
+# `launchApp` returns before React has mounted, so the first tap can land on a
+# blank window and do nothing. Wait for the anchor tab to actually render.
+- assertVisible: "Next day"
+
+# --- forward, one step at a time -------------------------------------------
+- tapOn:
+    point: "16%,93%"   # To-do
+- assertVisible: "MEDIUM.*"
+- tapOn:
+    point: "39%,93%"   # Today
+- assertVisible: "Next day"
+- takeScreenshot: artifacts/tab-todo-to-today
+- tapOn:
+    point: "61%,93%"   # Focus
+- assertVisible: "Pick how long you want to disappear for"
+- takeScreenshot: artifacts/tab-today-to-focus
+- tapOn:
+    point: "83%,93%"   # Me
+- assertVisible: "Run onboarding again"
+- takeScreenshot: artifacts/tab-focus-to-me
+
+# --- backward, and across more than one step -------------------------------
+- tapOn:
+    point: "16%,93%"   # Me -> To-do, three steps back
+- assertVisible: "MEDIUM.*"
+- takeScreenshot: artifacts/tab-me-to-todo
+- tapOn:
+    point: "61%,93%"   # To-do -> Focus, two steps forward
+- assertVisible: "Pick how long you want to disappear for"
+- takeScreenshot: artifacts/tab-todo-to-focus
+- tapOn:
+    point: "39%,93%"   # Focus -> Today, one step back
+- assertVisible: "Next day"
+- takeScreenshot: artifacts/tab-focus-to-today
+- tapOn:
+    point: "83%,93%"   # Today -> Me, two steps forward
+- assertVisible: "Run onboarding again"
+- takeScreenshot: artifacts/tab-today-to-me
+- tapOn:
+    point: "61%,93%"   # Me -> Focus, one step back
+- assertVisible: "Pick how long you want to disappear for"
+- takeScreenshot: artifacts/tab-me-to-focus
+- tapOn:
+    point: "16%,93%"   # Focus -> To-do, two steps back
+- assertVisible: "MEDIUM.*"
+- takeScreenshot: artifacts/tab-focus-to-todo

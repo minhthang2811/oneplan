@@ -1,0 +1,87 @@
+# Onboarding, end to end.
+#
+# Asserts the flow still completes AND that Pip is on the two steps that carry
+# him — reminders (phone) and ready (cheer + speech bubble). The screenshots are
+# the point as much as the assertions: a mascot can pass every assertVisible
+# while rendering as a blank box, so each mascot moment is captured for review.
+#
+# Text selectors rather than testIDs: Oneplan ships in one language, and the
+# maestro-mobile-testing skill calls text the better choice there — the flow
+# doubles as a readable description of the journey.
+#
+# TWO THINGS THAT WILL BITE YOU, both confirmed from a captured hierarchy:
+#
+# 1. A selector is a FULL regex match, not a substring. Every bare prefix fails
+#    against a longer string, so partial matches must end in an explicit `.*`.
+#
+# 2. On iOS this app's text lives in `accessibilityText`, not `text` — React
+#    Native text surfaces as an accessibility label, and `text` only carries
+#    native control values ("radio button"). The consequence: A BUTTON MATCHES
+#    ON ITS accessibilityLabel, NOT ITS VISIBLE WORDS. The focus Start button is
+#    "Start 1 minute focus"; "+ 1 min" is "Add one minute"; "End" is "End
+#    session". Check the component before writing the selector.
+#
+# Also avoid the display headlines: they are hand-wrapped with a literal "\n"
+# so the serif breaks where the designer wanted, which regex `.` will not cross
+# without DOTALL. The subtitles are single-line, so assert on those.
+appId: com.oneplan.app
+name: Onboarding — Pip's first-run moments
+---
+- launchApp:
+    clearState: true
+
+# --- Welcome: Pip sits in front of the Bloom brand mark -------------------
+- assertVisible: "Oneplan"
+- assertVisible: "No account needed. Everything stays on your phone."
+- takeScreenshot: artifacts/01-welcome-pip-sit
+- tapOn: "Get started"
+
+# --- Need ------------------------------------------------------------------
+- assertVisible: "So we can put the right thing on your first screen.*"
+- tapOn: "Organise my day and time"
+# Wait for the SELECTION to land before tapping the CTA. Without this the tap
+# races React's re-render and hits a still-disabled button, which Maestro
+# happily reports as COMPLETED while the screen never advances — the failure
+# then surfaces one step later, on the next screen's assertion.
+- assertVisible:
+    text: "Organise my day and time"
+    selected: true
+- tapOn: "Continue.*"
+
+# --- Rhythm ----------------------------------------------------------------
+- assertVisible: "Some days need a timetable.*"
+- tapOn: "Loose — morning, afternoon, evening"
+- assertVisible:
+    text: "Loose — morning, afternoon, evening"
+    selected: true
+- tapOn: "Continue.*"
+
+# --- Routines: three phases from ONE route, so Continue is tapped 3x.
+#     The last phase's button reads "Continue with my routines", which the
+#     same `.*Continue.*` regex still matches.
+- assertVisible: "Wake up"
+- tapOn: "Wake up"
+- tapOn: "Breakfast"
+# No state guard needed here: the routines CTA is never disabled (picks are
+# optional), so there is no enable-race to wait out.
+- tapOn: "Continue.*"
+- tapOn: "Continue.*"
+- tapOn: "Continue.*"
+
+# --- Reminders: Pip holding his phone, notification lines pulsing beside ---
+- assertVisible: "Oneplan can tell you when an activity begins.*"
+- assertVisible: "Turn on reminders"
+- takeScreenshot: artifacts/02-reminders-pip-phone
+# "Not right now" avoids the native permission dialog, which is not what this
+# flow is testing.
+- tapOn: "Not right now"
+
+# --- Ready: Pip cheers, and speaks. Deliberately NO confetti here ----------
+- assertVisible: "We have put a starter day in for you.*"
+- assertVisible: "Right then. Let's have a look at it."
+- takeScreenshot: artifacts/03-ready-pip-cheer
+- tapOn: "Start planning"
+
+# --- Lands in the app, past the one-way door -------------------------------
+- assertVisible: "Focus"
+- assertVisible: "Me"

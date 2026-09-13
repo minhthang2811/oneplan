@@ -73,8 +73,8 @@ text sizes — invisible at 100%, and the reason "Quick tidy" rendered as
 
 Decided by the frequency gate, in this order:
 
-- **Tab switches and screen transitions**: the platform default, untouched.
-  Tabs never slide.
+- **Tab switches**: a short cross-fade (`animation: 'fade'`), never a slide —
+  see the note below. Stack transitions stay the platform default, untouched.
 - **Press feedback** (tens of times a day): 120ms, ease-out
   `bezier(0.23, 1, 0.32, 1)`, on press-*in*. Buttons and cards scale to 0.97;
   list rows take a background highlight and never scale.
@@ -85,7 +85,7 @@ Decided by the frequency gate, in this order:
   thread; only the numeric readout re-renders, once per second.
 - **The tab selection chip** slides between tabs on a spring. This is the one
   place a tab change animates, and it is chrome moving *within* the bar — the
-  scenes still cut instantly, so "tabs never slide" still holds. On a
+  scenes cross-fade rather than travel, so "tabs never slide" still holds. On a
   translucent bar the chip is the only thing that says which tab is live, so
   moving it continuously is what ties the tap to the result.
 - **Routine chips** overshoot on the way *in* only. Deselecting is a correction
@@ -95,6 +95,21 @@ Decided by the frequency gate, in this order:
   slower than a resting breath so it never becomes something to watch, and it
   does not render at all under Reduce Motion.
 - **Reduce Motion** collapses spatial motion to cross-fades throughout.
+
+**Tabs cross-fade; they never slide.** Tabs are peers, so there is no left or
+right to travel along — a slide invents a spatial relationship the information
+architecture does not have and implies a hierarchy the app does not have either.
+This is also the most-used transition in the app, and the frequency gate gives a
+100+/day action near-nothing; a fade is the cheapest thing that is still a
+transition, softening the swap so content does not appear to teleport. Set as
+`animation: 'fade'` in `app/(tabs)/_layout.tsx` (`'shift'` is the sliding one,
+and is the one to avoid).
+
+That option **must** be paired with `detachInactiveScreens={false}`. On iOS
+react-native-screens detaches a blurred tab from the native hierarchy by
+default, and a screen detached mid-fade comes back mounted, correctly laid out
+and invisible. Nothing errors — the view tree is intact and every element
+reports correct bounds — so only a screenshot reveals it.
 
 ## Onboarding shape
 
@@ -154,6 +169,63 @@ the depth cue is lost.
 SF Symbols for **all** chrome, via a wrapper that renders a sized spacer as a
 fallback so layout never shifts. The single bespoke glyph is the Today tab's
 calendar, because it is data-bearing: it shows the current date.
+
+## Pip
+
+The mascot. Two supplied illustrations in `assets/mascot/`, rendered by
+`src/components/mascot/`.
+
+**The artwork is shipped as-is, not redrawn.** An earlier version reconstructed
+the character as `react-native-svg` paths to gain arbitrary poses and
+token-driven recolouring. It was a faithful interpretation and it was still not
+the character. Supplied art is a specification, not a reference for a copy — so
+a redraw is a fallback for when no usable asset exists, and nothing else.
+
+Keeping the real files also deleted a whole mechanism. The illustrations already
+carry a pale die-cut sticker border, which is exactly what a dark canvas needs to
+stop a dark-outlined character dissolving into it; the vector version had to
+rebuild that border from an extra pass over every silhouette shape, in dark mode
+only. It is now simply part of the picture, and the mascot needs **no colour
+tokens at all**.
+
+Shipped as WebP — ~75KB each against ~500KB for the same PNG, alpha intact.
+
+**There are two pictures, so a pose is a behaviour, not a file.** `cheer` and
+`rest` both render the sitting illustration; what separates them is that one
+lands with a squash-and-stretch and floats while the other only breathes. Faking
+a third pose by flipping or skewing the artwork would read as a bug, not a
+performance.
+
+Where Pip may appear is decided by the same frequency gate as the motion
+vocabulary, not by where he would be cute:
+
+| Tier | Screens | Pip |
+|---|---|---|
+| Rare / first-run | welcome, reminders, ready, focus-complete | Full delight budget — entrance spring, celebration, confetti |
+| Occasional | an empty day, Me | Present, breathing slowly. Nothing else |
+| Tens of times a day | task rows, tab bar, headers, a running timer | **Absent** |
+
+The bottom row is load-bearing. A mascot on a FlashList row would replay its
+entrance on every recycle, and a mascot in chrome is a thing you are made to look
+at dozens of times a day until you resent it.
+
+He is also absent from Focus *while the timer runs*. That screen's only ambient
+motion is the halo and it is the one screen you are meant to stop looking at. He
+arrives when the session ends.
+
+**Confetti fires once in the whole app**, on finishing a focus session — not on
+the onboarding `ready` screen, because answering five setup questions is not an
+achievement and spending the gesture there means it means nothing the first time
+it is earned. The pieces are painted from `TINTS`, so the celebration is visibly
+made of the user's own day.
+
+Two implementation notes:
+
+1. **Nothing in `Pip.tsx` animates.** All motion is `transform`/`opacity` on
+   wrapping views in `PipScene`, so every moving part stays on the UI thread.
+2. **The idle loop pauses on navigation blur.** Expo Router keeps tab screens
+   mounted, so a `withRepeat(-1)` started on Today would otherwise run forever
+   while you are on another tab — the same trap `Halo` avoids with `active`.
 
 ## State
 
