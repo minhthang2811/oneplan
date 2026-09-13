@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useCallback, useState } from 'react';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useFonts } from 'expo-font';
@@ -16,8 +16,9 @@ import { View, Pressable, Text, useColorScheme } from 'react-native';
 import type { ErrorBoundaryProps } from 'expo-router';
 import { usePlanStore } from '../src/store/usePlanStore';
 import { useTaskNotifications } from '../src/lib/notifications';
+import { LaunchScreen } from '../src/components/LaunchScreen';
 import { useTheme } from '../src/theme/useTheme';
-import { palette, radius, space } from '../src/theme/tokens';
+import { motion, palette, radius, space } from '../src/theme/tokens';
 
 /**
  * Expo Router renders this instead of the red box when a route throws.
@@ -65,7 +66,9 @@ export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
 }
 
 SplashScreen.preventAutoHideAsync();
-SplashScreen.setOptions({ duration: 260, fade: true });
+// `duration` is shared with `LaunchScreen`, which must hold perfectly still for
+// exactly this long while the native splash fades off the top of it.
+SplashScreen.setOptions({ duration: motion.launch.handoff, fade: true });
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
@@ -87,14 +90,32 @@ export default function RootLayout() {
   // registers the foreground notification handler — happens on the first frame.
   useTaskNotifications();
 
-  useEffect(() => {
-    if (fontsLoaded) SplashScreen.hideAsync();
-  }, [fontsLoaded]);
+  /**
+   * The launch overlay stays mounted until its own exit animation has finished.
+   * Unmounting it is what hands the app over — there is no other state to keep,
+   * which is why a boolean is the whole mechanism.
+   */
+  const [launching, setLaunching] = useState(true);
+  const finishLaunch = useCallback(() => setLaunching(false), []);
+
+  /**
+   * The native splash is hidden from `onLayout`, NOT from an effect.
+   *
+   * An effect fires after React commits but does not guarantee the commit has
+   * been drawn. Hiding there can uncover the app for one frame before
+   * `LaunchScreen` has painted, which shows up as a flash of Today between two
+   * splash screens — rare enough to survive testing and obvious enough to be
+   * the first thing anyone notices. `onLayout` fires after this tree has been
+   * measured and is about to be shown, so the overlay is already there.
+   */
+  const onReady = useCallback(() => {
+    SplashScreen.hideAsync();
+  }, []);
 
   if (!fontsLoaded) return null;
 
   return (
-    <GestureHandlerRootView style={{ flex: 1, backgroundColor: c.canvas }}>
+    <GestureHandlerRootView onLayout={onReady} style={{ flex: 1, backgroundColor: c.canvas }}>
       <KeyboardProvider>
         <SafeAreaProvider>
           <Stack
@@ -115,7 +136,36 @@ export default function RootLayout() {
               <Stack.Screen name="(tabs)" />
               <Stack.Screen
                 name="task/[id]"
-                options={{ headerShown: false, animation: 'slide_from_right' }}
+                options={{
+                  headerShown: false,
+                  /**
+                   * The PLATFORM push, with the two options that make it feel
+                   * fluid instead of merely correct.
+                   *
+                   * `animation` is left at 'default' on iOS on purpose: the
+                   * native push already is a spring-backed, interruptible,
+                   * gesture-tracking transition, and every JS reimplementation
+                   * of it trades that away for control nobody asked for. On
+                   * Android 'default' is a fade-through with no spatial
+                   * relationship at all, so it gets the iOS-style push, which
+                   * react-native-screens ships for exactly this.
+                   */
+                  animation: process.env.EXPO_OS === 'ios' ? 'default' : 'ios_from_right',
+                  /**
+                   * Back-swipe from ANYWHERE, not just the left 20pt. This is
+                   * the single biggest "native app" lever on the whole screen:
+                   * a detail view you can throw away from the middle feels
+                   * held rather than entered.
+                   */
+                  fullScreenGestureEnabled: true,
+                  /**
+                   * Makes the dismissal animation track the finger instead of
+                   * playing a canned exit once the gesture is recognised. Off
+                   * by default, and it is what separates "swiping the screen"
+                   * from "triggering a back animation".
+                   */
+                  animationMatchesGesture: true,
+                }}
               />
               <Stack.Screen
                 name="add"
@@ -131,6 +181,11 @@ export default function RootLayout() {
               />
             </Stack.Protected>
           </Stack>
+
+          {/* Above the router, so the app is genuinely mounted and laid out
+              behind it — the iris reveals the real Today screen rather than a
+              placeholder that then has to be swapped. */}
+          {launching ? <LaunchScreen onFinish={finishLaunch} /> : null}
         </SafeAreaProvider>
       </KeyboardProvider>
     </GestureHandlerRootView>

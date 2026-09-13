@@ -5,9 +5,14 @@ loose time-of-day buckets (Anytime / Morning / Afternoon / Evening) instead of
 a rigid timetable, and pairs that with a Focus mode built around a countdown
 ring — so a day gets a shape without forcing a schedule.
 
+It opens on an animated launch screen that hands over from the native splash
+without a visible seam, navigates from a floating **gel** tab bar whose selection
+indicator stretches like liquid (and can be dragged), and marks a task done with
+a tick that strokes itself onto the page.
+
 See [DESIGN.md](./DESIGN.md) for the full design system: the reference class
-it was built from, the color and shape contracts, motion rules, and
-navigation grammar.
+it was built from, the color and shape contracts, motion rules, the launch
+sequence, the liquid indicator, and navigation grammar.
 
 ## Tech stack
 
@@ -73,6 +78,12 @@ app/                    Expo Router routes (file-based navigation)
   task/[id].tsx         Task detail screen
 src/
   components/           Shared UI primitives (Button, Chip, Ring, Glass, TabBar, ...)
+    LaunchScreen.tsx    The animated launch screen, and its iris reveal
+    Glass.tsx           The gel material: blur, scrim, sheen, bounce, graded edge
+    TabBar.tsx          Floating gel bar with the liquid (metaball) indicator
+    Checkbox.tsx        Completion: squish, fill, self-drawing tick, pop ring
+    Strike.tsx          A strikethrough drawn per laid-out text line
+    Rise.tsx            Staggered arrival for a pushed screen's own content
     mascot/             Pip — the mascot image (Pip) and his motion (PipScene)
   data/seed.ts           Sample/seed data
   data/routines.ts       The morning/afternoon/evening routine catalogue
@@ -80,6 +91,9 @@ src/
   store/                 Zustand store, MMKV-backed storage, and types
   theme/                 Design tokens and the light/dark theme hook
 assets/                 App icons and splash images
+  splash-pip.png        The native splash logo. MUST stay a render of
+                        mascot/pip-sit.webp at the same size, or the handoff
+                        into the animated launch screen has a visible cut.
 app.json                Expo app config (icons, splash, plugins, bundle IDs)
 eas.json                EAS build/submit profiles
 DESIGN.md               Design system reference

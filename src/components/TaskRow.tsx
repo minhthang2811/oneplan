@@ -5,6 +5,7 @@ import { useEffect } from 'react';
 import { Txt } from './Txt';
 import { Icon } from './Icon';
 import { Checkbox } from './Checkbox';
+import { Strike } from './Strike';
 import { EmojiAvatar } from './EmojiAvatar';
 import { ProgressBar } from './ProgressBar';
 import { PressHighlight, EASE } from './Press';
@@ -66,14 +67,15 @@ export function TaskRow({
             </View>
           ) : null}
 
-          <Txt
+          <Strike
+            struck={task.done}
+            identity={task.id}
             variant="bodyStrong"
-            tone={task.done ? 'faint' : 'ink'}
+            tone="ink"
             numberOfLines={2}
-            style={task.done ? { textDecorationLine: 'line-through' } : undefined}
           >
             {task.title}
-          </Txt>
+          </Strike>
 
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             <Txt variant="caption" tone="muted" tabular>{formatDuration(task.minutes)}</Txt>
@@ -100,6 +102,7 @@ export function TaskRow({
 
         <Checkbox
           checked={task.done}
+          identity={task.id}
           onToggle={() => { task.done ? haptic.tap() : haptic.success(); onToggle(); }}
         />
       </PressHighlight>
@@ -140,14 +143,16 @@ export function TaskRow({
                   accessibilityState={{ checked: s.done }}
                   style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: 12 }}
                 >
-                  <Checkbox checked={s.done} onToggle={() => { haptic.tick(); onToggleStep(s.id); }} size={20} subtle />
-                  <Txt
-                    variant="body"
-                    tone={s.done ? 'faint' : 'muted'}
-                    style={s.done ? { textDecorationLine: 'line-through' } : undefined}
-                  >
+                  <Checkbox
+                    checked={s.done}
+                    identity={s.id}
+                    onToggle={() => { haptic.tick(); onToggleStep(s.id); }}
+                    size={20}
+                    subtle
+                  />
+                  <Strike struck={s.done} identity={s.id} variant="body" tone="muted">
                     {s.title}
-                  </Txt>
+                  </Strike>
                 </Pressable>
               ))}
             </Animated.View>

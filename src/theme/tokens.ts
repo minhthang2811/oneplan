@@ -44,8 +44,24 @@ export type Colors = {
   /** The lit top edge that makes a blurred pane read as a pane of glass rather
    *  than as a smudge. This is the whole illusion. */
   glassEdge: string;
+  /** The SAME edge where it faces away from the light. Glass does not carry one
+   *  uniform hairline all the way round — grading the stroke from `glassEdge`
+   *  at the top to this at the bottom is what turns a rounded rectangle into a
+   *  lit object with a near side and a far side. */
+  glassEdgeDim: string;
+  /** Specular sheen: the bright smear across the upper third of a gel surface,
+   *  where it catches the light source directly. Distinct from `glassTint`,
+   *  which is a flat legibility scrim over the whole pane. */
+  glassSheen: string;
+  /** Light bouncing back UP into the underside of the pane from the content
+   *  below it. Faint by definition — it only has to stop the bottom edge from
+   *  reading as a cut. */
+  glassBounce: string;
   /** Active chip ON glass. Lifts in both themes — see `surfaceSelected`. */
   glassChip: string;
+  /** The chip's own top highlight, so the selection reads as a gel lozenge
+   *  sitting IN the bar rather than as a flat swatch painted on it. */
+  glassChipSheen: string;
 };
 
 export const palette: Record<'light' | 'dark', Colors> = {
@@ -69,7 +85,11 @@ export const palette: Record<'light' | 'dark', Colors> = {
     scrim: 'rgba(23,19,15,0.28)',
     glassTint: 'rgba(252,250,247,0.62)',
     glassEdge: 'rgba(255,255,255,0.90)',
+    glassEdgeDim: 'rgba(255,255,255,0.30)',
+    glassSheen: 'rgba(255,255,255,0.70)',
+    glassBounce: 'rgba(255,255,255,0.38)',
     glassChip: 'rgba(255,255,255,0.92)',
+    glassChipSheen: 'rgba(255,255,255,0.95)',
   },
   dark: {
     canvas: '#0C0B0A',
@@ -90,8 +110,12 @@ export const palette: Record<'light' | 'dark', Colors> = {
     onSolid: '#17130F',
     scrim: 'rgba(0,0,0,0.5)',
     glassTint: 'rgba(26,23,21,0.55)',
-    glassEdge: 'rgba(255,255,255,0.14)',
+    glassEdge: 'rgba(255,255,255,0.18)',
+    glassEdgeDim: 'rgba(255,255,255,0.04)',
+    glassSheen: 'rgba(255,255,255,0.13)',
+    glassBounce: 'rgba(255,255,255,0.05)',
     glassChip: 'rgba(255,255,255,0.13)',
+    glassChipSheen: 'rgba(255,255,255,0.20)',
   },
 };
 
@@ -134,6 +158,24 @@ export const glass = {
   intensity: 64,
   reductionFactor: 4.6,
   edgeWidth: 1,
+  /**
+   * GEL, not just glass.
+   *
+   * Frosted glass is flat — it blurs what is behind it and stops. What makes a
+   * surface read as a soft, slightly rubbery *gel* is that it also has a body:
+   * light lands on the top of it, bends through it, and bounces back into its
+   * underside. Three numbers carry that, and they are all fractions of the
+   * pane's own height so the material scales with the component.
+   */
+  /** How far down the pane the specular sheen reaches before it is gone. */
+  sheenStop: 0.46,
+  /** Where the bounce light off the content below fades out, measured up from
+   *  the bottom edge. */
+  bounceStop: 0.22,
+  /** The lit edge is brightest at the top and dimmest at the bottom; this is
+   *  how far round the stroke has travelled when it has fully dimmed. Less
+   *  than 1 so the very bottom keeps a trace of light rather than going dead. */
+  edgeFalloff: 0.78,
 } as const;
 
 export const radius = {
@@ -192,4 +234,39 @@ export const motion = {
   press: 120,
   enter: 240,
   exit: 160,
+
+  /**
+   * LIQUID. A pair of springs on the same target with different damping is the
+   * whole trick behind a gooey indicator: the leading edge runs ahead on the
+   * loose spring while the trailing edge lags on the tight one, so the shape
+   * between them stretches on the way out and catches up on the way in.
+   *
+   * `lead` must be the looser of the two. Swap them and the blob stretches
+   * BACKWARDS, which reads as a rendering glitch rather than as a material.
+   */
+  lead: { duration: 460, dampingRatio: 0.62 } as const,
+  trail: { duration: 620, dampingRatio: 0.9 } as const,
+
+  /**
+   * The launch sequence, in one place because the four beats have to add up:
+   * Pip settles, the ground blooms, both leave, the app is revealed. Changing
+   * one number here without the others is what turns a launch into a wait.
+   */
+  launch: {
+    /**
+     * The native splash's own fade-out, and therefore the exact amount of time
+     * the JS overlay must sit perfectly still before it may move. Both sides
+     * read this one number: `SplashScreen.setOptions({ duration })` in the root
+     * layout, and the wake's delay in `LaunchScreen`. If they ever disagree you
+     * get a moment with a static Pip and a moving Pip cross-fading through each
+     * other, which looks like a double exposure.
+     */
+    handoff: 260,
+    /** Pip's wake-up, starting the instant the native splash has handed over. */
+    wake: { duration: 720, dampingRatio: 0.58 } as const,
+    /** How long the finished frame is allowed to simply be looked at. */
+    hold: 420,
+    /** The iris opening out to the app underneath. */
+    reveal: 620,
+  } as const,
 } as const;

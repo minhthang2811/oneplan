@@ -14,6 +14,7 @@ import { Icon } from '../../src/components/Icon';
 import { Ring } from '../../src/components/Ring';
 import { Halo } from '../../src/components/Halo';
 import { Checkbox } from '../../src/components/Checkbox';
+import { Strike } from '../../src/components/Strike';
 import { EmojiAvatar } from '../../src/components/EmojiAvatar';
 import { PressScale } from '../../src/components/Press';
 import { PipScene, Confetti } from '../../src/components/mascot/PipScene';
@@ -567,15 +568,16 @@ function Running({ task }: { task: Task | null }) {
                   borderTopWidth: i === 0 ? 0 : 1, borderTopColor: c.hairline,
                 }}
               >
-                <Checkbox checked={s.done} onToggle={() => { haptic.tick(); toggleStep(task!.id, s.id); }} size={22} subtle />
-                <Txt
-                  variant="body"
-                  tone={s.done ? 'faint' : 'ink'}
-                  style={s.done ? { textDecorationLine: 'line-through' } : undefined}
-                  numberOfLines={2}
-                >
+                <Checkbox
+                  checked={s.done}
+                  identity={s.id}
+                  onToggle={() => { haptic.tick(); toggleStep(task!.id, s.id); }}
+                  size={22}
+                  subtle
+                />
+                <Strike struck={s.done} identity={s.id} variant="body" tone="ink" numberOfLines={2}>
                   {s.title}
-                </Txt>
+                </Strike>
               </Pressable>
             ))}
           </View>

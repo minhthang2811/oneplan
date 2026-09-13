@@ -5,6 +5,8 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Txt } from '../../src/components/Txt';
 import { Icon } from '../../src/components/Icon';
 import { Checkbox } from '../../src/components/Checkbox';
+import { Strike } from '../../src/components/Strike';
+import { Rise } from '../../src/components/Rise';
 import { EmojiAvatar } from '../../src/components/EmojiAvatar';
 import { ProgressBar } from '../../src/components/ProgressBar';
 import { Button } from '../../src/components/Button';
@@ -14,6 +16,11 @@ import { radius, space } from '../../src/theme/tokens';
 import { usePlanStore, stepProgress } from '../../src/store/usePlanStore';
 import { formatDuration, formatClock, SLOT_LABEL } from '../../src/lib/time';
 import { haptic } from '../../src/lib/haptics';
+
+/** The emoji disc's size in a `TaskRow`, and here. Their ratio is the whole of
+ *  the shared-element illusion — see `Rise`. */
+const AVATAR_IN_ROW = 40;
+const AVATAR_IN_HERO = 84;
 
 export default function TaskDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -77,22 +84,36 @@ export default function TaskDetail() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
+        {/* The arrival. Three beats, 70ms apart, each overlapping the tail of
+            the platform push — so the screen assembles as it lands rather than
+            sliding in already finished. `fromScale` is the disc's size in the
+            row you tapped divided by its size here, which is what gives the
+            emoji its continuity with the list. */}
         <View style={{ alignItems: 'center', gap: space.base, paddingTop: space.sm }}>
-          <EmojiAvatar emoji={task.emoji} tint={task.tint} size={84} dimmed={task.done} />
-          <Txt
-            variant="displayMd"
-            selectable
-            style={[{ textAlign: 'center' }, task.done ? { textDecorationLine: 'line-through' } : null]}
-          >
-            {task.title}
-          </Txt>
+          <Rise delay={60} fromScale={AVATAR_IN_ROW / AVATAR_IN_HERO} distance={8}>
+            <EmojiAvatar emoji={task.emoji} tint={task.tint} size={AVATAR_IN_HERO} dimmed={task.done} />
+          </Rise>
 
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: space.sm }}>
-            <Meta icon="clock" label={formatDuration(task.minutes)} />
-            {task.startMinutes != null ? <Meta icon="calendar" label={formatClock(task.startMinutes)} /> : null}
-            <Meta icon="sun.max" label={SLOT_LABEL[task.slot]} />
-            {task.tag ? <Meta icon="tag" label={task.tag} /> : null}
-          </View>
+          <Rise delay={130} style={{ alignSelf: 'stretch' }}>
+            <Strike
+              struck={task.done}
+              identity={task.id}
+              variant="displayMd"
+              selectable
+              style={{ textAlign: 'center' }}
+            >
+              {task.title}
+            </Strike>
+          </Rise>
+
+          <Rise delay={200}>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: space.sm }}>
+              <Meta icon="clock" label={formatDuration(task.minutes)} />
+              {task.startMinutes != null ? <Meta icon="calendar" label={formatClock(task.startMinutes)} /> : null}
+              <Meta icon="sun.max" label={SLOT_LABEL[task.slot]} />
+              {task.tag ? <Meta icon="tag" label={task.tag} /> : null}
+            </View>
+          </Rise>
         </View>
 
         <View style={{ gap: space.md }}>
@@ -125,14 +146,18 @@ export default function TaskDetail() {
                     borderTopWidth: i === 0 ? 0 : 1, borderTopColor: c.hairline,
                   }}
                 >
-                  <Checkbox checked={s.done} onToggle={() => { haptic.tick(); toggleStep(task.id, s.id); }} size={22} subtle />
-                  <Txt
-                    variant="body"
-                    tone={s.done ? 'faint' : 'ink'}
-                    style={[{ flex: 1 }, s.done ? { textDecorationLine: 'line-through' } : null]}
-                  >
-                    {s.title}
-                  </Txt>
+                  <Checkbox
+                    checked={s.done}
+                    identity={s.id}
+                    onToggle={() => { haptic.tick(); toggleStep(task.id, s.id); }}
+                    size={22}
+                    subtle
+                  />
+                  <View style={{ flex: 1 }}>
+                    <Strike struck={s.done} identity={s.id} variant="body" tone="ink">
+                      {s.title}
+                    </Strike>
+                  </View>
                   <Pressable
                     onPress={() => { haptic.tap(); removeStep(task.id, s.id); }}
                     hitSlop={10} accessibilityRole="button" accessibilityLabel={`Remove ${s.title}`}
