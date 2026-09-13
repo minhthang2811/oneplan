@@ -105,6 +105,12 @@ transition, softening the swap so content does not appear to teleport. Set as
 `animation: 'fade'` in `app/(tabs)/_layout.tsx` (`'shift'` is the sliding one,
 and is the one to avoid).
 
+That option **must** be paired with `detachInactiveScreens={false}`. On iOS
+react-native-screens detaches a blurred tab from the native hierarchy by
+default, and a screen detached mid-fade comes back mounted, correctly laid out
+and invisible. Nothing errors — the view tree is intact and every element
+reports correct bounds — so only a screenshot reveals it.
+
 ## Onboarding shape
 
 Five steps: need → rhythm → **routines** → reminders → ready.

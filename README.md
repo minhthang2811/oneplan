@@ -132,13 +132,22 @@ Run the flows **one at a time**. Pointing Maestro at the whole directory runs
 them concurrently against the single simulator, where they fight each other and
 all fail.
 
-Two selector rules, learned the hard way and documented in the flows themselves:
+Rules learned the hard way, documented in the flows themselves:
 
 1. A selector is a **full regex match**, not a substring — a bare prefix fails,
    so partial matches need an explicit `.*`.
 2. On iOS this app's text lives in `accessibilityText`, so **a control matches on
    its `accessibilityLabel`, not its visible words**: the focus Start button is
    `Start 1 minute focus`, `+ 1 min` is `Add one minute`, `End` is `End session`.
+3. `tapOn: point:` percentages must be **whole numbers**. `"16.4%,93%"` throws
+   `NumberFormatException` at runtime, after the flow has already started.
+4. `launchApp` returns **before React has mounted**, so the first tap can land on
+   a blank window and silently do nothing. Assert something on the first screen
+   before interacting.
+5. **`assertVisible` matches the view hierarchy, not the pixels.** A screen that
+   is mounted and correctly laid out but drawn at opacity 0 passes every
+   assertion — which is exactly how the blank-tab bug got in. The
+   `takeScreenshot` calls are what catch that class of regression.
 
 ## Publishing to the App Store
 
