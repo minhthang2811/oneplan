@@ -62,6 +62,20 @@ export type Colors = {
   /** The chip's own top highlight, so the selection reads as a gel lozenge
    *  sitting IN the bar rather than as a flat swatch painted on it. */
   glassChipSheen: string;
+  /** The CRISP reflection — the hard, bright glint along the top of a convex
+   *  surface, and the small bloom just under it. Distinct from `glassSheen`,
+   *  which is the broad soft light across the whole dome: a gel surface has
+   *  both, and having only the soft one is what makes a pane read as flat. */
+  glassSpecular: string;
+  /** The bright arc at the BOTTOM rim, where light that entered the top has
+   *  travelled through the body and concentrated on the far side. This is the
+   *  single most droplet-like cue there is — a surface lit only from above
+   *  reads as a lid, not as something with a volume of material in it. */
+  glassCaustic: string;
+  /** The inset shade in the lower body, where a convex surface curves away
+   *  from the light. Drawn as a real `boxShadow` with `inset`, so it hugs the
+   *  rounded corners the way a painted gradient cannot. */
+  glassInnerShade: string;
 };
 
 export const palette: Record<'light' | 'dark', Colors> = {
@@ -86,10 +100,21 @@ export const palette: Record<'light' | 'dark', Colors> = {
     glassTint: 'rgba(252,250,247,0.62)',
     glassEdge: 'rgba(255,255,255,0.90)',
     glassEdgeDim: 'rgba(255,255,255,0.30)',
-    glassSheen: 'rgba(255,255,255,0.70)',
-    glassBounce: 'rgba(255,255,255,0.38)',
+    glassSheen: 'rgba(255,255,255,0.38)',
+    glassBounce: 'rgba(255,255,255,0.26)',
     glassChip: 'rgba(255,255,255,0.92)',
     glassChipSheen: 'rgba(255,255,255,0.95)',
+    /**
+     * LIGHT MODE HAS NO HEADROOM ABOVE WHITE, so its convexity is carried by
+     * the SHADE, not by the light. The pane's base is already ~250/255 once the
+     * blur and the scrim are down; piling white on top of that clipped the
+     * whole dome flat, measured at a 5-level range across the entire bar. The
+     * white values here are therefore restrained and `glassInnerShade` does the
+     * structural work. Dark mode is the mirror image and can afford the light.
+     */
+    glassSpecular: 'rgba(255,255,255,0.85)',
+    glassCaustic: 'rgba(255,255,255,0.34)',
+    glassInnerShade: 'rgba(23,19,15,0.22)',
   },
   dark: {
     canvas: '#0C0B0A',
@@ -116,6 +141,9 @@ export const palette: Record<'light' | 'dark', Colors> = {
     glassBounce: 'rgba(255,255,255,0.05)',
     glassChip: 'rgba(255,255,255,0.13)',
     glassChipSheen: 'rgba(255,255,255,0.20)',
+    glassSpecular: 'rgba(255,255,255,0.38)',
+    glassCaustic: 'rgba(255,255,255,0.15)',
+    glassInnerShade: 'rgba(0,0,0,0.58)',
   },
 };
 
@@ -158,24 +186,75 @@ export const glass = {
   intensity: 64,
   reductionFactor: 4.6,
   edgeWidth: 1,
+
   /**
-   * GEL, not just glass.
+   * GELMORPHISM — the convex profile.
    *
-   * Frosted glass is flat — it blurs what is behind it and stops. What makes a
-   * surface read as a soft, slightly rubbery *gel* is that it also has a body:
-   * light lands on the top of it, bends through it, and bounces back into its
-   * underside. Three numbers carry that, and they are all fractions of the
-   * pane's own height so the material scales with the component.
+   * Frosted glass is FLAT: it blurs what is behind it, takes one linear wash of
+   * light from top to bottom, and stops. That linear ramp is exactly what makes
+   * it read as a flat pane angled at a lamp. A gel surface is CONVEX, and a
+   * convex surface does not fall off linearly:
+   *
+   *     bright ┤●                                    ← crisp specular, at the peak
+   *            │ ●
+   *            │   ●●                                ← fast falloff off the crown
+   *            │      ●●●●
+   *            │           ●●●●●●●●●●●●              ← long shallow trough
+   *      dark  ┤                        ●●●●●
+   *            │                             ●●
+   *            │                                ●    ← caustic: light that entered
+   *            └────────────────────────────────┘      the top, refracted through
+   *             top                          bottom    the body, and concentrated
+   *                                                    on the FAR rim
+   *
+   * The numbers below are that curve, as gradient stop offsets down the pane's
+   * own height. Spacing them evenly is what turns a droplet back into a pane —
+   * the unevenness IS the curvature.
    */
-  /** How far down the pane the specular sheen reaches before it is gone. */
+  /** Where the crisp top glint has fully decayed. Tight: a specular is a
+   *  reflection of the light SOURCE, not a wash, and a soft one is just the
+   *  sheen again. */
+  specularStop: 0.13,
+  /** How far in from each end of a pill the crisp glint starts and stops, as a
+   *  fraction of width. A highlight that runs edge to edge at full strength
+   *  reads as a painted stripe; a real one falls off where the surface turns
+   *  away round the ends. */
+  specularInset: 0.12,
+  /** The broad dome light: bright at the crown, mostly gone by here. */
   sheenStop: 0.46,
+  /** The bottom of the trough — the darkest part of the body, where the surface
+   *  has curved furthest from the light but the caustic has not yet begun. */
+  troughStop: 0.78,
   /** Where the bounce light off the content below fades out, measured up from
    *  the bottom edge. */
   bounceStop: 0.22,
+  /** Where the caustic starts to climb on the way to the bottom rim. */
+  causticStop: 0.88,
+
+  /**
+   * The radial hotspot. A vertical gradient alone describes a CYLINDER — correct
+   * for the long axis of a pill, and still wrong, because it has no left-right
+   * variation at all and so reads as extruded. One off-centre elliptical bloom
+   * is what says "a light source is over there" and turns the extrusion into an
+   * object. Centre is a fraction of the pane's own box.
+   */
+  hotspot: { cx: 0.32, cy: 0.06, rx: 0.42, ry: 0.95 },
+
+  /**
+   * The inset rim shade, in points. Drawn as a real `boxShadow` with
+   * `inset: true` rather than as another painted gradient, because a shadow
+   * follows the rounded corners exactly and a rectangle of gradient does not —
+   * on a pill that difference is the whole bottom third of the shape.
+   */
+  innerShade: { y: -6, blur: 10 },
+  /** The matching inset LIGHT at the top, which is what actually makes the
+   *  surface look like it bulges towards you rather than being dented in. */
+  innerLight: { y: 3, blur: 6 },
+
   /** The lit edge is brightest at the top and dimmest at the bottom; this is
    *  how far round the stroke has travelled when it has fully dimmed. Less
    *  than 1 so the very bottom keeps a trace of light rather than going dead. */
-  edgeFalloff: 0.78,
+  edgeFalloff: 0.62,
 } as const;
 
 export const radius = {
@@ -232,6 +311,18 @@ export const motion = {
   settle: { duration: 400, dampingRatio: 1 } as const,
   sheet: { duration: 300, dampingRatio: 0.8 } as const,
   press: 120,
+  /**
+   * The ELASTIC RELEASE. A gel surface pressed and let go does not return to
+   * rest, it rebounds — so the press-out is a spring with a visible overshoot
+   * while the press-IN stays a 120ms timing.
+   *
+   * That asymmetry is the whole design, and it is what keeps this affordable on
+   * an action performed a hundred times a day. Contact has to be reported
+   * instantly or the control feels laggy, so nothing springy is allowed on the
+   * way down. The rebound happens after the user has already got their answer,
+   * costs them no waiting, and is the only part that reads as "material".
+   */
+  release: { duration: 420, dampingRatio: 0.55 } as const,
   enter: 240,
   exit: 160,
 

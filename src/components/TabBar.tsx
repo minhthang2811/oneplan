@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { View, Pressable, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -7,7 +7,6 @@ import Animated, {
   runOnJS, useReducedMotion, interpolate, Extrapolation,
   type SharedValue,
 } from 'react-native-reanimated';
-import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 /**
  * Structural type over only what this bar touches. Expo Router vendors
  * React Navigation under `build/`, and deep-importing that path breaks on
@@ -27,9 +26,9 @@ import { Txt } from './Txt';
 import { Icon } from './Icon';
 import { CalendarDayIcon } from './CalendarDayIcon';
 import { GlassPanel } from './Glass';
+import { GelSurface, gelInsetShadow } from './Gel';
 import { useTheme } from '../theme/useTheme';
-import { glass, motion, radius, space } from '../theme/tokens';
-import { svgStop } from '../theme/svgColor';
+import { motion, radius, space } from '../theme/tokens';
 import { haptic } from '../lib/haptics';
 
 export const TAB_BAR_HEIGHT = 64;
@@ -281,6 +280,9 @@ export function TabBar({ state, navigation }: TabBarProps) {
                     height: CHIP_HEIGHT,
                     borderRadius: radius.pill,
                     backgroundColor: c.glassChip,
+                    // Same convex rim as the bar, softened — the chip is a
+                    // small droplet in a large one, not a slab on a pane.
+                    boxShadow: gelInsetShadow(c.glassInnerShade, c.glassSpecular, 0.5),
                   },
                   chip,
                 ]}
@@ -322,28 +324,20 @@ export function TabBar({ state, navigation }: TabBarProps) {
 }
 
 /**
- * The chip's own lighting. Fixed dimensions, so unlike `GlassPanel` it needs no
- * measurement pass — the chip's size is derived from the bar's.
+ * The chip's own lighting — the SAME material as the bar, at lower strength.
+ *
+ * Lower, because the chip sits ON the bar and already has the bar's own
+ * lighting behind it; at full strength it stops reading as a droplet resting in
+ * a pane and starts reading as a second competing object stuck on top.
+ *
+ * Fixed dimensions, so unlike `GlassPanel` it needs no measurement pass — the
+ * chip's size is derived from the bar's. And because the chip's motion is a
+ * transform on its PARENT view, this whole surface is rasterised once and then
+ * moved by the compositor: the specular smears as the blob stretches, which is
+ * what a highlight on moving liquid actually does, and it costs nothing.
  */
 function ChipGel({ w, h }: { w: number; h: number }) {
-  const { c } = useTheme();
-  const uid = useId().replace(/:/g, '');
-  const rx = h / 2;
-  // Separated, because react-native-svg drops an `rgba()` stop's alpha — see
-  // `svgColor.ts`.
-  const sheen = svgStop(c.glassChipSheen);
-
-  return (
-    <Svg width={w} height={h} style={StyleSheet.absoluteFill} pointerEvents="none">
-      <Defs>
-        <LinearGradient id={`chip${uid}`} x1="0" y1="0" x2="0" y2="1">
-          <Stop offset="0" stopColor={sheen.stopColor} stopOpacity={sheen.stopOpacity} />
-          <Stop offset={glass.sheenStop} stopColor={sheen.stopColor} stopOpacity={0} />
-        </LinearGradient>
-      </Defs>
-      <Rect x={0} y={0} width={w} height={h} rx={rx} ry={rx} fill={`url(#chip${uid})`} />
-    </Svg>
-  );
+  return <GelSurface w={w} h={h} radius={h / 2} strength={0.72} />;
 }
 
 /**

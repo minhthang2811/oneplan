@@ -98,9 +98,25 @@ Decided by the frequency gate, in this order:
   that away for control nobody asked for. What the platform *cannot* do is give
   an arriving screen's contents any continuity with where you came from, so
   that is what `Rise` adds — see **Arrival** below.
-- **Press feedback** (tens of times a day): 120ms, ease-out
-  `bezier(0.23, 1, 0.32, 1)`, on press-*in*. Buttons and cards scale to 0.97;
-  list rows take a background highlight and never scale.
+- **Press feedback** (tens of times a day) is **asymmetric, and the asymmetry is
+  the design.** Down is a 120ms ease-out `bezier(0.23, 1, 0.32, 1)`, unchanged —
+  contact has to be reported immediately or the control feels laggy, so nothing
+  springy is allowed on the way down. Up is a spring with a visible overshoot
+  (`motion.release`), because a gel surface that is pressed and released
+  rebounds rather than sliding back. The rebound happens *after* the user
+  already has their answer, so it costs them no waiting, which is what keeps it
+  affordable at this frequency.
+
+  It **flattens rather than shrinks**: X and Y are scaled by different amounts
+  (0.55× and 1.45× of the same delta), because a droplet under a finger spreads
+  — the material has to go somewhere. A uniform scale is just a view getting
+  smaller.
+
+  **List rows still never scale, and that is the boundary of the treatment.** A
+  squish is a property of a discrete object with edges you can see; a row's
+  edges are shared with the rows above and below, so squishing one announces it
+  as a separate object and makes the list read as a pile of loose cards. The
+  material language stops where the objects stop being separate.
 - **Gestures**: the focus dial tracks the finger 1:1 on the UI thread, snaps to
   a whole minute on release with `{ duration: 400, dampingRatio: 1 }`, and has a
   haptic detent every five minutes.
@@ -167,34 +183,77 @@ as a shape. The tick is there so selection never depends on colour alone.
 `GlassPanel` is the one glass primitive, and it renders **gel** rather than
 plain frosted glass.
 
-Frosted glass is flat: it blurs what is behind it and stops, and at that point
-the only thing separating it from a grey box is the hairline round its edge.
-What makes a surface read as a soft, slightly rubbery *gel* is that it has a
-**body** — light lands on the top of it, travels through it, and bounces back up
-into its underside from the content below. Three layers carry that, drawn in one
-SVG because they all need the same rounded-rectangle geometry:
+Flat glassmorphism is a blur, a scrim, and a hairline — and every one of those
+is a property of a **flat pane**, which is why it always reads as a sheet of
+frosted acrylic laid on the screen. Gel reads as a droplet of material *resting*
+on the screen. The whole difference is in how it handles light, and it is
+defined once in `src/components/Gel.tsx` so the tab bar and its selection chip
+cannot drift apart.
 
-| Layer | What it is | Why |
+### The convex profile
+
+A flat pane takes a **linear** wash of light. A convex one does not:
+
+```
+bright ┤●                                    ← crisp specular, at the peak
+       │ ●
+       │   ●●                                ← fast falloff off the crown
+       │      ●●●●
+       │           ●●●●●●●●●●●●              ← long shallow trough
+ dark  ┤                        ●●●●●
+       │                             ●●
+       │                                ●    ← caustic: light that entered the
+       └────────────────────────────────┘      top, refracted through the body,
+        top                          bottom    and concentrated on the FAR rim
+```
+
+Those stop offsets live in `glass` (`specularStop`, `sheenStop`, `troughStop`,
+`causticStop`). **Spacing them evenly turns the droplet back into a pane — the
+unevenness *is* the curvature.**
+
+| Layer | What it is | Why it matters |
 |---|---|---|
-| **Sheen** | A bright smear across the upper ~46%, `glassSheen` → transparent | The single biggest difference between this and a plain `BlurView`. It is where the pane faces the light. |
-| **Bounce** | A faint lift in the bottom ~22%, `glassBounce` | Light reflected off the content below. Without it the lower edge reads as a cut rather than as the far side of a solid object. |
-| **Edge** | The hairline, **graded** from `glassEdge` at the top to `glassEdgeDim` at the bottom | A uniform hairline all the way round is the tell that a surface is a rectangle with a border rather than an object sitting in light. Real edges only catch the light they face. |
+| **Dome** | Five-stop vertical gradient following the curve above | Most of the convexity. A two-stop ramp is the flat-pane tell. |
+| **Specular** | A crisp ellipse hugging the crown, inset from both ends | The reflection of the light *source*, not a wash. Having only the soft sheen is the single biggest tell of flat glassmorphism. |
+| **Hotspot** | One off-centre radial bloom | A purely vertical gradient describes a *cylinder* — no left-right variation at all, so it reads as extruded. The bloom gives it a light source in the room. |
+| **Caustic** | The bright arc at the bottom rim | A surface lit only from above reads as a lid. The bright far rim is what says there is a *volume* of material in between. |
+| **Bounce** | Soft lift in the bottom ~22% | Light reflected off the content below. |
+| **Rim** | Graded stroke: lit at top, dark through the middle, **bright again at the very bottom** | A rim that only dims is a lit pane; a rim that comes back is a droplet. |
+| **Inset shade** | A real `boxShadow` with `inset: true`, paired with an inset *light* at the top | Not another painted gradient: a shadow follows the rounded corners exactly and a rectangle of gradient does not — on a pill that is the whole bottom third of the shape. The paired top light is what makes the surface bulge *toward* you; the dark alone is a bowl. |
 
-**Colour and opacity are handed to every gradient stop separately**, via
-`svgStop` in `src/theme/svgColor.ts`. `react-native-svg` DROPS THE ALPHA out of
-an `rgba()` used as a `stopColor` and paints the stop fully opaque. It is a
-nasty bug because it is nearly invisible in the theme you are most likely to be
-looking at: the sheen is `rgba(255,255,255,0.70)` in light, where losing the
-alpha reads as "a bit bright", and `rgba(255,255,255,0.13)` in dark, where it
-turns a whisper of light into a silver bar — the top of the tab bar measured
-**(227,227,227) on a (26,23,21) canvas** before this was fixed, against
-**(56,54,53)** after. The graded edge failed the same way and worse: `glassEdge`
-and `glassEdgeDim` both went opaque white, so the grading that is the entire
-point of it graded from white to white. Everywhere *else* in react-native-svg —
-`fill`, `stroke`, `color` — `rgba()` is handled correctly, which is why the
-tokens stay `rgba()` and the split happens at the gradient boundary.
+### Light mode has no headroom above white
 
-The pane **measures itself** before drawing any of it: SVG needs real numbers,
+This is the thing that cost the most to learn and is the least obvious. The
+pane's base is already **~250/255** once the blur and the scrim are down, so
+piling white on top of it clips the entire dome flat: the first attempt measured
+a **5-level luminance range across the whole bar**. Convexity in light mode has
+to be carried by the **shade**, not by the light.
+
+The two themes are therefore not symmetrical, on purpose. Light keeps its whites
+restrained and lets `glassInnerShade` do the structural work; dark has all its
+headroom above and can afford the glossy specular. Measured on the tab bar:
+
+| Theme | crown | trough | caustic lift | range |
+|---|---|---|---|---|
+| Light | 254 | 249 → 211 | back to 229 | 43 |
+| Dark | 162 | 27 | back to 37 | 135 |
+
+### Why a rich static material is affordable
+
+The metaball investigation measured exactly this trade-off: a **static**
+filtered or gradient region is rasterised once and costs nothing (60.0fps,
+16.67ms), while an **animated** one is re-rasterised every frame (15.0fps,
+66.68ms). Nothing in the gel animates. The selection chip *does* move, but by a
+transform on its parent view — a compositor operation on an already-rasterised
+layer, not a repaint — so it gets the full material, and its specular smears as
+the blob stretches, which is what a highlight on moving liquid actually does.
+
+The chip renders the same `GelSurface` at `strength={0.72}`, because it sits
+*on* the bar and already has the bar's lighting behind it; at full strength it
+stops reading as a droplet resting in a pane and starts reading as a second
+object stuck on top.
+
+The pane **measures itself** before drawing any of it:The pane **measures itself** before drawing any of it: SVG needs real numbers,
 because a percentage `rx` cannot express "a pill" and a percentage stroke cannot
 be a hairline. The blur and the scrim are already painted by then, so there is
 no visible pop — what *would* pop is guessing the height and getting the corner

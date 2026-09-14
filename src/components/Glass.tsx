@@ -1,14 +1,13 @@
-import { useId, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { View, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
 import { BlurView } from 'expo-blur';
-import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { useTheme } from '../theme/useTheme';
 import { glass } from '../theme/tokens';
-import { svgStop } from '../theme/svgColor';
+import { GelSurface, gelInsetShadow } from './Gel';
 
 /**
- * A pane of GEL: blur, a legibility scrim, a specular sheen, bounce light, and
- * an edge that is lit on top and dark underneath.
+ * A pane of GEL: a blur, a legibility scrim, the convex lighting from
+ * `Gel.tsx`, and an inset rim that makes the surface bulge toward you.
  *
  * ── GLASS VS GEL ───────────────────────────────────────────────────────────
  * Frosted glass is flat. It blurs what is behind it and stops, and at that
@@ -17,18 +16,11 @@ import { svgStop } from '../theme/svgColor';
  * has a BODY: light lands on the top of it, travels through it, and bounces
  * back up into its underside from the content below.
  *
- * Three layers carry that, and they are drawn in one SVG because they all need
- * the same rounded-rectangle geometry:
- *
- *   SHEEN   A bright smear across the upper ~46%, where the pane faces the
- *           light. This is the single biggest difference between this and a
- *           plain BlurView.
- *   BOUNCE  A faint lift in the bottom ~22%. Without it the lower edge reads as
- *           a cut rather than as the far side of a solid object.
- *   EDGE    The hairline, GRADED from `glassEdge` at the top to `glassEdgeDim`
- *           at the bottom. A uniform hairline all the way round is the tell
- *           that a surface is a rectangle with a border rather than an object
- *           sitting in light — real edges only catch the light they face.
+ * ALL OF THAT LIGHTING LIVES IN `Gel.tsx`, not here, because the tab bar's
+ * selection chip is the same material at a lower strength and the two must not
+ * drift apart. This file's remaining job is the three structural traps below,
+ * plus the inset rim shading, which cannot be painted in SVG — see
+ * `gelInsetShadow`.
  *
  * ── THE THREE ORIGINAL TRAPS, ALL STILL LIVE ───────────────────────────────
  * 1. `BlurView` IGNORES an explicit `borderRadius` (documented in expo-blur),
@@ -78,6 +70,14 @@ export function GlassPanel({
             borderRadius: radius,
             borderCurve: 'continuous',
             overflow: 'hidden',
+            /**
+             * The convex rim shading. Inset shadows draw INSIDE the view, so
+             * unlike the drop shadow on the wrapper above they survive
+             * `overflow: 'hidden'` perfectly happily — and they follow the
+             * pill's corners, which is the entire reason they are not painted
+             * as another gradient.
+             */
+            boxShadow: gelInsetShadow(c.glassInnerShade, c.glassSpecular),
           },
           contentStyle,
         ]}
@@ -95,83 +95,10 @@ export function GlassPanel({
         />
         <View style={[StyleSheet.absoluteFill, { backgroundColor: c.glassTint }]} pointerEvents="none" />
 
-        {size ? <Gel w={size.w} h={size.h} radius={radius} /> : null}
+        {size ? <GelSurface w={size.w} h={size.h} radius={radius} /> : null}
 
         {children}
       </View>
     </View>
-  );
-}
-
-/**
- * The lighting pass. Everything here is static paint — it does not animate, and
- * it sits under `children` so chrome never has a sheen laid over the top of it.
- */
-function Gel({ w, h, radius }: { w: number; h: number; radius: number }) {
-  const { c } = useTheme();
-  /**
-   * SVG gradient ids are resolved per `<Svg>` document, but two panes that both
-   * define `#sheen` is exactly the kind of thing that works until the day it
-   * does not. `useId` makes the reference unambiguous for the cost of a string.
-   */
-  const uid = useId().replace(/:/g, '');
-
-  /**
-   * Colour and opacity have to be handed to a gradient stop SEPARATELY —
-   * react-native-svg drops the alpha out of an `rgba()` `stopColor`. See
-   * `svgColor.ts`; this is the bug that turned the dark tab bar silver.
-   */
-  const sheen = svgStop(c.glassSheen);
-  const bounce = svgStop(c.glassBounce);
-  const edgeLit = svgStop(c.glassEdge);
-  const edgeDim = svgStop(c.glassEdgeDim);
-
-  const ew = glass.edgeWidth;
-  /** A pill's `radius` is 999; SVG needs the real corner, which caps at half. */
-  const rx = Math.min(radius, w / 2, h / 2);
-  /** The stroke straddles the path, so inset by half of it to keep all of the
-   *  hairline inside the clip instead of losing half to `overflow: hidden`. */
-  const inset = ew / 2;
-
-  return (
-    <Svg width={w} height={h} style={StyleSheet.absoluteFill} pointerEvents="none">
-      <Defs>
-        {/* Top-down. The light is above the phone, which is where a hand holds
-            it and where every iOS material assumes it is. */}
-        <LinearGradient id={`sheen${uid}`} x1="0" y1="0" x2="0" y2="1">
-          <Stop offset="0" stopColor={sheen.stopColor} stopOpacity={sheen.stopOpacity} />
-          <Stop offset={glass.sheenStop} stopColor={sheen.stopColor} stopOpacity={0} />
-        </LinearGradient>
-
-        {/* Bottom-up, and much fainter — this is reflected light, not source. */}
-        <LinearGradient id={`bounce${uid}`} x1="0" y1="1" x2="0" y2="0">
-          <Stop offset="0" stopColor={bounce.stopColor} stopOpacity={bounce.stopOpacity} />
-          <Stop offset={glass.bounceStop} stopColor={bounce.stopColor} stopOpacity={0} />
-        </LinearGradient>
-
-        {/* The graded hairline. It fades to a DIMMER LIGHT rather than to
-            nothing, so the bottom keeps a trace of light instead of dissolving
-            into the blur and leaving the pane looking like it has no bottom. */}
-        <LinearGradient id={`edge${uid}`} x1="0" y1="0" x2="0" y2="1">
-          <Stop offset="0" stopColor={edgeLit.stopColor} stopOpacity={edgeLit.stopOpacity} />
-          <Stop offset={glass.edgeFalloff} stopColor={edgeDim.stopColor} stopOpacity={edgeDim.stopOpacity} />
-          <Stop offset="1" stopColor={edgeDim.stopColor} stopOpacity={edgeDim.stopOpacity} />
-        </LinearGradient>
-      </Defs>
-
-      <Rect x={0} y={0} width={w} height={h} rx={rx} ry={rx} fill={`url(#sheen${uid})`} />
-      <Rect x={0} y={0} width={w} height={h} rx={rx} ry={rx} fill={`url(#bounce${uid})`} />
-      <Rect
-        x={inset}
-        y={inset}
-        width={w - ew}
-        height={h - ew}
-        rx={Math.max(0, rx - inset)}
-        ry={Math.max(0, rx - inset)}
-        fill="none"
-        stroke={`url(#edge${uid})`}
-        strokeWidth={ew}
-      />
-    </Svg>
   );
 }
