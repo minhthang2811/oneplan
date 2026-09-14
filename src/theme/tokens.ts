@@ -342,6 +342,21 @@ export const motion = {
    * The launch sequence, in one place because the four beats have to add up:
    * Pip settles, the ground blooms, both leave, the app is revealed. Changing
    * one number here without the others is what turns a launch into a wait.
+   *
+   * ── THE BUDGET ─────────────────────────────────────────────────────────
+   * These four numbers sum to the delay between tapping the icon and being
+   * able to use the app, and that sum is the only figure that matters. It was
+   * 2020ms, which is long enough that the animation stopped being a flourish
+   * and became a wait — the complaint was that Pip "takes too long to appear",
+   * and the honest reading of that is not that one beat was slow but that
+   * there were 260ms of dead air before anything moved and 2s of performance
+   * after it.
+   *
+   * It is now 1340ms. Every beat is shorter and NONE of them is gone: a launch
+   * that drops the hold reads as a stutter, and one that drops the handoff
+   * gets a double exposure. Shortening all four keeps the shape and halves the
+   * wait, which is the only trade available — the sequence is not compressible
+   * past the point where the eye can land on the brand at all.
    */
   launch: {
     /**
@@ -351,13 +366,66 @@ export const motion = {
      * layout, and the wake's delay in `LaunchScreen`. If they ever disagree you
      * get a moment with a static Pip and a moving Pip cross-fading through each
      * other, which looks like a double exposure.
+     *
+     * 140ms is the floor: below about 120 the cross-fade stops reading as a
+     * dissolve and starts reading as a cut, which is the exact seam this
+     * number exists to hide.
      */
-    handoff: 260,
+    handoff: 140,
     /** Pip's wake-up, starting the instant the native splash has handed over. */
-    wake: { duration: 720, dampingRatio: 0.58 } as const,
+    wake: { duration: 520, dampingRatio: 0.6 } as const,
     /** How long the finished frame is allowed to simply be looked at. */
-    hold: 420,
+    hold: 220,
     /** The iris opening out to the app underneath. */
-    reveal: 620,
+    reveal: 460,
   } as const,
+
+  /**
+   * COMPLETION — the checkbox's beats.
+   *
+   * Lifted out of the component because the four of them have to stay in
+   * proportion: the fill has to have area before the tick is drawn on it, and
+   * the burst has to leave after the tick lands or it reads as two unrelated
+   * animations that happened to fire together.
+   */
+  check: {
+    /** Contact. The only beat that also fires on the way OUT. */
+    squish: 90,
+    /** The disc springing up from the centre. */
+    fill: { duration: 380, dampingRatio: 0.58 } as const,
+    /** Held back until the disc has most of its area. */
+    drawDelay: 60,
+    draw: 210,
+    /** The spokes flying out. Longer than the draw, so it is still leaving
+     *  when the tick has landed — one gesture, not two. */
+    burst: 520,
+    /** Undo: quicker than the commit, and with no burst. */
+    undo: 150,
+  } as const,
+} as const;
+
+/**
+ * THE SCROLL EDGE.
+ *
+ * Apple's name for it, and their description of what it is for: "Scroll edge
+ * effects further enhance legibility by blurring and reducing the opacity of
+ * background content." It is the top counterpart to the floating tab bar —
+ * content passing under the status bar gets a graded blur so the chrome above
+ * it stays readable without a hard, permanently-drawn bar.
+ *
+ * The numbers are all in scroll points, because the effect has to be a function
+ * of how far the content has travelled rather than of time.
+ */
+export const scrollEdge = {
+  /** How far the content must scroll before the edge is at full strength. A
+   *  short ramp reads as a switch; a long one never arrives. */
+  ramp: 64,
+  /** Scroll distance in one direction before the compact bar commits to
+   *  showing or hiding. Without a threshold the bar flickers on the rubber-band
+   *  at the top of the list and on every small correction mid-scroll. */
+  hysteresis: 28,
+  /** How far past the top the list must be before hiding is allowed at all —
+   *  hiding chrome while the user is still near the top of their day is the
+   *  one case where it is certainly wrong. */
+  hideAfter: 96,
 } as const;

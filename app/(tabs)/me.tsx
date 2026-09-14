@@ -1,41 +1,59 @@
 import { useMemo } from 'react';
-import { View, ScrollView, Switch, Pressable, ActionSheetIOS, Alert, Linking } from 'react-native';
+import { View, ScrollView, ActionSheetIOS, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Txt } from '../../src/components/Txt';
-import { Icon } from '../../src/components/Icon';
 import { Bloom } from '../../src/components/Bloom';
 import { PipScene } from '../../src/components/mascot/PipScene';
 import { TAB_BAR_HEIGHT } from '../../src/components/TabBar';
+import { Section, RowItem } from '../../src/components/Settings';
+import { ScrollEdge } from '../../src/components/ScrollEdge';
+import { useChromeScroll } from '../../src/components/Chrome';
 import { useTheme } from '../../src/theme/useTheme';
 import { radius, space } from '../../src/theme/tokens';
-import { usePlanStore } from '../../src/store/usePlanStore';
+import { usePlanStore, routineSteps } from '../../src/store/usePlanStore';
+import { ROUTINE_SLOTS } from '../../src/data/routines';
 import { dateKey, formatDuration } from '../../src/lib/time';
 import { haptic } from '../../src/lib/haptics';
-import { requestNotificationPermission } from '../../src/lib/notifications';
-import type { SymbolViewProps } from 'expo-symbols';
+
+const APPEARANCE_LABEL = {
+  system: 'Follows system',
+  light: 'Light',
+  dark: 'Dark',
+} as const;
 
 export default function Me() {
   const insets = useSafeAreaInsets();
   const { c } = useTheme();
+  const scroll = useChromeScroll();
+
   const tasks = usePlanStore((s) => s.tasks);
   const profile = usePlanStore((s) => s.profile);
   const layout = usePlanStore((s) => s.layout);
   const setLayout = usePlanStore((s) => s.setLayout);
   const resetOnboarding = usePlanStore((s) => s.resetOnboarding);
+  const { isDark } = useTheme();
 
   /**
-   * What onboarding picked, read back. Without this the routine choice becomes
-   * invisible the moment the tasks it created are edited, and there is nowhere
-   * to check what the plan thinks your day looks like.
+   * What the routines actually contain, read back.
+   *
+   * Counted through `routineSteps` rather than off `profile.routines` directly,
+   * so a stored id with no step behind it — a catalogue entry retired by a
+   * newer build — is not counted as something the user still has. The row
+   * would otherwise promise "8 steps" and open a screen showing seven.
    */
   const routineSummary = useMemo(() => {
-    const r = profile.routines;
-    const parts = ([ 'morning', 'afternoon', 'evening' ] as const).filter((k) => r[k]?.length);
-    const total = parts.reduce((n, k) => n + r[k].length, 0);
+    const total = ROUTINE_SLOTS.reduce((n, slot) => n + routineSteps(profile, slot).length, 0);
     if (total === 0) return 'None set';
-    return `${total} picked`;
-  }, [profile.routines]);
+    const slots = ROUTINE_SLOTS.filter((slot) => routineSteps(profile, slot).length).length;
+    return `${total} ${total === 1 ? 'step' : 'steps'} · ${slots} of 3`;
+  }, [profile]);
+
+  const remindersSummary = !profile.reminders
+    ? 'Off'
+    : profile.reminderLead === 0
+      ? 'As things start'
+      : `${formatDuration(profile.reminderLead)} before`;
 
   const stats = useMemo(() => {
     const today = dateKey(new Date());
@@ -45,30 +63,16 @@ export default function Me() {
     return { done: done.length, total: todays.length, planned };
   }, [tasks]);
 
-  const toggleReminders = async (on: boolean) => {
-    haptic.tick();
-    // Turning this on has to survive an earlier "Don't Allow": iOS answers the
-    // second request instantly with the stored denial and shows no prompt, so
-    // the only honest move is to leave the switch off and point at Settings.
-    if (on && !(await requestNotificationPermission())) {
-      Alert.alert(
-        'Notifications are off',
-        'Allow notifications for Oneplan in Settings to get a nudge when an activity starts.',
-        [
-          { text: 'Not now', style: 'cancel' },
-          { text: 'Open Settings', onPress: () => Linking.openSettings() },
-        ]
-      );
-      return;
-    }
-    usePlanStore.setState((s) => ({ profile: { ...s.profile, reminders: on } }));
-  };
-
   const pickLayout = () => {
     haptic.tap();
     if (process.env.EXPO_OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions(
-        { options: ['Compact', 'Timeline', 'Cancel'], cancelButtonIndex: 2, title: 'Day layout' },
+        {
+          options: ['Compact', 'Timeline', 'Cancel'],
+          cancelButtonIndex: 2,
+          title: 'Day layout',
+          userInterfaceStyle: isDark ? 'dark' : 'light',
+        },
         (i) => { if (i === 0) setLayout('compact'); if (i === 1) setLayout('timeline'); }
       );
     } else {
@@ -86,12 +90,14 @@ export default function Me() {
       ActionSheetIOS.showActionSheetWithOptions(
         {
           options: ['Start over', 'Cancel'], destructiveButtonIndex: 0, cancelButtonIndex: 1,
-          title: 'Run onboarding again?', message: 'Your activities are kept.',
+          title: 'Run onboarding again?',
+          message: 'Your activities, appearance and reminder settings are kept.',
+          userInterfaceStyle: isDark ? 'dark' : 'light',
         },
         (i) => { if (i === 0) go(); }
       );
     } else {
-      Alert.alert('Run onboarding again?', 'Your activities are kept.', [
+      Alert.alert('Run onboarding again?', 'Your activities, appearance and reminder settings are kept.', [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Start over', style: 'destructive', onPress: go },
       ]);
@@ -101,7 +107,8 @@ export default function Me() {
   return (
     <View style={{ flex: 1, backgroundColor: c.canvas }}>
       <ScrollView
-        contentInsetAdjustmentBehavior="automatic"
+        {...scroll}
+        contentInsetAdjustmentBehavior="never"
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
           paddingHorizontal: space.lg,
@@ -143,16 +150,30 @@ export default function Me() {
             value={layout === 'compact' ? 'Compact' : 'Timeline'}
             onPress={pickLayout}
           />
-          <RowItem icon="repeat" label="Routines" value={routineSummary} />
+          {/* Both of these used to be dead ends: Routines showed a count and
+              could not be opened, and Reminders was a bare switch with nothing
+              behind it. They are screens now. */}
+          <RowItem
+            icon="repeat"
+            label="Routines"
+            value={routineSummary}
+            onPress={() => router.push('/routines')}
+          />
           <RowItem
             icon="bell"
             label="Reminders"
-            trailing={<Switch value={profile.reminders} onValueChange={toggleReminders} />}
+            value={remindersSummary}
+            onPress={() => router.push('/settings/reminders')}
           />
         </Section>
 
         <Section title="About">
-          <RowItem icon="paintpalette" label="Appearance" value="Follows system" />
+          <RowItem
+            icon="paintpalette"
+            label="Appearance"
+            value={APPEARANCE_LABEL[profile.appearance] ?? 'Follows system'}
+            onPress={() => router.push('/settings/appearance')}
+          />
           <RowItem icon="lock" label="Your data" value="On this device" />
           <RowItem icon="arrow.counterclockwise" label="Run onboarding again" onPress={startOver} />
         </Section>
@@ -161,6 +182,8 @@ export default function Me() {
           Oneplan 1.0
         </Txt>
       </ScrollView>
+
+      <ScrollEdge title="Me" />
     </View>
   );
 }
@@ -178,62 +201,5 @@ function Stat({ label, value, sub }: { label: string; value: string; sub: string
       <Txt variant="displaySm" tabular>{value}</Txt>
       <Txt variant="caption" tone="muted">{sub}</Txt>
     </View>
-  );
-}
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  const { c, shadow } = useTheme();
-  return (
-    <View style={{ gap: space.sm }}>
-      <Txt variant="micro" tone="faint">{title.toUpperCase()}</Txt>
-      <View style={{ borderRadius: radius.card, borderCurve: 'continuous', backgroundColor: c.surface, boxShadow: shadow[1], overflow: 'hidden' }}>
-        {children}
-      </View>
-    </View>
-  );
-}
-
-function RowItem({
-  icon, label, value, onPress, trailing,
-}: {
-  icon: SymbolViewProps['name'];
-  label: string;
-  value?: string;
-  onPress?: () => void;
-  trailing?: React.ReactNode;
-}) {
-  const { c } = useTheme();
-  const body = (
-    <View
-      style={{
-        flexDirection: 'row', alignItems: 'center', gap: space.md,
-        paddingHorizontal: space.base, paddingVertical: 14, minHeight: 54,
-      }}
-    >
-      <Icon name={icon} size={17} color={c.inkMuted} />
-      {/* The label keeps priority on space and the value gives way. Without
-          `flexShrink` on the value, a long one takes its full natural width and
-          squeezes the label to nothing — at large Dynamic Type sizes the label
-          then wraps to ONE CHARACTER PER LINE rather than truncating. */}
-      <Txt variant="body" style={{ flex: 1 }} numberOfLines={2}>{label}</Txt>
-      {value ? (
-        <Txt
-          variant="body"
-          tone="muted"
-          numberOfLines={1}
-          style={{ flexShrink: 1, textAlign: 'right' }}
-        >
-          {value}
-        </Txt>
-      ) : null}
-      {trailing}
-      {onPress ? <Icon name="chevron.right" size={12} color={c.inkFaint} weight="semibold" /> : null}
-    </View>
-  );
-  if (!onPress) return body;
-  return (
-    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={label}>
-      {body}
-    </Pressable>
   );
 }

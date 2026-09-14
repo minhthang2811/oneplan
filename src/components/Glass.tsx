@@ -1,7 +1,9 @@
 import { useState, type ReactNode } from 'react';
 import { View, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
 import { BlurView } from 'expo-blur';
-import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
+import {
+  GlassView, GlassContainer, isLiquidGlassAvailable, isGlassEffectAPIAvailable,
+} from 'expo-glass-effect';
 import { useTheme } from '../theme/useTheme';
 import { glass } from '../theme/tokens';
 import { GelSurface, gelInsetShadow } from './Gel';
@@ -16,8 +18,51 @@ import { GelSurface, gelInsetShadow } from './Gel';
  *
  * `expo-glass-effect` needs **iOS 26+** and falls back to a plain `View`
  * everywhere else, so everywhere else has to be our own material.
+ *
+ * ── BOTH CHECKS, NOT JUST THE OBVIOUS ONE ──────────────────────────────────
+ * `isLiquidGlassAvailable()` answers "was this binary compiled against an SDK
+ * that has Liquid Glass, running on an OS that has it". `isGlassEffectAPIAvailable()`
+ * answers "is the API actually there at runtime", which is a different question
+ * on the iOS 26 betas that shipped the OS version without the glass API. On
+ * those, the first returns true and the second does not — and taking the native
+ * path anyway renders a plain, untinted `View` where the tab bar should be:
+ * no blur, no material, chrome text sitting directly on whatever scrolled
+ * underneath. The painted gel is a far better answer to that than nothing, so
+ * the real path requires both.
  */
-export const LIQUID_GLASS = isLiquidGlassAvailable();
+export const LIQUID_GLASS = isLiquidGlassAvailable() && isGlassEffectAPIAvailable();
+
+/**
+ * Makes the glass surfaces inside it FUSE as they approach each other.
+ *
+ * This is the behaviour that separates Liquid Glass from a blur: two glass
+ * objects near each other do not stay two rounded rectangles with a gap, they
+ * bulge towards one another and merge, the way two droplets on a windscreen do.
+ * The system does the whole thing — there is no way to paint it, which is why
+ * the fallback path below simply renders the children and lets them stay apart.
+ *
+ * It only earns its place where there are genuinely SIBLING floating controls.
+ * A single continuous surface has nothing to fuse with, and wrapping one in a
+ * container is a layer that costs a native view and buys nothing.
+ *
+ * `spacing` is the distance at which the merge begins, so it wants to be a
+ * little larger than the actual gap between the controls — at exactly the gap,
+ * the two only start reaching for each other once they are already touching.
+ */
+export function GlassGroup({
+  children, spacing = 22, style,
+}: {
+  children: ReactNode;
+  spacing?: number;
+  style?: StyleProp<ViewStyle>;
+}) {
+  if (!LIQUID_GLASS) return <View style={style}>{children}</View>;
+  return (
+    <GlassContainer spacing={spacing} style={style}>
+      {children}
+    </GlassContainer>
+  );
+}
 
 /**
  * The app's one glass primitive, with TWO IMPLEMENTATIONS.
@@ -38,7 +83,7 @@ export const LIQUID_GLASS = isLiquidGlassAvailable();
  * not exist for them.
  */
 export function GlassPanel({
-  children, radius, style, contentStyle, shadowLevel = 3,
+  children, radius, style, contentStyle, shadowLevel = 3, interactive = false,
 }: {
   children: ReactNode;
   radius: number;
@@ -47,6 +92,21 @@ export function GlassPanel({
   /** Applied to the INNER (clipping) surface — size and lay out with this. */
   contentStyle?: StyleProp<ViewStyle>;
   shadowLevel?: 0 | 1 | 2 | 3;
+  /**
+   * Lets the system deform the material under a finger — the glass swells
+   * towards the touch and settles back when it is released.
+   *
+   * Off by default, and deliberately so: it is the single most eye-catching
+   * thing the material does, which makes it the easiest to overuse. It belongs
+   * on surfaces the user actually manipulates — the tab bar is dragged — and
+   * not on surfaces that merely sit there, where a pane that squirms under an
+   * accidental brush reads as instability rather than as material.
+   *
+   * No effect off the native path: a painted gel cannot deform, and animating
+   * it to try would repaint the whole gradient stack every frame, which the
+   * metaball investigation already measured at 15fps.
+   */
+  interactive?: boolean;
 }) {
   const { c, shadow } = useTheme();
 
@@ -75,6 +135,7 @@ export function GlassPanel({
       <View style={[{ borderRadius: radius, boxShadow: shadow[shadowLevel] }, style]}>
         <GlassView
           glassEffectStyle="regular"
+          isInteractive={interactive}
           /**
            * The legibility tint, applied to the MATERIAL rather than painted
            * over it. Real Liquid Glass refracts live content, which is the

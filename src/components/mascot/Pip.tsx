@@ -17,28 +17,36 @@ import { Image, type ImageSourcePropType } from 'react-native';
  * Shipped as WebP: ~75KB each against ~500KB for the same PNG, alpha intact.
  * React Native decodes WebP through ImageIO on iOS and natively on Android.
  *
- * There are TWO images, so there are two looks. Everything else — celebrating,
- * dozing, arriving — is carried by motion in `PipScene`, not by a third
- * drawing. That is a real constraint and it is why the mascot's vocabulary is
- * deliberately small.
+ * There are THREE images, and each one is a drawing that exists rather than a
+ * pose faked with a transform. `cheer` in particular used to be the sitting
+ * artwork moved differently, which was an honest workaround for not having the
+ * picture and is strictly worse than having it: a celebration reads as a
+ * celebration because of the character's face and paws, and no amount of
+ * squash-and-stretch on a calm sitting dog supplies either.
+ *
+ * Everything the app still cannot draw — dozing, arriving — remains carried by
+ * motion in `PipScene`. That is a real constraint, and it is why the mascot's
+ * vocabulary is deliberately small.
  */
 
-export type PipImage = 'sit' | 'phone';
+export type PipImage = 'sit' | 'phone' | 'cheer';
 
 const SOURCES: Record<PipImage, ImageSourcePropType> = {
   /** Sitting, looking at you. The default, and the basis of every pose. */
   sit: require('../../../assets/mascot/pip-sit.webp'),
   /** Holding a phone, with the notification marks already drawn in. */
   phone: require('../../../assets/mascot/pip-phone.webp'),
+  /** Both paws up, eyes shut, excitement marks drawn in. The celebration. */
+  cheer: require('../../../assets/mascot/pip-cheer.webp'),
 };
 
 export function Pip({ size = 200, image = 'sit' }: { size?: number; image?: PipImage }) {
   return (
     <Image
       source={SOURCES[image]}
-      // `contain` inside a square box, because the two files do NOT share an
-      // aspect ratio (768x768 and 768x709). Forcing both to a square would
-      // quietly squash the one holding the phone.
+      // `contain` inside a square box, because the three files do NOT share an
+      // aspect ratio (768x768, 768x709 and 768x705). Forcing them all to a
+      // square would quietly squash two of the three.
       resizeMode="contain"
       style={{ width: size, height: size }}
       // Decorative: every screen Pip appears on states its meaning in adjacent

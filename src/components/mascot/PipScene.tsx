@@ -18,10 +18,12 @@ import { radius, space, TINTS, motion } from '../../theme/tokens';
  * or an `opacity` on a wrapping view, which the animate-expo gate calls free:
  * no layout pass, nothing crossing to the RN runtime once it has started.
  *
- * THERE ARE ONLY TWO PICTURES, so motion does the work a third and fourth
- * drawing would otherwise do. `cheer` and `rest` are both the sitting artwork —
- * what separates them is that one lands with a squash-and-stretch and floats,
- * and the other only breathes. A pose here is a behaviour, not a file.
+ * THERE ARE THREE PICTURES AND FOUR POSES, so motion still does some of the
+ * work a fourth drawing would otherwise do — `rest` is the sitting artwork
+ * breathing slowly, and that is the right way to say "dozing" without a
+ * separate file. `cheer` is NOT one of those any more: it has its own drawing,
+ * because a celebration is carried by the character's face and paws and no
+ * amount of squash-and-stretch on a calm sitting dog supplies either.
  *
  * WHERE PIP IS ALLOWED TO MOVE is decided by DESIGN.md's frequency gate, not by
  * where he would be cute:
@@ -49,10 +51,10 @@ export type PipPose = 'sit' | 'phone' | 'cheer' | 'rest';
 const POSE_IMAGE: Record<PipPose, PipImage> = {
   sit: 'sit',
   phone: 'phone',
-  // Celebrating and dozing both use the sitting picture; the motion is what
-  // tells them apart. Faking a third pose by flipping or skewing the artwork
-  // would look like a bug, not a performance.
-  cheer: 'sit',
+  cheer: 'cheer',
+  // Dozing is still the sitting picture slowed right down. That one genuinely
+  // is a behaviour rather than a drawing — a sleeping dog and a sitting dog
+  // differ by how much they move, which is exactly what `idle` controls.
   rest: 'sit',
 };
 
@@ -285,11 +287,40 @@ const PIECES = [
   { x: 132, r: 45, tint: 'peach' as const, d: 110, s: 0.95 },
 ];
 
-export function Confetti({ height = 260 }: { height?: number }) {
+/** The whole burst, start to last piece gone. */
+export const CONFETTI_DURATION = 2200;
+
+export function Confetti({
+  height = 260, spread = 1, onDone,
+}: {
+  height?: number;
+  /**
+   * Scales how far the pieces fly sideways. A burst inside a task row has a
+   * row's width to play with, not a screen's — at `spread={1}` the outermost
+   * pieces simply leave the card and the burst reads as clipped.
+   */
+  spread?: number;
+  /** Fired once the last piece has gone, so an overlay can unmount itself. */
+  onDone?: () => void;
+}) {
   const reduced = useReducedMotion();
-  // Reduce Motion removes this outright rather than cross-fading it. A burst of
-  // falling debris has no still frame worth showing, and its entire content is
-  // the movement the setting exists to suppress.
+
+  /**
+   * THE CALLBACK MUST STILL FIRE UNDER REDUCE MOTION.
+   *
+   * The burst itself is removed — a shower of falling debris has no still
+   * frame worth showing, and its entire content is the movement the setting
+   * exists to suppress. But callers use `onDone` to dismiss a celebration
+   * OVERLAY, and an overlay whose dismissal is wired to an animation that was
+   * never allowed to run stays on screen forever. So the timer runs either
+   * way; only the pieces are conditional.
+   */
+  useEffect(() => {
+    if (!onDone) return;
+    const t = setTimeout(onDone, reduced ? motion.enter : CONFETTI_DURATION);
+    return () => clearTimeout(t);
+  }, [onDone, reduced]);
+
   if (reduced) return null;
 
   return (
@@ -300,18 +331,25 @@ export function Confetti({ height = 260 }: { height?: number }) {
       style={{ position: 'absolute', top: 0, height, left: 0, right: 0 }}
     >
       {PIECES.map((p) => (
-        <Piece key={`${p.x}-${p.tint}`} piece={p} height={height} />
+        <Piece key={`${p.x}-${p.tint}`} piece={p} height={height} spread={spread} />
       ))}
     </View>
   );
 }
 
-function Piece({ piece, height }: { piece: (typeof PIECES)[number]; height: number }) {
+function Piece({
+  piece, height, spread,
+}: { piece: (typeof PIECES)[number]; height: number; spread: number }) {
   const { isDark } = useTheme();
   const t = useSharedValue(0);
 
   useEffect(() => {
-    t.set(withDelay(piece.d, withTiming(1, { duration: 2200, easing: Easing.out(Easing.quad) })));
+    t.set(
+      withDelay(
+        piece.d,
+        withTiming(1, { duration: CONFETTI_DURATION, easing: Easing.out(Easing.quad) })
+      )
+    );
   }, [t, piece.d]);
 
   const anim = useAnimatedStyle(() => {
@@ -320,7 +358,7 @@ function Piece({ piece, height }: { piece: (typeof PIECES)[number]; height: numb
       // Out and up first, then down past the bottom — a burst, not a drizzle.
       opacity: v < 0.08 ? v / 0.08 : v > 0.75 ? (1 - v) / 0.25 : 1,
       transform: [
-        { translateX: piece.x * Math.min(1, v * 2.2) },
+        { translateX: piece.x * spread * Math.min(1, v * 2.2) },
         { translateY: -70 * Math.sin(Math.PI * Math.min(1, v * 1.3)) + height * v },
         { rotate: `${piece.r * v * 4}deg` },
         { scale: piece.s },

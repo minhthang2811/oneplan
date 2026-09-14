@@ -10,6 +10,8 @@ import { CircleButton } from '../../src/components/DayHeader';
 import { RingValue } from '../../src/components/Ring';
 import { PressScale } from '../../src/components/Press';
 import { TAB_BAR_HEIGHT } from '../../src/components/TabBar';
+import { ScrollEdge } from '../../src/components/ScrollEdge';
+import { useChromeScroll } from '../../src/components/Chrome';
 import { useTheme } from '../../src/theme/useTheme';
 import { radius, space, TINTS } from '../../src/theme/tokens';
 import { usePlanStore, inboxTasks } from '../../src/store/usePlanStore';
@@ -35,6 +37,7 @@ type Row =
 export default function Todo() {
   const insets = useSafeAreaInsets();
   const { c, isDark } = useTheme();
+  const scroll = useChromeScroll();
   const tasks = usePlanStore((s) => s.tasks);
   const addTask = usePlanStore((s) => s.addTask);
   const toggleTask = usePlanStore((s) => s.toggleTask);
@@ -61,6 +64,7 @@ export default function Todo() {
         keyExtractor={(r) => (r.kind === 'task' ? r.task.id : `${r.kind}-${r.bucket.key}`)}
         getItemType={(r) => r.kind}
         showsVerticalScrollIndicator={false}
+        {...scroll}
         contentContainerStyle={{
           paddingHorizontal: space.lg,
           paddingBottom: TAB_BAR_HEIGHT + insets.bottom + space.xxl,
@@ -125,6 +129,9 @@ export default function Todo() {
           );
         }}
       />
+
+      {/* Pinned above the list, so the buckets pass UNDER it. */}
+      <ScrollEdge title="To-do" subtitle={`${doneCount} of ${inbox.length} done`} />
     </View>
   );
 }

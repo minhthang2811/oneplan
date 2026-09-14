@@ -11,10 +11,13 @@ import { Bloom } from '../../src/components/Bloom';
 import { PipScene } from '../../src/components/mascot/PipScene';
 import { Button } from '../../src/components/Button';
 import { TAB_BAR_HEIGHT } from '../../src/components/TabBar';
+import { ScrollEdge } from '../../src/components/ScrollEdge';
+import { useChromeScroll } from '../../src/components/Chrome';
+import { SlotCelebration, useSlotCompletion } from '../../src/components/SlotCelebration';
 import { useTheme } from '../../src/theme/useTheme';
 import { space } from '../../src/theme/tokens';
 import { usePlanStore, tasksForDate, bySlot } from '../../src/store/usePlanStore';
-import { dateKey, isToday, SLOT_ORDER, SLOT_LABEL, type Slot } from '../../src/lib/time';
+import { dateKey, isToday, weekdayLong, longDate, SLOT_ORDER, SLOT_LABEL, type Slot } from '../../src/lib/time';
 import { useNowMinutes } from '../../src/lib/useNowMinutes';
 import { haptic } from '../../src/lib/haptics';
 import type { Task } from '../../src/store/types';
@@ -29,6 +32,7 @@ export default function Today() {
   const [collapsed, setCollapsed] = useState<Partial<Record<Slot, boolean>>>({});
   const insets = useSafeAreaInsets();
   const { c, isDark } = useTheme();
+  const scroll = useChromeScroll();
 
   const tasks = usePlanStore((s) => s.tasks);
   const layout = usePlanStore((s) => s.layout);
@@ -65,6 +69,24 @@ export default function Today() {
     }
     return out;
   }, [dayTasks, collapsed, nowTaskId]);
+
+  /**
+   * Which time-of-day blocks are finished.
+   *
+   * `length > 0` is load-bearing: `every()` is vacuously true on an empty
+   * array, so without it a slot with nothing in it would report itself
+   * complete on every render forever.
+   */
+  const slotsComplete = useMemo(() => {
+    const out = { morning: false, afternoon: false, evening: false };
+    for (const slot of ['morning', 'afternoon', 'evening'] as const) {
+      const inSlot = bySlot(dayTasks, slot);
+      out[slot] = inSlot.length > 0 && inSlot.every((t) => t.done);
+    }
+    return out;
+  }, [dayTasks]);
+
+  const { celebrating, dismiss } = useSlotCompletion(key, slotsComplete);
 
   const openMenu = useCallback(() => {
     const options = ['Compact layout', 'Timeline layout', 'Cancel'];
@@ -148,6 +170,7 @@ export default function Today() {
           paddingBottom: TAB_BAR_HEIGHT + insets.bottom + space.xxl,
         }}
         showsVerticalScrollIndicator={false}
+        {...scroll}
         renderItem={({ item }) => {
           if (item.kind === 'section') {
             return (
@@ -189,6 +212,16 @@ export default function Today() {
           );
         }}
       />
+
+      {/* Pinned above the list, so the day passes UNDER it. */}
+      <ScrollEdge title={weekdayLong(date)} subtitle={longDate(date)} />
+
+      {/* Keyed on the slot so a second block finishing while the first is still
+          on screen REPLACES it rather than being swallowed — without the key,
+          React reuses the component and the entrance never replays. */}
+      {celebrating ? (
+        <SlotCelebration key={celebrating} slot={celebrating} onDone={dismiss} />
+      ) : null}
     </View>
   );
 }
