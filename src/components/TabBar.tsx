@@ -25,7 +25,7 @@ import type { SymbolViewProps } from 'expo-symbols';
 import { Txt } from './Txt';
 import { Icon } from './Icon';
 import { CalendarDayIcon } from './CalendarDayIcon';
-import { GlassPanel } from './Glass';
+import { GlassPanel, LIQUID_GLASS } from './Glass';
 import { GelSurface, gelInsetShadow } from './Gel';
 import { useTheme } from '../theme/useTheme';
 import { motion, radius, space } from '../theme/tokens';
@@ -282,7 +282,12 @@ export function TabBar({ state, navigation }: TabBarProps) {
                     backgroundColor: c.glassChip,
                     // Same convex rim as the bar, softened — the chip is a
                     // small droplet in a large one, not a slab on a pane.
-                    boxShadow: gelInsetShadow(c.glassInnerShade, c.glassSpecular, 0.5),
+                    // The inset rim is part of the painted imitation, so it
+                    // goes with it — on real glass it would be a second
+                    // material fighting the first.
+                    boxShadow: LIQUID_GLASS
+                      ? undefined
+                      : gelInsetShadow(c.glassInnerShade, c.glassSpecular, 0.5),
                   },
                   chip,
                 ]}
@@ -324,19 +329,32 @@ export function TabBar({ state, navigation }: TabBarProps) {
 }
 
 /**
- * The chip's own lighting — the SAME material as the bar, at lower strength.
+ * The chip's surface.
  *
- * Lower, because the chip sits ON the bar and already has the bar's own
- * lighting behind it; at full strength it stops reading as a droplet resting in
- * a pane and starts reading as a second competing object stuck on top.
+ * ── NEVER GLASS ON GLASS ───────────────────────────────────────────────────
+ * Apple's guidance for Liquid Glass is explicit: when you put something on top
+ * of a glass surface, do NOT give it the material as well. Two stacked glass
+ * layers read as clutter, because each one is trying to refract the other. What
+ * goes on top should be a fill, transparency or vibrancy — a thin overlay that
+ * belongs to the material underneath rather than a second object sitting on it.
  *
- * Fixed dimensions, so unlike `GlassPanel` it needs no measurement pass — the
- * chip's size is derived from the bar's. And because the chip's motion is a
- * transform on its PARENT view, this whole surface is rasterised once and then
- * moved by the compositor: the specular smears as the blob stretches, which is
- * what a highlight on moving liquid actually does, and it costs nothing.
+ * So on the native path this renders NOTHING. The chip is a plain translucent
+ * fill and the real glass beneath does all the optical work — which is also
+ * exactly what Apple's own bars look like: Photos and News both use a simple
+ * filled capsule behind the active tab, not a second pane.
+ *
+ * ── THE FALLBACK ───────────────────────────────────────────────────────────
+ * Where there is no real glass, the bar is our painted gel, and the chip has to
+ * carry its own convexity or it reads as a flat swatch stuck on a curved pane.
+ * It uses the same `GelSurface` at lower strength, because it sits on the bar
+ * and already has the bar's lighting behind it.
+ *
+ * That surface is rasterised once and then moved by a transform on its parent,
+ * so the specular smears as the blob stretches — what a highlight on moving
+ * liquid actually does — and it costs nothing per frame.
  */
 function ChipGel({ w, h }: { w: number; h: number }) {
+  if (LIQUID_GLASS) return null;
   return <GelSurface w={w} h={h} radius={h / 2} strength={0.72} />;
 }
 

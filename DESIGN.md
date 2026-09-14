@@ -178,15 +178,59 @@ Selection is carried by **fill, plus a redundant tick**: at a dozen chips a row
 of checkboxes reads as a form to complete, while a block of filled pills reads
 as a shape. The tick is there so selection never depends on colour alone.
 
-## Gel
+## Glass
 
-`GlassPanel` is the one glass primitive, and it renders **gel** rather than
-plain frosted glass.
+`GlassPanel` is the one glass primitive, and it has **two implementations**.
+
+### On iOS 26+: Apple's real Liquid Glass
+
+`expo-glass-effect` wraps the system material, and it does things no amount of
+painting can. It **refracts and lenses the live content moving behind it**,
+bends light around its own edges with visible colour fringing, and adapts its
+own contrast to whatever scrolls underneath. Everything in the fallback section
+below is an imitation of this, and the imitation must never run when the real
+thing is available — `LIQUID_GLASS` in `Glass.tsx` is read once at module load
+and branches the component.
+
+Four decisions inside that path:
+
+1. **`regular`, not `clear`.** Clear is for surfaces over media-rich content and
+   needs its own dimming layer underneath to stay legible. This bar floats over
+   arbitrary text and cards, which is the case `regular` is built to adapt to on
+   its own.
+2. **Tint the material, do not scrim it.** Real glass refracting live content is
+   the whole point of it and also the whole risk: without a tint, the words on a
+   card scrolling underneath read *straight through the bar* and compete with
+   the tab labels, so contrast becomes a property of the user's own data. This
+   was clearly visible in dark mode before the fix. `tintColor={c.glassTint}`
+   applies it to the material itself; stacking a scrim on top would be a second
+   layer sitting on the glass, which is the thing rule 3 forbids.
+3. **Never glass on glass.** Apple's guidance is explicit: when you put
+   something on top of a glass surface, do not give it the material as well —
+   two stacked glass layers each try to refract the other and read as clutter.
+   What goes on top should be a fill, transparency or vibrancy, a thin overlay
+   belonging to the material underneath. So on this path the selection chip
+   renders **no** gel surface and **no** inset rim; it is a plain translucent
+   fill, which is also exactly what Apple's own bars do — Photos and News both
+   use a simple filled capsule behind the active tab.
+4. **No `GlassContainer`.** That exists to make *sibling* glass views fuse when
+   they come near each other — a row of separate floating controls. This bar is
+   one continuous surface, so there is nothing to fuse with.
+
+The drop shadow still lives on an outer wrapper, for the same reason it always
+did: a rounded, clipping surface cannot cast its own.
+
+### Everywhere else: the painted gel
+
+On **iOS 25 and older, and on Android**, `expo-glass-effect` falls back to a
+plain `View`, so the material has to be built by hand. That is what the rest of
+this section is.
 
 Flat glassmorphism is a blur, a scrim, and a hairline — and every one of those
 is a property of a **flat pane**, which is why it always reads as a sheet of
 frosted acrylic laid on the screen. Gel reads as a droplet of material *resting*
-on the screen. The whole difference is in how it handles light, and it is
+on the screen. It is not as good as the real system material and is not trying
+to be; it is what the platforms without one get. The whole difference is in how it handles light, and it is
 defined once in `src/components/Gel.tsx` so the tab bar and its selection chip
 cannot drift apart.
 

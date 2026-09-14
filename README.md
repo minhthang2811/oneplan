@@ -79,7 +79,9 @@ app/                    Expo Router routes (file-based navigation)
 src/
   components/           Shared UI primitives (Button, Chip, Ring, Glass, TabBar, ...)
     LaunchScreen.tsx    The animated launch screen, and its iris reveal
-    Glass.tsx           The gel material: blur, scrim, sheen, bounce, graded edge
+    Glass.tsx           The glass primitive — Apple's real Liquid Glass on
+                        iOS 26+, the hand-painted gel everywhere else
+    Gel.tsx             That fallback material: convex dome, specular, caustic
     TabBar.tsx          Floating gel bar with the liquid (metaball) indicator
     Checkbox.tsx        Completion: squish, fill, self-drawing tick, pop ring
     Strike.tsx          A strikethrough drawn per laid-out text line
