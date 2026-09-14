@@ -208,6 +208,20 @@ export function Checkbox({ checked, onToggle, size = 26, subtle = false, identit
       accessibilityRole="checkbox"
       accessibilityState={{ checked }}
       accessibilityLabel={label}
+      /**
+       * A handle for the e2e suite, keyed on the TITLE rather than the id —
+       * seed ids come from `uid()` and are re-randomised every run, so a flow
+       * could never name one. `testID` becomes `accessibilityIdentifier` on
+       * iOS, which XCUITest queries and VoiceOver does not announce.
+       *
+       * IT IS ONLY REACHABLE WHERE THIS BOX IS NOT INSIDE AN ACCESSIBILITY
+       * CONTAINER. Verified, not assumed: a Maestro `tapOn: { id: ... }`
+       * against a task row's checkbox fails with "Element not found", because
+       * the row carries a role and a label and iOS therefore exposes it as a
+       * single element with no descendants. It works on the task detail
+       * screen, where the step row is a plain `View`.
+       */
+      testID={label ? `checkbox-${label}` : undefined}
       style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}
     >
       {/* Outside the squish, so the ring leaves a box that is still deforming

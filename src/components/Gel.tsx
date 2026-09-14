@@ -140,12 +140,6 @@ export function GelSurface({
           <Stop offset="0" stopColor={spec.stopColor} stopOpacity={a(spec.stopOpacity)} />
           <Stop offset="1" stopColor={spec.stopColor} stopOpacity={0} />
         </LinearGradient>
-        <LinearGradient id={`specX${uid}`} x1="0" y1="0" x2="1" y2="0">
-          <Stop offset="0" stopColor="#000000" stopOpacity={0} />
-          <Stop offset="0.5" stopColor="#000000" stopOpacity={1} />
-          <Stop offset="1" stopColor="#000000" stopOpacity={0} />
-        </LinearGradient>
-
         {/* Bottom-up, soft — light reflected off the content below. */}
         <LinearGradient id={`bounce${uid}`} x1="0" y1="1" x2="0" y2="0">
           <Stop offset="0" stopColor={bounce.stopColor} stopOpacity={a(bounce.stopOpacity)} />

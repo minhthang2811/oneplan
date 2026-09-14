@@ -115,43 +115,69 @@ export function LaunchScreen({ onFinish }: { onFinish: () => void }) {
   const irisBand = Math.hypot(width, height) * 1.2;
 
   useEffect(() => {
-    /**
-     * Reduce Motion gets the app, not a performance: hold the identical frame
-     * just long enough not to flash, then cross-fade. The app-wide rule is that
-     * spatial motion collapses to a cross-fade, and an iris IS spatial motion —
-     * it is a shape travelling across the screen.
-     */
+    const handOver = (done?: boolean) => {
+      'worklet';
+      if (done) runOnJS(onFinish)();
+    };
+
     if (reduced) {
+      /**
+       * Reduce Motion gets the app, not a performance: hold the identical frame
+       * just long enough not to flash, then cross-fade. The app-wide rule is
+       * that spatial motion collapses to a cross-fade, and an iris IS spatial
+       * motion — it is a shape travelling across the screen.
+       */
       wake.set(withDelay(motion.launch.handoff, withTiming(1, { duration: motion.enter })));
       out.set(
         withDelay(
           motion.launch.handoff + motion.enter + motion.launch.hold,
-          withTiming(1, { duration: motion.enter }, (done) => {
-            if (done) runOnJS(onFinish)();
-          })
+          withTiming(1, { duration: motion.enter }, handOver)
         )
       );
-      return;
+    } else {
+      // Nothing moves until the native splash has finished fading off the top
+      // of us — see `motion.launch.handoff`.
+      wake.set(withDelay(motion.launch.handoff, withSpring(1, motion.launch.wake)));
+      out.set(
+        withDelay(
+          motion.launch.handoff + motion.launch.wake.duration + motion.launch.hold,
+          withTiming(
+            1,
+            // Ease-IN-out, unusually. The iris is the one thing here that
+            // should start slowly: a reveal that leaps off the mark reads as
+            // the splash being yanked away rather than opening.
+            { duration: motion.launch.reveal, easing: Easing.inOut(Easing.cubic) },
+            handOver
+          )
+        )
+      );
     }
 
-    // Nothing moves until the native splash has finished fading off the top of
-    // us — see `motion.launch.handoff`.
-    wake.set(withDelay(motion.launch.handoff, withSpring(1, motion.launch.wake)));
-    out.set(
-      withDelay(
-        motion.launch.handoff + motion.launch.wake.duration + motion.launch.hold,
-        withTiming(
-          1,
-          // Ease-IN-out, unusually. The iris is the one thing here that should
-          // start slowly: a reveal that leaps off the mark reads as the splash
-          // being yanked away rather than opening.
-          { duration: motion.launch.reveal, easing: Easing.inOut(Easing.cubic) },
-          (done) => {
-            if (done) runOnJS(onFinish)();
-          }
-        )
-      )
-    );
+    /**
+     * THE DEADMAN SWITCH.
+     *
+     * Both paths above hand over from an animation callback guarded by
+     * `if (done)`, which is right for a completed animation and SILENT for a
+     * cancelled one. A cancelled reveal that never restarts would leave this
+     * overlay mounted forever — and because it is `pointerEvents="none"` and
+     * hidden from assistive technology, the app underneath would stay mounted,
+     * stay tappable, and keep satisfying every assertion in the e2e suite while
+     * the user sat looking at a mascot. That is the worst failure this
+     * component has, so it must not rest on the animation being uninterrupted.
+     *
+     * `reduced` comes from `useReducedMotion()` and can flip mid-launch if the
+     * user toggles the setting, which re-runs this effect and cancels whatever
+     * was in flight. The timer is cleared and re-armed on that path, so it only
+     * ever fires when nothing else did, and `onFinish` is idempotent anyway.
+     */
+    const overrun =
+      motion.launch.handoff +
+      motion.launch.wake.duration +
+      motion.launch.hold +
+      motion.launch.reveal +
+      1500;
+    const deadman = setTimeout(onFinish, overrun);
+    return () => clearTimeout(deadman);
   }, [reduced, wake, out, onFinish]);
 
   /**

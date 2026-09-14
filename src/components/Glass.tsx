@@ -31,31 +31,11 @@ export const LIQUID_GLASS = isLiquidGlassAvailable();
  * and an inset rim that makes the surface bulge toward you. That path is a
  * deliberate imitation of the real one and is documented as such.
  *
- * ── GLASS VS GEL ───────────────────────────────────────────────────────────
- * Frosted glass is flat. It blurs what is behind it and stops, and at that
- * point the only thing separating it from a grey box is the hairline round its
- * edge. What makes a surface read as a soft, slightly rubbery *gel* is that it
- * has a BODY: light lands on the top of it, travels through it, and bounces
- * back up into its underside from the content below.
- *
- * ALL OF THAT LIGHTING LIVES IN `Gel.tsx`, not here, because the tab bar's
- * selection chip is the same material at a lower strength and the two must not
- * drift apart. This file's remaining job is the three structural traps below,
- * plus the inset rim shading, which cannot be painted in SVG — see
- * `gelInsetShadow`.
- *
- * ── THE THREE ORIGINAL TRAPS, ALL STILL LIVE ───────────────────────────────
- * 1. `BlurView` IGNORES an explicit `borderRadius` (documented in expo-blur),
- *    so the rounding has to come from a parent that clips it.
- * 2. On iOS `overflow: 'hidden'` sets `masksToBounds`, which clips the view's
- *    own drop shadow away. So the shadow cannot live on the clipping view —
- *    hence the outer wrapper here, whose only job is to cast it.
- * 3. Blur alone does not separate a pane from its background; the lit edge
- *    does.
- *
- * The scrim under the sheen is not decoration either: without it, chrome text
- * sits on whatever happens to have scrolled underneath, and contrast becomes a
- * property of the user's data.
+ * The two paths share nothing but this component's props: the constraints that
+ * govern the painted one — `BlurView`'s quirks, the clipping, the measurement
+ * pass — apply ONLY to it, and are documented on `PaintedPanel` below rather
+ * than here, so a reader on the native path is not told about traps that do
+ * not exist for them.
  */
 export function GlassPanel({
   children, radius, style, contentStyle, shadowLevel = 3,
@@ -68,17 +48,7 @@ export function GlassPanel({
   contentStyle?: StyleProp<ViewStyle>;
   shadowLevel?: 0 | 1 | 2 | 3;
 }) {
-  const { c, shadow, isDark } = useTheme();
-
-  /**
-   * The gel layers are drawn in SVG, and SVG needs real numbers — a percentage
-   * `rx` cannot express "a pill" and a percentage stroke cannot be a hairline.
-   * So the pane measures itself once and the lighting appears on the next
-   * frame. The blur and the scrim are already painted by then, so there is no
-   * visible pop; what would pop is guessing the height and getting the corner
-   * radius wrong.
-   */
-  const [size, setSize] = useState<{ w: number; h: number } | null>(null);
+  const { c, shadow } = useTheme();
 
   /**
    * THE NATIVE PATH. On iOS 26 the system draws real Liquid Glass, and it does
@@ -126,6 +96,61 @@ export function GlassPanel({
       </View>
     );
   }
+
+  return (
+    <PaintedPanel
+      radius={radius}
+      style={style}
+      contentStyle={contentStyle}
+      shadowLevel={shadowLevel}
+    >
+      {children}
+    </PaintedPanel>
+  );
+}
+
+/**
+ * THE FALLBACK PANE — iOS 25 and older, and Android.
+ *
+ * A separate component rather than a branch inside `GlassPanel`, so that none
+ * of its machinery exists on the native path: the measurement state below is
+ * allocated only where something actually measures, and the traps documented
+ * here are only read by someone looking at the code that suffers from them.
+ *
+ * ── THE THREE STRUCTURAL TRAPS ─────────────────────────────────────────────
+ * 1. `BlurView` IGNORES an explicit `borderRadius` (documented in expo-blur),
+ *    so the rounding has to come from a parent that clips it.
+ * 2. On iOS `overflow: 'hidden'` sets `masksToBounds`, which clips the view's
+ *    own drop shadow away. So the shadow cannot live on the clipping view —
+ *    hence the outer wrapper here, whose only job is to cast it.
+ * 3. Blur alone does not separate a pane from its background; the lit edge
+ *    does.
+ *
+ * The scrim over the blur is not decoration either: without it, chrome text
+ * sits on whatever happens to have scrolled underneath, and contrast becomes a
+ * property of the user's data. The real Liquid Glass path gets the same
+ * protection from `tintColor` instead.
+ */
+function PaintedPanel({
+  children, radius, style, contentStyle, shadowLevel,
+}: {
+  children: ReactNode;
+  radius: number;
+  style?: StyleProp<ViewStyle>;
+  contentStyle?: StyleProp<ViewStyle>;
+  shadowLevel: 0 | 1 | 2 | 3;
+}) {
+  const { c, shadow, isDark } = useTheme();
+
+  /**
+   * The gel layers are drawn in SVG, and SVG needs real numbers — a percentage
+   * `rx` cannot express "a pill" and a percentage stroke cannot be a hairline.
+   * So the pane measures itself once and the lighting appears on the next
+   * frame. The blur and the scrim are already painted by then, so there is no
+   * visible pop; what would pop is guessing the height and getting the corner
+   * radius wrong.
+   */
+  const [size, setSize] = useState<{ w: number; h: number } | null>(null);
 
   return (
     <View style={[{ borderRadius: radius, boxShadow: shadow[shadowLevel] }, style]}>

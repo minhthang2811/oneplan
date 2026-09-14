@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useFonts } from 'expo-font';
@@ -108,8 +108,22 @@ export default function RootLayout() {
    * the first thing anyone notices. `onLayout` fires after this tree has been
    * measured and is about to be shown, so the overlay is already there.
    */
+  const hidden = useRef(false);
   const onReady = useCallback(() => {
-    SplashScreen.hideAsync();
+    /**
+     * ONCE. `onLayout` is not a mount hook — it fires again on every layout
+     * pass, and at the root that means every keyboard show/hide through
+     * `KeyboardProvider`, every safe-area inset update, every window resize.
+     * Each of those was calling `hideAsync()` again, and a call against an
+     * already-hidden splash can reject; with the promise neither awaited nor
+     * caught that surfaces as an unhandled rejection warning.
+     */
+    if (hidden.current) return;
+    hidden.current = true;
+    SplashScreen.hideAsync().catch(() => {
+      // Nothing to recover: the splash is either gone or was never shown, and
+      // the app is already rendering underneath either way.
+    });
   }, []);
 
   if (!fontsLoaded) return null;

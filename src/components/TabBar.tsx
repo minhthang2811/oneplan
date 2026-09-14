@@ -165,16 +165,53 @@ export function TabBar({ state, navigation }: TabBarProps) {
    * instead of snapping at the moment navigation commits.
    */
   const pos = useDerivedValue(() =>
-    itemW > 0 ? (lead.get() + trail.get()) / 2 / itemW - 0.5 : 0
+    // Falls back to the LIVE tab index, not to 0. Before the first `onLayout`
+    // there is no `itemW` to divide by, and returning 0 told every `TabItem`
+    // that the selection was sitting on tab 0 — so on a cold launch into Today
+    // the To-do tab drew itself active, in ink and lifted, for a frame.
+    itemW > 0 ? (lead.get() + trail.get()) / 2 / itemW - 0.5 : state.index
   );
 
-  const commit = (i: number) => {
+  /** Springs the blob home to a given tab. Used to undo an optimistic move. */
+  const settle = (i: number) => {
+    const center = itemW * (i + 0.5);
+    lead.set(withSpring(center, motion.lead));
+    trail.set(withSpring(center, motion.trail));
+  };
+
+  /**
+   * Emits `tabPress` and navigates if nothing objected. Returns whether the
+   * selection actually moved, which the drag needs and the tap does not.
+   */
+  const press = (i: number) => {
     const route = state.routes[i];
-    if (!route) return;
+    if (!route) return false;
     const event = navigation.emit({
       type: 'tabPress', target: route.key, canPreventDefault: true,
     }) as { defaultPrevented?: boolean };
-    if (i !== state.index && !event?.defaultPrevented) navigation.navigate(route.name);
+    // Re-pressing the live tab is not a no-op — React Navigation pops that
+    // tab's stack to root on the event alone — but it does not move anything.
+    if (i === state.index || event?.defaultPrevented) return false;
+    navigation.navigate(route.name);
+    return true;
+  };
+
+  const commit = (i: number) => { press(i); };
+
+  /**
+   * The drag's commit, WITH A ROLLBACK.
+   *
+   * `onEnd` springs the blob to where the finger let go before asking, because
+   * waiting a JS round-trip to start moving would read as lag. That optimism
+   * needs undoing when the press is refused: a `tabPress` listener can call
+   * `preventDefault` — an unsaved-work guard is the usual reason — and then
+   * `state.index` never changes, so the repositioning effect (keyed on exactly
+   * that) never fires and the blob would sit on a tab that is not live,
+   * indefinitely. Taps do not need this because a tap never moves the blob
+   * itself; only that effect does.
+   */
+  const commitDrag = (i: number) => {
+    if (!press(i)) settle(state.index);
   };
 
   /**
@@ -218,7 +255,7 @@ export function TabBar({ state, navigation }: TabBarProps) {
       const center = itemW * (target + 0.5);
       lead.set(withSpring(center, motion.lead));
       trail.set(withSpring(center, motion.trail));
-      runOnJS(commit)(target);
+      runOnJS(commitDrag)(target);
     })
     .onFinalize(() => {
       dragging.set(false);
@@ -229,7 +266,10 @@ export function TabBar({ state, navigation }: TabBarProps) {
    * `scaleX` opens it out to span them; `scaleY` gives the volume back.
    */
   const chip = useAnimatedStyle(() => {
-    if (chipW === 0) return { opacity: 0 };
+    // Same property set in both branches. Reanimated does not reset a property
+    // that disappears from a returned style, so a branch without `transform`
+    // would strand the last translate/scale on the view.
+    if (chipW === 0) return { opacity: 0, transform: [] };
     const a = lead.get();
     const b = trail.get();
     const spread = Math.abs(a - b);
@@ -407,7 +447,25 @@ function TabItem({
   }));
 
   return (
-    <Animated.View style={liftStyle}>
+    /**
+     * HIDDEN FROM ASSISTIVE TECHNOLOGY, BOTH COPIES.
+     *
+     * The tab's meaning is carried by the parent `Pressable`, which has the
+     * role, the label and the selected state. These two are a rendering
+     * device: the same glyph and word drawn twice and cross-faded so a drag can
+     * light them up progressively. iOS happens to collapse them anyway, because
+     * a view with a role and a label swallows its descendants — but Android
+     * does not, and TalkBack would read "To-do, To-do". Opacity is not a
+     * visibility signal to a screen reader, so the 0-opacity copy is just as
+     * present as the other one; saying so explicitly beats relying on one
+     * platform's collapsing behaviour.
+     */
+    <Animated.View
+      style={liftStyle}
+      accessible={false}
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+    >
       <Animated.View style={offStyle}>
         <Face name={name} label={label} day={day} color={c.inkFaint} weight="regular" />
       </Animated.View>

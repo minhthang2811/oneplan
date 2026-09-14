@@ -46,9 +46,16 @@ export function PressScale({ children, style, scaleTo = 0.97, ...rest }: Base & 
     const d = 1 - scaleTo;
     return {
       transform: [
-        // Loses less width than height — the material spreads sideways.
-        { scaleX: 1 - d * v * 0.55 },
-        { scaleY: 1 - d * v * 1.45 },
+        /**
+         * `scaleTo` IS THE BOUND, and the squash lives under it. The tighter
+         * axis goes to exactly the value the caller asked for and the other
+         * one travels less, so the shape still flattens without any axis
+         * exceeding the documented limit. Scaling Y *past* `scaleTo` silently
+         * redefined a prop several call sites had already been tuned against —
+         * `scaleTo={0.94}` on the Focus screen was reaching 0.913.
+         */
+        { scaleX: 1 - d * v * 0.4 },
+        { scaleY: 1 - d * v },
       ],
     };
   });

@@ -85,7 +85,19 @@ export function Strike({
      * so a shrink-wrapped `Strike` silently refuses to be centred by whatever
      * contains it — which is exactly what the task detail hero asks for.
      */
-    <View>
+    <View
+      /**
+       * `flexShrink: 1` is what makes this behave like the bare `<Text>` it
+       * replaced. Yoga measures a Text and lets it shrink to the space left in
+       * a row; a View defaults to `flexShrink: 0` and takes its content's full
+       * natural width instead, so a long step title pushed straight past the
+       * right edge of its row and `numberOfLines` never got a constrained width
+       * to wrap against. Fixed here rather than at the call sites because every
+       * caller wants it — the row ones need it and the column ones are
+       * unaffected by it.
+       */
+      style={{ flexShrink: 1 }}
+    >
       <Txt
         {...txt}
         tone={struck ? 'faint' : txt.tone}
@@ -100,7 +112,7 @@ export function Strike({
           const next = e.nativeEvent.lines;
           setLines((prev) =>
             prev.length === next.length &&
-            prev.every((l, i) => l.x === next[i].x && l.y === next[i].y && l.width === next[i].width)
+            prev.every((l, i) => same(l, next[i]))
               ? prev
               : next
           );
@@ -113,6 +125,25 @@ export function Strike({
         <Rule key={i} line={ln} index={i} count={lines.length} t={t} color={c.inkFaint} />
       ))}
     </View>
+  );
+}
+
+/**
+ * Two laid-out lines are the same for our purposes only if EVERY value we draw
+ * from is unchanged. Comparing position and width alone was not enough: the
+ * rule's height on the line comes from `ascender` and `xHeight`, so a relayout
+ * that moved only the font metrics — a font resolving after first paint, a
+ * Dynamic Type change that happens not to reflow — was discarded as identical
+ * and left the rule struck at the old baseline.
+ */
+function same(a: TextLayoutLine, b: TextLayoutLine) {
+  return (
+    a.x === b.x &&
+    a.y === b.y &&
+    a.width === b.width &&
+    a.height === b.height &&
+    a.ascender === b.ascender &&
+    a.xHeight === b.xHeight
   );
 }
 

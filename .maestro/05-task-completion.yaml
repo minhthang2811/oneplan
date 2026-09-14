@@ -67,12 +67,20 @@ name: Task completion — check, and take it back
 - assertVisible: "Plan your day.*"
 
 # --- complete it -----------------------------------------------------------
-# By point, because the checkbox is not in the hierarchy — see the header. The
-# first morning activity's box sits at the right edge of its row. This is the
-# fragile part of the flow: it depends on the seeded day's layout, which is why
-# the flow clears state and walks onboarding rather than inheriting whatever the
-# previous run left on screen. If the row height or ordering changes, this
-# number changes with it.
+# By point, because the checkbox is not in the hierarchy — see the header.
+#
+# A `testID` DOES NOT RESCUE THIS, and it was tried rather than assumed.
+# `Checkbox` carries one, and `tapOn: { id: "checkbox-Plan your day" }` still
+# fails with "Element not found": an accessibility container hides its
+# descendants from the hierarchy entirely, identifier and all, so there is
+# nothing left for Maestro to match on. A raw coordinate is the only lever.
+#
+# It stays honest because a mis-tap goes RED rather than passing quietly — the
+# assertion below names one specific activity, so a tap that lands on another
+# row, or on nothing, leaves that string absent and fails the flow. The flow
+# also clears state and walks onboarding rather than inheriting whatever the
+# last run left on screen, so the geometry it taps into is deterministic. If
+# row height or seed ordering changes, this number changes with it.
 #
 # Percentages must be WHOLE NUMBERS — "90.1%" throws NumberFormatException at
 # runtime, after the flow has already started.
