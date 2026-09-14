@@ -1,0 +1,101 @@
+# Completing an activity, and taking it back.
+#
+# This is the app's most repeated interaction and its implementation changed
+# completely: the tick is now an SVG path drawn along its own `strokeDashoffset`
+# and the strikethrough is drawn `View`s rather than `textDecorationLine`.
+# Nothing here can see any of that — see the honesty note below — so what this
+# flow actually guards is the STATE CONTRACT underneath the animation.
+#
+# THE CHECKBOX CANNOT BE SELECTED BY NAME, AND THAT IS NOT A MAESTRO QUIRK.
+#
+# iOS treats a view with an accessibility role and label as a single
+# accessibility ELEMENT and does not expose its descendants. The task row is
+# such an element, so the checkbox nested inside it does not appear in the
+# hierarchy at all — `tapOn: "Plan your day"` fails with "Element not found"
+# while `"Plan your day.*"` matches the ROW. Writing this flow is what surfaced
+# that, and it was a real defect: a VoiceOver user could not complete an
+# activity from the list. The row now carries a custom `toggle` action for
+# exactly that reason (see `TaskRow.tsx`), but Maestro cannot invoke a custom
+# accessibility action, so the tap below is BY POINT.
+#
+# Two other selector traps, recorded so nobody re-derives them:
+#   - `checked:` does not work on iOS. RN maps `accessibilityState.checked` to
+#     an accessibility *value*, not to the boolean attribute Maestro reads.
+#     `selected:` DOES work (see `01-onboarding.yaml`) because RN maps that one
+#     to a real UIKit trait. The two do not behave alike.
+#   - Maestro matches text as a FULL-STRING regex, which is why these flows
+#     write `"MEDIUM.*"` when they mean a prefix.
+#
+# WHAT THIS PROVES, AND WHAT IT DOES NOT. The witness is the ROW's own
+# accessibility label, which gains ", completed". That is a genuine end-to-end
+# assertion: it can only change if the tap reached the checkbox, the store
+# toggled, and the row re-rendered. It does NOT prove the tick was drawn, that
+# the fill sprang, or that the strikethrough rule appeared — a completely
+# unrendered checkbox would still satisfy every assertion below. The screenshots
+# are the only part that can catch that, and they need a human or a diffing step
+# to look at them. This is the same caveat `04-tab-transitions.yaml` records,
+# and it applies just as much here.
+#
+# UNCHECKING IS ASSERTED SEPARATELY AND ON PURPOSE. Undo is a different code
+# path from completion — it retracts the stroke, deflates the fill, and
+# deliberately fires no celebration — so "it went back" is a real assertion and
+# not a formality.
+appId: com.oneplan.app
+name: Task completion — check, and take it back
+---
+# Clear state so the seeded starter day is present and nothing is already
+# ticked. Without this the flow depends on whatever the last run left behind.
+- launchApp:
+    clearState: true
+
+# Onboarding stands between a cleared app and the day. Walk it with the
+# defaults — this flow is not testing onboarding, `01-onboarding.yaml` is.
+- assertVisible: "Oneplan"
+- tapOn: "Get started"
+- tapOn: "Organise my day and time"
+- tapOn: "Continue.*"
+- tapOn: "Loose — morning, afternoon, evening"
+- tapOn: "Continue.*"
+- tapOn: "Continue.*"
+- tapOn: "Continue.*"
+- tapOn: "Continue.*"
+- tapOn: "Not right now"
+- tapOn: "Start planning"
+
+# The seeded day. "Plan your day" is the first morning activity.
+- assertVisible: "Next day"
+- assertVisible: "Plan your day.*"
+
+# --- complete it -----------------------------------------------------------
+# By point, because the checkbox is not in the hierarchy — see the header.
+#
+# A `testID` DOES NOT RESCUE THIS, and it was tried rather than assumed.
+# `Checkbox` carries one, and `tapOn: { id: "checkbox-Plan your day" }` still
+# fails with "Element not found": an accessibility container hides its
+# descendants from the hierarchy entirely, identifier and all, so there is
+# nothing left for Maestro to match on. A raw coordinate is the only lever.
+#
+# It stays honest because a mis-tap goes RED rather than passing quietly — the
+# assertion below names one specific activity, so a tap that lands on another
+# row, or on nothing, leaves that string absent and fails the flow. The flow
+# also clears state and walks onboarding rather than inheriting whatever the
+# last run left on screen, so the geometry it taps into is deterministic. If
+# row height or seed ordering changes, this number changes with it.
+#
+# Percentages must be WHOLE NUMBERS — "90.1%" throws NumberFormatException at
+# runtime, after the flow has already started.
+- tapOn:
+    point: "90%,49%"
+
+# The witness is the ROW's own label, which gains ", completed". It can only
+# change if the tap reached the checkbox, the store toggled, and the row
+# re-rendered — so it is a genuine end-to-end assertion despite the blind tap.
+- assertVisible: "Plan your day, 10m, completed"
+- takeScreenshot: artifacts/07-task-completed
+
+# --- take it back ----------------------------------------------------------
+- tapOn:
+    point: "90%,49%"
+- assertVisible: "Plan your day, 10m"
+- assertNotVisible: "Plan your day.*completed"
+- takeScreenshot: artifacts/08-task-uncompleted

@@ -1,0 +1,47 @@
+# The launch overlay appears, and then goes away.
+#
+# THIS GUARDS THE WORST FAILURE MODE IN THE APP. `LaunchScreen` is mounted above
+# the router and unmounts itself from a Reanimated animation callback via
+# `runOnJS`. If that callback ever fails to fire — a cancelled animation, an
+# effect that re-runs, a dimension change mid-sequence — the overlay stays, and
+# because it is `pointerEvents="none"` and entirely hidden from assistive
+# technology, the app underneath remains mounted, remains tappable, and keeps
+# satisfying every hierarchy assertion in every other flow, while the user
+# stares at a mascot forever. Nothing else in this suite can catch that.
+#
+# WHY IT NEEDS A `testID`. Every visible part of the overlay is decorative and
+# explicitly hidden from screen readers, so there is nothing to assert on by
+# text. `testID` becomes `accessibilityIdentifier` on iOS, which XCUITest can
+# see but VoiceOver does not announce — so the guard costs nothing in
+# announcement noise. This is the one place in the app where a test handle is
+# the right answer rather than a smell.
+#
+# THE ORDER OF THE TWO ASSERTIONS IS THE POINT. Asserting only that it
+# disappears would also pass if it never appeared at all — which would mean the
+# launch animation had silently stopped running and nobody would know until a
+# release. So it is asserted present FIRST, then absent.
+#
+# TIMING. The sequence is handoff 260ms + wake 720 + hold 420 + reveal 620,
+# about 2.0s, and a debug build downloading a bundle can be slower. The wait is
+# `extendedWaitUntil` rather than a fixed sleep so a stuck overlay fails loudly
+# at the timeout instead of a longer sleep quietly papering over it.
+appId: com.oneplan.app
+name: Launch — the overlay hands over
+---
+- launchApp
+
+# It ran at all.
+- assertVisible:
+    id: "launch-overlay"
+
+# It got out of the way.
+- extendedWaitUntil:
+    notVisible:
+      id: "launch-overlay"
+    timeout: 15000
+
+# And the app behind it is the real, usable app rather than a husk: assert
+# something only Today renders, then actually drive it.
+- assertVisible: "Next day"
+- tapOn: "Next day"
+- takeScreenshot: artifacts/09-launch-handed-over
