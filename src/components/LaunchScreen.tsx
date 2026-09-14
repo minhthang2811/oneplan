@@ -238,7 +238,26 @@ export function LaunchScreen({ onFinish }: { onFinish: () => void }) {
   });
 
   return (
-    <View style={StyleSheet.absoluteFill} pointerEvents="none">
+    <View
+      style={StyleSheet.absoluteFill}
+      pointerEvents="none"
+      /*
+       * The only handle the e2e suite has on this overlay.
+       *
+       * Everything visible here is decorative and hidden from assistive
+       * technology, and the overlay does not block touches — so if it ever
+       * failed to unmount, the app underneath would still be mounted, still
+       * respond to taps, and still satisfy every hierarchy assertion, while
+       * being completely invisible to the user. That is the worst failure mode
+       * in this component and nothing else can catch it.
+       *
+       * `testID` becomes `accessibilityIdentifier` on iOS, which XCUITest (and
+       * therefore Maestro) can see but VoiceOver does NOT announce — so this
+       * buys the guard without making the decoration speak. See
+       * `.maestro/07-launch-handoff.yaml`.
+       */
+      testID="launch-overlay"
+    >
       {/* 1. THE OPAQUE LAYER. Everything above this is what the iris cuts
              through; the app sits underneath it. */}
       <Animated.View style={[StyleSheet.absoluteFill, irisStyle]}>

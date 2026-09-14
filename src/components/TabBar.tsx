@@ -69,18 +69,39 @@ const LABELS: Record<string, string> = {
  * the stretch — it appears on the way out and vanishes on arrival for free,
  * with no keyframes and nothing to keep in sync.
  *
- * THE FILTER APPROACH WAS TRIED AND REJECTED, and the reason is worth keeping.
- * The textbook metaball is `feGaussianBlur` + an `feColorMatrix` that hard-
- * contrasts the alpha channel, which react-native-svg does support. But that
- * maths only works on near-opaque shapes: this chip is `rgba(255,255,255,0.13)`
- * in dark mode, and an alpha threshold steep enough to fuse two blobs erases an
- * alpha of 0.13 completely. The chip would simply disappear in dark mode. A
- * gooey filter and a translucent chip are mutually exclusive, and on a glass
- * bar the translucency is the part that cannot be given up.
+ * THE REAL FILTER WAS BUILT AND MEASURED, AND IT IS REJECTED ON FRAME TIME.
  *
- * The two-spring version also costs nothing: it is `translateX`/`scaleX`/
+ * The textbook metaball is `feGaussianBlur` plus an `feColorMatrix` that hard-
+ * contrasts the alpha channel, and react-native-svg 15.15.4 ships all of it.
+ * The obvious objection — that the threshold maths needs near-opaque shapes,
+ * while this chip is `rgba(255,255,255,0.13)` in dark — turns out to be WRONG,
+ * and it is worth recording that it is wrong so nobody re-derives it. Putting
+ * OPAQUE blobs in a group, filtering the group, and applying the translucency
+ * to the group's own `opacity` gives the filter a clean alpha channel to
+ * threshold and still renders translucent:
+ *
+ *     <G opacity={0.13} filter="url(#goo)"> …opaque white blobs… </G>
+ *
+ * That was prototyped and it fuses correctly, in both themes.
+ *
+ * It was rejected because IT CANNOT HOLD A FRAME. Measured on an iPhone 17 Pro
+ * Max simulator with `useFrameCallback`, at production geometry and production
+ * spring configs, driving a tab change every 700ms:
+ *
+ *     filter present, nothing moving    60.0 fps   16.67ms mean    0/211 frames >33ms
+ *     filter + blobs animating          15.0 fps   66.68ms mean   53/53  frames >33ms
+ *     filter present, nothing moving    60.0 fps   16.67ms mean    0/211 frames >33ms
+ *
+ * The static bookends are the control: both return to exactly 60, so this is
+ * not thermal throttling or a warm-up artefact. The cost is precisely the
+ * per-frame re-rasterisation of a blurred, colour-matrixed region — a static
+ * filter is rasterised once and is free, and an animated one is not. EVERY
+ * frame of the transition missed 33ms. That is a quarter of the frame budget
+ * on the single most frequent interaction in the app.
+ *
+ * The two-spring version costs nothing by comparison: `translateX`/`scaleX`/
  * `scaleY` on one view, so it never touches layout and never leaves the UI
- * thread, where a full-bar blur filter would be re-rasterising every frame.
+ * thread. It holds 60.
  *
  * ── VOLUME ─────────────────────────────────────────────────────────────────
  * Stretching horizontally without thinning vertically reads as a rectangle

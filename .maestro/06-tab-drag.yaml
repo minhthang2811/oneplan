@@ -1,0 +1,62 @@
+# Dragging the liquid indicator along the tab bar.
+#
+# The bar is no longer only tappable: a horizontal pan moves the selection blob
+# with the finger and commits to whichever tab it is nearest when you let go.
+# Two properties matter and both are asserted here.
+#
+# 1. A DRAG COMMITS TO WHERE IT ENDED, not to where it started and not to every
+#    tab it crossed. Nothing navigates mid-drag — that is deliberate, because a
+#    drag across the whole bar would otherwise fire four screen transitions for
+#    one gesture.
+# 2. A DRAG DID NOT BREAK TAPPING. The pan only claims the gesture after 10pt of
+#    horizontal travel (`activeOffsetX` in `TabBar.tsx`), so an ordinary tap
+#    must still select a tab. `04-tab-transitions.yaml` covers tapping in full;
+#    the tap at the end here is specifically a regression guard on the gesture
+#    threshold, which is the thing a change to the pan would break.
+#
+# THE SWIPE MUST ACTUALLY TRAVEL. A swipe shorter than the 10pt threshold is
+# just a tap, and would pass this flow for the wrong reason — it would select
+# the tab under the start point, which is also where the drag starts. The swipes
+# below cross most of the bar, so a threshold regression shows up as landing on
+# the wrong tab rather than as a silent false pass.
+#
+# The bar also has `failOffsetY([-18, 18])`: a swipe that wanders more than 18pt
+# vertically is abandoned. These are flat, so that is not in play, but it is why
+# the start and end y are identical rather than approximate.
+#
+# Tabs are at 16% / 39% / 61% / 83%, y 93% — same as `04-tab-transitions.yaml`,
+# and percentages must be WHOLE NUMBERS or Maestro throws at runtime.
+appId: com.oneplan.app
+name: Tab bar — drag the liquid indicator
+---
+- launchApp
+- assertVisible: "Next day"
+
+# --- drag right, across two tabs, and land on Me ---------------------------
+- swipe:
+    start: "16%,93%"
+    end: "83%,93%"
+- assertVisible: "Run onboarding again"
+- takeScreenshot: artifacts/10-drag-right-to-me
+
+# --- drag left, all the way back to To-do ----------------------------------
+- swipe:
+    start: "83%,93%"
+    end: "16%,93%"
+- assertVisible: "MEDIUM.*"
+- takeScreenshot: artifacts/11-drag-left-to-todo
+
+# --- a drag that stops in the middle commits THERE, not at its start -------
+# This is the assertion that actually distinguishes a drag from a tap: it starts
+# on To-do and ends on Focus, so a gesture that failed to activate would leave
+# us on To-do and fail here.
+- swipe:
+    start: "16%,93%"
+    end: "61%,93%"
+- assertVisible: "Pick how long you want to disappear for"
+- takeScreenshot: artifacts/12-drag-stops-midway
+
+# --- and a plain tap still works -------------------------------------------
+- tapOn:
+    point: "39%,93%"
+- assertVisible: "Next day"

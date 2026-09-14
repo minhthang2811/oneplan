@@ -240,16 +240,43 @@ free, with no keyframes and nothing to keep in sync. `scaleY` comes down as
 round ends squash into ellipses as it travels and snap back to circles as it
 lands, which is the whole tell.
 
-**The filter approach was tried and rejected, and the reason generalises.** The
-textbook metaball is `feGaussianBlur` plus an `feColorMatrix` that hard-contrasts
-the alpha channel, and `react-native-svg` does ship those primitives. But that
-maths only works on near-opaque shapes: this chip is `rgba(255,255,255,0.13)` in
-dark mode, and an alpha threshold steep enough to fuse two blobs erases an alpha
-of 0.13 completely. The chip would simply disappear in dark. **A gooey filter and
-a translucent chip are mutually exclusive**, and on a glass bar the translucency
-is the part that cannot be given up. The two-spring version is also free — pure
-`translateX`/`scaleX`/`scaleY`, never touching layout — where a full-bar blur
-filter would be re-rasterising every frame.
+**The real filter was built and measured, and it is rejected on frame time.**
+The textbook metaball is `feGaussianBlur` plus an `feColorMatrix` that
+hard-contrasts the alpha channel, and `react-native-svg` 15.15.4 ships all of it.
+
+The obvious objection is that the threshold maths needs near-opaque shapes while
+this chip is `rgba(255,255,255,0.13)` in dark — and **that objection is wrong**,
+which is worth recording so nobody re-derives it. Put *opaque* blobs in a group,
+filter the group, and apply the translucency to the group's own `opacity`:
+
+```
+<G opacity={0.13} filter="url(#goo)"> …opaque white blobs… </G>
+```
+
+The filter then gets a clean alpha channel to threshold and the result still
+renders translucent. This was prototyped and it fuses correctly in both themes.
+
+It was rejected because **it cannot hold a frame.** Measured on an iPhone 17 Pro
+Max simulator with `useFrameCallback`, at production geometry and production
+spring configs, driving a tab change every 700ms:
+
+| Phase | fps | mean frame | frames over 33ms |
+|---|---|---|---|
+| filter present, nothing moving | 60.0 | 16.67ms | 0 / 211 |
+| filter + blobs animating | **15.0** | **66.68ms** | **53 / 53** |
+| filter present, nothing moving | 60.0 | 16.67ms | 0 / 211 |
+
+The static bookends are the control: both return to exactly 60, so this is not
+thermal throttling or a warm-up artefact. The cost is precisely the per-frame
+re-rasterisation of a blurred, colour-matrixed region — **a static filter is
+rasterised once and is free; an animated one is not.** Every single frame of the
+transition missed 33ms, on the most frequent interaction in the app.
+
+The general rule to take from it: in `react-native-svg`, animating a *filtered*
+region is a different order of cost from animating an unfiltered one, and the
+frequency gate should be applied to the filter, not just to the motion. The
+two-spring version is free by comparison — pure `translateX`/`scaleX`/`scaleY`,
+never touching layout — and it holds 60.
 
 The tab icons read a **fractional position**, not a boolean. A boolean is fine
 while tabs only ever cut from one to the next, but the moment the indicator can

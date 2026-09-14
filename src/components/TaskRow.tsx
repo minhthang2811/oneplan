@@ -43,12 +43,40 @@ export function TaskRow({
 
   return (
     <View style={{ borderRadius: radius.card, borderCurve: 'continuous', backgroundColor: c.surface, boxShadow: shadow[1], overflow: 'hidden' }}>
+      {/*
+        THE CHECKBOX INSIDE THIS ROW IS UNREACHABLE WITH VOICEOVER, AND THAT IS
+        WHY THIS ROW EXPOSES A CUSTOM ACTION.
+
+        iOS treats a view with an accessibility role and label as a single
+        accessibility ELEMENT and does not expose its descendants separately.
+        This row is such an element, so every control nested inside it —
+        including the completion checkbox — is swallowed. A sighted user can tap
+        the box; a VoiceOver user could only ever activate the row, which
+        navigates to the detail screen. Completing an activity from the list was
+        therefore impossible with a screen reader, which is a bad hole in an app
+        whose whole premise is making a day easier to act on.
+
+        The fix is the platform's own answer to this shape: a custom action, on
+        the row, surfaced by the VoiceOver rotor. Flattening the row instead —
+        dropping the role so the box is exposed — would cost the row's own
+        "open this activity" affordance, which is the more common action of the
+        two. The action's label tracks `done` so the rotor says what it will
+        actually do rather than naming the state it is in.
+      */}
       <PressHighlight
         onPress={onPress}
         baseColor={c.surface}
         pressColor={c.surfaceSunken}
         accessibilityRole="button"
         accessibilityLabel={`${task.title}, ${formatDuration(task.minutes)}${task.done ? ', completed' : ''}`}
+        accessibilityActions={[
+          { name: 'toggle', label: task.done ? 'Mark as not done' : 'Mark as done' },
+        ]}
+        onAccessibilityAction={(e) => {
+          if (e.nativeEvent.actionName !== 'toggle') return;
+          task.done ? haptic.tap() : haptic.success();
+          onToggle();
+        }}
         style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, padding: space.md }}
       >
         <EmojiAvatar emoji={task.emoji} tint={task.tint} dimmed={task.done} />
@@ -103,6 +131,7 @@ export function TaskRow({
         <Checkbox
           checked={task.done}
           identity={task.id}
+          label={task.title}
           onToggle={() => { task.done ? haptic.tap() : haptic.success(); onToggle(); }}
         />
       </PressHighlight>
@@ -146,6 +175,7 @@ export function TaskRow({
                   <Checkbox
                     checked={s.done}
                     identity={s.id}
+                    label={s.title}
                     onToggle={() => { haptic.tick(); onToggleStep(s.id); }}
                     size={20}
                     subtle

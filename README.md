@@ -125,11 +125,31 @@ npx skills experimental_install
 
 ## End-to-end tests
 
-[Maestro](https://maestro.mobile.dev) flows live in [.maestro/](./.maestro). They
-drive a real simulator through onboarding, the empty day, and a full one-minute
-focus session, and capture a screenshot at every screen the mascot appears on —
-a mascot passes `assertVisible` just fine while rendering as a blank box, so the
-screenshots are as much the point as the assertions.
+[Maestro](https://maestro.mobile.dev) flows live in [.maestro/](./.maestro).
+They drive a real simulator through onboarding, the empty day, a full one-minute
+focus session, completing and un-completing an activity, dragging the tab bar's
+liquid indicator, and the animated launch screen's handoff — and capture a
+screenshot at every screen the mascot appears on. A mascot passes
+`assertVisible` just fine while rendering as a blank box, so the screenshots are
+as much the point as the assertions.
+
+| Flow | What it guards |
+|---|---|
+| `01-onboarding` | The five-step first run, and Pip's three first-run moments |
+| `02-empty-day` | The empty state, and Pip at rest |
+| `03-focus-celebration` | A real one-minute session through to the confetti |
+| `04-tab-transitions` | Every tab pair, in both directions — the blank-tab regression |
+| `05-task-completion` | Completing an activity and taking it back |
+| `06-tab-drag` | Dragging the indicator commits where it *ended*, and tapping still works |
+| `07-launch-handoff` | The launch overlay appears **and then goes away** |
+
+`07` is the important one. The launch overlay is `pointerEvents="none"` and
+entirely hidden from assistive technology, so if it ever failed to unmount, the
+app underneath would stay mounted, stay tappable, and keep satisfying every
+assertion in every other flow — while the user stared at a mascot forever.
+Nothing else in the suite can catch that, which is why `LaunchScreen` carries a
+`testID`: it becomes `accessibilityIdentifier` on iOS, which Maestro can see and
+VoiceOver does not announce.
 
 ```bash
 brew install openjdk@17
@@ -142,9 +162,23 @@ Then, with the app built and running on a simulator:
 JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home PATH="$HOME/.maestro/bin:$PATH" maestro test .maestro/01-onboarding.yaml
 ```
 
-Run the flows **one at a time**. Pointing Maestro at the whole directory runs
-them concurrently against the single simulator, where they fight each other and
-all fail.
+Or the whole suite, which on Maestro 2.10 runs them sequentially against one
+simulator and takes about five minutes:
+
+```bash
+JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home PATH="$HOME/.maestro/bin:$PATH" maestro test .maestro/
+```
+
+**`JAVA_HOME` is not optional.** Maestro is a JVM tool and macOS ships only a
+`/usr/bin/java` stub, so without it every command fails with "Unable to locate a
+Java Runtime" — including `maestro --version`, which makes it look like Maestro
+itself is broken.
+
+**Shut down all but one simulator before running.** With two booted, `maestro
+test` silently picks one (so a flow can pass on a device you were not watching)
+and `maestro hierarchy` refuses outright with "Multiple devices connected". Use
+`xcrun simctl list devices booted` to check, and `maestro test --device <udid>`
+if you must keep more than one.
 
 Rules learned the hard way, documented in the flows themselves:
 
@@ -162,6 +196,23 @@ Rules learned the hard way, documented in the flows themselves:
    is mounted and correctly laid out but drawn at opacity 0 passes every
    assertion — which is exactly how the blank-tab bug got in. The
    `takeScreenshot` calls are what catch that class of regression.
+6. Those screenshots do **not** land in `./artifacts`. Despite the path in the
+   flow, Maestro 2.x writes them to
+   `~/.maestro/tests/<run timestamp>/<flow name>/takeScreenshot/artifacts/`.
+   Worth knowing, because rule 5 makes them the only guard against a whole class
+   of bug and a guard nobody can find is not a guard.
+7. **`checked:` does not work on iOS.** React Native maps
+   `accessibilityState.checked` to an accessibility *value*, not to the boolean
+   attribute Maestro reads, so the selector never matches. `selected:` *does*
+   work, because RN maps that one to a real UIKit trait. The two are not
+   symmetrical.
+8. **A row with a role and a label swallows its children.** iOS exposes such a
+   view as one accessibility element, so a control nested inside it — the task
+   row's checkbox, for instance — is not in the hierarchy at all and cannot be
+   selected by name. Writing `05-task-completion` is what surfaced that, and it
+   was a real defect rather than a test problem: it meant a VoiceOver user could
+   not complete an activity from the list. The row now exposes a custom
+   `toggle` action for it.
 
 ## Publishing to the App Store
 

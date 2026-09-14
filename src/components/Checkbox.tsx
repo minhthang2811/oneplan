@@ -22,6 +22,17 @@ type Props = {
    * the task detail screen.
    */
   identity?: string;
+  /**
+   * What this box controls, for a screen reader — the activity or step title.
+   *
+   * The surrounding row already announces the title, but VoiceOver focuses this
+   * control SEPARATELY, and on its own an unlabelled checkbox reads as
+   * "checkbox, checked" with no indication of what was checked. It is the same
+   * rule DESIGN.md states for the mascot: a thing is either meaningful and
+   * labelled or decorative and hidden, and what it must never be is unlabelled
+   * and focusable.
+   */
+  label?: string;
 };
 
 const AnimatedPath = Animated.createAnimatedComponent(Path);
@@ -68,7 +79,7 @@ const TICK_LENGTH = 17.4;
  * app that throws the same confetti for "done" and "not done" is telling you it
  * was not paying attention.
  */
-export function Checkbox({ checked, onToggle, size = 26, subtle = false, identity }: Props) {
+export function Checkbox({ checked, onToggle, size = 26, subtle = false, identity, label }: Props) {
   const { c } = useTheme();
   const reduced = useReducedMotion();
 
@@ -196,6 +207,7 @@ export function Checkbox({ checked, onToggle, size = 26, subtle = false, identit
       hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
       accessibilityRole="checkbox"
       accessibilityState={{ checked }}
+      accessibilityLabel={label}
       style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}
     >
       {/* Outside the squish, so the ring leaves a box that is still deforming

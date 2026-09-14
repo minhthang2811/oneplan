@@ -149,6 +149,7 @@ export default function TaskDetail() {
                   <Checkbox
                     checked={s.done}
                     identity={s.id}
+                    label={s.title}
                     onToggle={() => { haptic.tick(); toggleStep(task.id, s.id); }}
                     size={22}
                     subtle
