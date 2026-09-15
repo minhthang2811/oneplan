@@ -66,6 +66,37 @@ const PIP_REST = 140;
 const PIP_AWAKE = 176;
 
 /**
+ * THE SIZE THE IMAGE IS ACTUALLY LAID OUT AT — and the fix for a soft mascot.
+ *
+ * Pip used to be laid out at `PIP_REST` and scaled UP from there: to 1.26x when
+ * he woke, and on to about 1.53x as he passed the viewer on the way out. That
+ * is the one direction a rasterised layer must never be scaled.
+ *
+ * The reason is where the resampling happens. A transform on a view is a
+ * COMPOSITOR operation: the layer is rendered once at its layout size and the
+ * GPU then stretches that finished bitmap. Scaling DOWN throws pixels away and
+ * stays sharp. Scaling UP has no pixels to invent, so it interpolates — and the
+ * source being a generous 768px makes no difference at all, because by the time
+ * the transform runs, the 768px original is long gone and all that remains is
+ * the 140pt render of it. At 1.53x the launch was showing a 420px bitmap
+ * stretched across 643 device pixels, which is exactly the slight softness that
+ * was reported.
+ *
+ * So the image is laid out at the LARGEST size the sequence ever reaches, and
+ * every state below is expressed as a scale DOWN from it. Frame one is still
+ * pixel-identical to the native splash — `PIP_REST / PIP_MAX` is the scale that
+ * puts a 215pt view back at exactly 140pt — and now every frame of the
+ * animation is a downsample of a 645px render instead of an upsample of a
+ * 420px one.
+ *
+ * The cost is one larger decode at launch, which is a 768px WebP either way.
+ */
+const PIP_MAX = Math.ceil(PIP_AWAKE * 1.22);
+/** The scale that renders `PIP_MAX` at exactly the native splash's size. */
+const REST_SCALE = PIP_REST / PIP_MAX;
+const AWAKE_SCALE = PIP_AWAKE / PIP_MAX;
+
+/**
  * The bloom. Hand-placed rather than random, and painted from `TINTS` — the
  * same six hues that encode a task's identity everywhere else — so the launch
  * is visibly made of the app's own material instead of generic party colour.
@@ -90,7 +121,28 @@ const BLOOM_RADIUS = 132;
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
-export function LaunchScreen({ onFinish }: { onFinish: () => void }) {
+export function LaunchScreen({
+  onFinish, fontsReady = true,
+}: {
+  onFinish: () => void;
+  /**
+   * Whether the display serif has actually loaded.
+   *
+   * The overlay now paints BEFORE the fonts are ready, so that the native
+   * splash can hand over immediately instead of holding the whole launch
+   * behind a font load that only the wordmark needs (see `app/_layout.tsx`).
+   * The cost of that is this flag: rendering the wordmark early would set it
+   * in the system fallback and then swap the face mid-animation, which is a
+   * worse artefact than the wait it removed.
+   *
+   * It is safe to withhold ONLY the wordmark, because the wordmark is the one
+   * element that is not on the native splash — it is already allowed to arrive
+   * from nowhere, so arriving a few milliseconds later than planned cannot
+   * open a seam. Pip, who must be pixel-identical on frame one, needs no fonts
+   * at all and is never gated.
+   */
+  fontsReady?: boolean;
+}) {
   const { c, isDark } = useTheme();
   const reduced = useReducedMotion();
   const { width, height } = useWindowDimensions();
@@ -198,8 +250,16 @@ export function LaunchScreen({ onFinish }: { onFinish: () => void }) {
 
     if (reduced) return { opacity: (1 - o) * w + (1 - w) * 1, transform: [] };
 
-    const grow = PIP_REST + (PIP_AWAKE - PIP_REST) * Math.min(w, 1);
-    const scale = (grow / PIP_REST) * (1 + 0.22 * o);
+    /**
+     * Every value here is a fraction of `PIP_MAX`, so the transform only ever
+     * scales DOWN — see the note on `PIP_MAX`. The spring is still allowed to
+     * overshoot past `w = 1`, which is what carries him a touch beyond
+     * `AWAKE_SCALE` before settling; the ceiling the layout was sized against
+     * already includes the exit's 1.22x, so even the overshoot at the very end
+     * stays at or under 1:1.
+     */
+    const grow = REST_SCALE + (AWAKE_SCALE - REST_SCALE) * Math.min(w, 1);
+    const scale = grow * (1 + 0.22 * o);
     // Anti-phase squash: wide and short at the start of the rise, then over-tall
     // at the peak. This is the difference between a view being scaled and a
     // character taking a breath.
@@ -339,20 +399,24 @@ export function LaunchScreen({ onFinish }: { onFinish: () => void }) {
         accessibilityElementsHidden
         importantForAccessibility="no-hide-descendants"
       >
+        {/* Laid out at the sequence's LARGEST size and scaled down to reach
+            every state, so no frame is ever an upsample. See `PIP_MAX`. */}
         <Animated.View style={pipStyle}>
-          <Pip size={PIP_REST} image="sit" />
+          <Pip size={PIP_MAX} image="sit" />
         </Animated.View>
 
-        <Animated.View
-          style={[
-            { position: 'absolute', top: '50%', marginTop: PIP_AWAKE / 2 + 4, alignItems: 'center' },
-            markStyle,
-          ]}
-        >
-          <Txt variant="displayMd" allowFontScaling={false} style={{ letterSpacing: 0.2 }}>
-            Oneplan
-          </Txt>
-        </Animated.View>
+        {fontsReady ? (
+          <Animated.View
+            style={[
+              { position: 'absolute', top: '50%', marginTop: PIP_AWAKE / 2 + 4, alignItems: 'center' },
+              markStyle,
+            ]}
+          >
+            <Txt variant="displayMd" allowFontScaling={false} style={{ letterSpacing: 0.2 }}>
+              Oneplan
+            </Txt>
+          </Animated.View>
+        ) : null}
       </View>
     </View>
   );

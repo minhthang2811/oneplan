@@ -213,9 +213,29 @@ Four decisions inside that path:
    renders **no** gel surface and **no** inset rim; it is a plain translucent
    fill, which is also exactly what Apple's own bars do — Photos and News both
    use a simple filled capsule behind the active tab.
-4. **No `GlassContainer`.** That exists to make *sibling* glass views fuse when
-   they come near each other — a row of separate floating controls. This bar is
-   one continuous surface, so there is nothing to fuse with.
+4. **`isInteractive`, on the tab bar only.** The system deforms the material
+   under the finger — it swells towards the touch and settles back on release.
+   This bar is the one surface that earns it, and the reason is the drag:
+   everything else that floats here is *tapped*, and a pane that squirms under a
+   tap reads as instability, while this one is a control you put a finger on and
+   **pull**. It is also the piece of the real material no amount of painting can
+   reach, which is the whole reason the native path exists.
+5. **`GlassGroup` exists but the bar does not use it.** `GlassContainer` makes
+   *sibling* glass views fuse as they approach — two droplets on a windscreen,
+   and the behaviour that most separates Liquid Glass from a blur. It is wrapped
+   as `GlassGroup` for where there are genuinely sibling floating controls. This
+   bar is one continuous surface, so there is nothing to fuse with, and wrapping
+   one surface in a container costs a native view and buys nothing.
+
+**Both availability checks, not just the obvious one.** `isLiquidGlassAvailable()`
+answers "was this binary compiled against an SDK that has Liquid Glass, running
+on an OS that has it". `isGlassEffectAPIAvailable()` answers "is the API actually
+there at runtime", which is a *different* question on the iOS 26 betas that
+shipped the OS version without the glass API. On those, the first returns true
+and the second does not — and taking the native path anyway renders a plain,
+untinted `View` where the tab bar should be: no blur, no material, chrome text
+sitting directly on whatever scrolled underneath. The painted gel is a far better
+answer than nothing, so the real path requires both.
 
 The drop shadow still lives on an outer wrapper, for the same reason it always
 did: a rounded, clipping surface cannot cast its own.
@@ -409,10 +429,46 @@ The beats:
 
 | Beat | What happens |
 |---|---|
-| **Handoff** (260ms) | Nothing moves. The native splash fades off the top of an identical JS frame. `motion.launch.handoff` is read by both sides — if they ever disagree you get a static Pip and a moving Pip cross-fading through each other. |
-| **Wake** (720ms) | Pip settles on a loose spring: squash at the feet, rise, overshoot. The wordmark rises beneath him. Eight tinted discs bloom outward from behind him, each on its own angle, painted from `TINTS`. |
-| **Hold** (420ms) | One still frame. A launch with no still frame reads as a stutter, because the eye never gets to land on the brand. |
-| **Reveal** (620ms) | An **iris opens from Pip's own centre**, wiping the launch ground away to the app underneath, while Pip scales *up* and fades and the discs are flung further out. |
+| **Handoff** (140ms) | Nothing moves. The native splash fades off the top of an identical JS frame. `motion.launch.handoff` is read by both sides — if they ever disagree you get a static Pip and a moving Pip cross-fading through each other. 140ms is the floor: below about 120 the cross-fade stops reading as a dissolve and starts reading as a cut. |
+| **Wake** (520ms) | Pip settles on a loose spring: squash at the feet, rise, overshoot. The wordmark rises beneath him. Eight tinted discs bloom outward from behind him, each on its own angle, painted from `TINTS`. |
+| **Hold** (220ms) | One still frame. A launch with no still frame reads as a stutter, because the eye never gets to land on the brand. |
+| **Reveal** (460ms) | An **iris opens from Pip's own centre**, wiping the launch ground away to the app underneath, while Pip scales *up* and fades and the discs are flung further out. |
+
+### The budget, and the two things that made it feel slow
+
+Those four numbers sum to the delay between tapping the icon and being able to
+use the app. It was **2020ms** and is now **1340ms**. Every beat is shorter and
+none is gone: drop the hold and the launch reads as a stutter, drop the handoff
+and you get a double exposure. The sequence is not compressible past the point
+where the eye can land on the brand at all.
+
+Two separate defects sat underneath the complaint that Pip "takes too long to
+appear", and neither was a slow beat.
+
+**1. The font load was in front of the whole launch.** `RootLayout` returned
+`null` until `useFonts` resolved. That reads as correct and it means the root
+never lays out, `onLayout` never fires, `hideAsync()` is never called, and the
+*native* splash stays up — so the time to Pip's first movement was the font load
+*plus* the handoff, spent waiting on fonts that the mascot does not use. The
+overlay now paints immediately and the fonts are awaited underneath it, in
+parallel with dead time that was already being spent. The only two things gated
+on fonts are the two that need them: the router, and the wordmark inside the
+overlay (which is not on the native splash, so it is already allowed to arrive
+from nowhere). The overlay comes down when **both** its animation has finished
+and there is something behind it to reveal — without that second condition a
+cold start on a slow device opens the iris onto an empty canvas.
+
+**2. Pip was being scaled UP, which is the one direction a rasterised layer must
+never go.** He was laid out at `PIP_REST` (140) and scaled to 1.26x awake and on
+to ~1.53x on the way out. A transform on a view is a *compositor* operation: the
+layer is rendered once at its layout size and the GPU stretches that finished
+bitmap. Scaling down discards pixels and stays sharp; scaling up has none to
+invent. The 768px source makes no difference — by the time the transform runs,
+all that remains is the 140pt render of it, so the launch was stretching a 420px
+bitmap across 643 device pixels. That is exactly the slight blur that was
+reported. He is now laid out at `PIP_MAX` — the largest size the sequence ever
+reaches — and **every state is a scale *down* from it**, with `REST_SCALE`
+putting frame one back at exactly the native splash's 140pt.
 
 Two decisions inside the reveal:
 
@@ -448,17 +504,226 @@ frame just long enough not to flash and then cross-fades, because an iris is a
 shape travelling across the screen and that is exactly what the setting exists to
 remove.
 
+## Chrome that reacts to scrolling
+
+Two pieces of floating chrome react to the same scroll: the **scroll edge** at
+the top and the **tab bar** at the bottom. They are rendered in completely
+different places — the edge inside whichever screen is showing, the bar by the
+`Tabs` navigator above all of them — so the signal is hoisted into `ChromeProvider`
+and both read it. A screen attaches **one** handler (`useChromeScroll()`) and
+gets both behaviours.
+
+It is a pair of **shared values**, not state: this updates at 60Hz and drives
+animation, so React state here would re-render every tab screen on every scroll
+frame.
+
+### Why a plain JS scroll handler
+
+`useAnimatedScrollHandler` cannot be used, because **FlashList cannot take one**.
+Its `RecyclerView` owns the ScrollView's `onScroll` for its own windowing maths
+and forwards the event to the caller as an ordinary function call. A Reanimated
+handler is not an ordinary function — it is an object carrying a worklet that
+only becomes a UI-thread handler when attached directly to an
+`Animated.ScrollView`. So the offset crosses by hand, once per event. That is
+the only JS-thread work in the whole effect: everything that *reads* these values
+is a worklet, so both behaviours still animate on the UI thread.
+
+### The scroll edge
+
+Apple's own name for it, and their own description of the job: *"Scroll edge
+effects further enhance legibility by blurring and reducing the opacity of
+background content."*
+
+**It is blur, not `GlassPanel`, and that is Apple's distinction rather than a
+compromise.** The HIG puts Liquid Glass in a *functional layer for controls and
+navigation that floats above the content layer*; the scroll edge is a legibility
+treatment applied to the content passing underneath. This band contains no
+controls. Giving it the material would put a second floating glass object on
+screen competing with the tab bar — the "use Liquid Glass sparingly" failure —
+and it would read as a bar that is always there rather than an effect that
+builds.
+
+The ramp is built by **stacking four bands that all start at the top and end at
+different heights**, each at a fraction of the usual intensity. Content at the
+very top passes under all four; content at the bottom passes under one. The
+accumulation *is* the gradient — a single `BlurView` has a hard bottom edge, and
+a hard edge is the tell.
+
+**Only opacity animates.** Animating `intensity` re-renders the blur every frame,
+which is the same per-frame re-rasterisation the metaball investigation measured
+at 15fps. A fixed-intensity blur cross-faded by opacity is one composite of an
+already-rendered layer and looks identical, because a blur at 40% opacity *is* a
+40%-strength blur.
+
+The compact title is **position-driven, not direction-driven** — iOS's own
+large-title collapse works this way, and it is what makes "scroll back up to
+reveal the header" true with no extra mechanism: the big title returning *is* the
+compact one leaving, because they are two readings of one offset.
+
+### The tab bar contracts
+
+Apple's own bars shrink out of the way as you scroll into content and return the
+moment you scroll towards the top. It **contracts rather than sliding away**: a
+bar that leaves entirely has to be hunted for, and Apple's guidance is against
+hiding navigation outright. Shrinking keeps it continuously present and tappable;
+it simply stops claiming to be the thing you are looking at.
+
+**Transform only, never opacity.** `expo-glass-effect` documents that opacity 0
+on a `GlassView` *or any parent* stops the material rendering at all — so fading
+toward zero would work perfectly until the final frame and then drop the glass.
+
+### Two things the hysteresis has to survive
+
+A bar that reacts to any movement flickers constantly, so travel is accumulated
+in one direction and reset when the direction changes; the bar only moves once
+that accumulation passes `scrollEdge.hysteresis`, and never within
+`scrollEdge.hideAfter` of the top.
+
+**Overscroll is not a direction, and missing that broke the feature outright.**
+Measured on a day that fits in a little over one screen: a single flick produced
+28 events wanting the bar contracted, immediately followed by 7 wanting it
+expanded — so it contracted and sprang straight back, every time. The 7 were the
+**rubber band**. iOS lets a list travel past its own end and settles it back, and
+that settle is genuine upward movement of tens of points — far more than any
+threshold is meant to absorb, and read as intent it means "scrolling up" when the
+finger has already left the screen. The distinction is not speed or distance, so
+no threshold could have caught it; it is *where* it happens, beyond the content's
+own bounds, which the scroll event reports outright.
+
+## Appearance
+
+Light / Dark / System, stored on the profile.
+
+React Native ships exactly the API this wants — `Appearance.setColorScheme()`
+overrides the window's interface style and `useColorScheme()` reads it back — and
+driving the whole feature from that alone is the obvious implementation and is
+subtly wrong. `setColorScheme` mutates the cached value and **never emits the
+`change` event**; `useColorScheme()` is a `useSyncExternalStore` over that
+emitter, so a programmatic override notifies no subscriber. What actually
+re-renders is the *native* trait change echoing back — a frame late at best, and
+on a platform that does not re-emit for an override it was itself asked to apply,
+never.
+
+So the palette is resolved from the **store**, which is synchronous and
+re-renders on write, and `setColorScheme` is called alongside it for the things
+the store cannot reach: `ActionSheetIOS`, the system `Switch`, `Alert`, the
+keyboard, the scroll indicators and the status bar. `'unspecified'` is the value
+that *clears* an override — RN re-reads the real system scheme when it sees it,
+which is what lets "System" follow the device again.
+
+The picker shows **three previews drawn from the real palette**, not screenshots:
+a screenshot goes stale the first time a token changes, and it goes stale
+silently. The System card is **one full-width preview with the dark one clipped
+over its right half**, never two half-width previews side by side — two halves
+each lay out to their own width, so rows and titles land differently on the two
+sides and the split reads as two different screens rather than one screen lit two
+ways. The same three choices appear again as a plain list, because the cards
+carry the information in colour and layout, which is exactly the encoding that
+does not survive VoiceOver, a colour-vision difference, or 300% Dynamic Type.
+
+## Persisted defaults
+
+Zustand's persist `merge` is **shallow**, so a persisted `profile` replaces the
+default profile wholesale and every key added since it was written arrives as
+`undefined`.
+
+Patching that key by key inside a version-gated `migrate` block is the obvious
+fix and it failed in exactly the way version gates do: the appearance picker
+shipped with nothing selected, because the store on the device already reported
+version 4 from an earlier build whose schema was different, so `migrate` was
+never called at all and the version number confidently said the migration had
+happened. Any install that has been on a beta, a TestFlight build, or a release
+that was later rolled back can present a version ahead of its own shape.
+
+The rule the store now follows: **transformations are versioned, defaults are
+not.** `migrate` keeps the one-way rewrites (the retired-tint remap, which must
+run exactly once), and `merge` spreads the current profile underneath the
+persisted one on *every* rehydration — a key the user has saved wins, a key they
+have never had falls back to the default.
+
+## Reminders
+
+A reminder fires **`profile.reminderLead` minutes before** an activity, not at
+it. Firing at the start time was the only option this shipped with and it is the
+one moment a nudge cannot help: a notification arriving when you should already
+have begun is a notification about being late. The default is 10 minutes, and
+that moves existing users too — preserving the old behaviour would be preserving
+the defect.
+
+The lead is folded into the notification identifier, so **changing it
+reschedules**: the reconcile can only compare identifiers against the OS's
+pending list, so anything that changes what a reminder is or when it lands has to
+change its id.
+
+Three things were invisible and are now stated on the screen, because each of
+them made a working feature look broken:
+
+- **The OS's own permission**, separately from the app's switch. The two can
+  disagree at any moment — permission is revocable from iOS Settings while the
+  app is not running — and without this row the only symptom is a switch that
+  will not move.
+- **How many reminders the setting actually produces.** A reminder can only
+  attach to an activity that sits at a time on a day, and most activities here do
+  not, so switching the feature on could schedule nothing at all with no way to
+  tell that apart from "working". The screen now distinguishes *nothing has a
+  start time* from *everything today has already begun*.
+- **Why the switch turned itself off.** The app disables reminders when it finds
+  permission revoked, which is right, and it used to do so silently — which from
+  the user's side is indistinguishable from a setting that will not stick.
+
+`requestPermissionsAsync` is also wrapped: an exception there rejects the async
+handler and React Native reports it as an unhandled rejection, which the user
+sees as a switch that will not move — no prompt, no alert, nothing. Reporting
+`false` turns it into the one case the UI already handles properly.
+
+The onboarding preview is built from `reminderBody`, the same function that
+writes the real notification. It used to be hand-typed literals and they had
+already drifted.
+
+## Routines, after onboarding
+
+Onboarding asks its three questions once and then never again, which is the wrong
+shape for the thing it asks about: a routine is the part of a day that changes
+most often. Until now the only way to change one was to run the whole five-step
+flow again.
+
+**The order is the product.** The routines flow promises "we will keep them in
+this order so you do not have to", and the order was the *catalogue's* — the
+picks were applied by `ROUTINES[slot].filter(...)`, so a user who chose
+shower-then-coffee got coffee-then-shower, silently, because that is how the
+array happened to be written. The sequence is now stored as an ordered id list
+and built by walking it, never by filtering.
+
+**All three slots on one screen, collapsed.** Onboarding asks one at a time
+because a page of thirty-six chips is the wall of choice this audience bounces
+off — right for a first run, wrong here, where someone arrives with a specific
+edit in mind and paging through the other two is what stops them bothering.
+
+**Every edit writes straight through to today; there is no Save.** A routine is
+not a document, it is a description of what you do, and the only way to know
+whether a change is right is to look at the day it produces. `syncRoutines`
+carries today's completed steps across by id, so editing at eleven in the morning
+does not hand back the three things you have already done as undone.
+
+It rebuilds **one slot**, and that is a data-loss fix rather than tidiness. It
+rebuilt all three, and `buildRoutine` returns null for a slot with no steps — so
+any slot the user had not configured had its activity *deleted*. Editing only the
+morning silently removed the seeded "Evening routine": the day went from eight
+tasks to seven and nothing said why. A routine activity is an ordinary task once
+it exists, and a slot nobody has opened is not an empty routine to clean up.
+
 ## Completion
 
-The most-repeated satisfying moment in the app, built from four beats that each
+The most-repeated satisfying moment in the app, built from five beats that each
 do one job:
 
 | Beat | What it does | Why |
 |---|---|---|
-| **Squish** | The box compresses and rebounds on a loose spring, anti-phase in X and Y | Contact feedback, so it is the only beat that fires on the way *out* as well as in. |
-| **Fill** | The disc springs up from the centre | The colour arrives with weight instead of switching on. |
-| **Draw** | The tick **strokes itself** along its own path, via an animated `strokeDashoffset` | A mark that appears has been asserted; a mark that is drawn has been *made*. This is most of why it feels satisfying rather than merely responsive. |
-| **Pop** | One ring expands past the box and fades | The only beat that costs nothing to ignore, and what carries at a glance when the tap happens off to the side of where you are reading. |
+| **Contact** | The box compresses under the finger the moment it is touched and rebounds when released, on the app's press asymmetry — 120ms timing down, spring back up | This beat was **missing**, and its absence was the real defect. Everything else in the app reports contact instantly (`PressScale`, `PressHighlight`); the checkbox alone sat inert until the store came back, which reads as the tap not having landed. |
+| **Bloom** | A soft disc of the accent swells behind the box while it is held | Apple's guidance is that a control in the content layer may take on a glass appearance *"to emphasize its interactivity when a person activates it"*. This is that beat — **painted rather than materialised**: a real `GlassView` is a native view, and this control appears once per task row and once per step of every expanded routine. At 26pt under a fingertip, behind an opaque disc that is about to cover it, the two are indistinguishable. |
+| **Fill** | The disc springs up from the centre while the outline fades *into* it | The colour arrives with weight instead of switching on, and the ring is **absorbed** rather than left drawn around a filled circle. Two cross-faded views rather than an animated `borderWidth`, which is a layout property and cannot be driven from the UI thread at all. |
+| **Draw** | The tick **strokes itself** along its own path via an animated `strokeDashoffset`, rotating the last few degrees upright as it goes | A mark that appears has been asserted; a mark that is drawn has been *made*. This is most of why it feels satisfying rather than merely responsive. |
+| **Burst** | Eight short marks fly outward and fade | Replaced a single expanding ring. A ring has to be *watched* to be read — its whole signal is one edge moving slowly outward — while spokes are read instantly from the corner of the eye, which is the only thing this beat is for. The spokes are **mounted only while they are flying**, so the steady-state cost on a list is zero views. |
 
 Then the title is **struck through by a rule that is drawn from the left**.
 `textDecorationLine` cannot be used for this: it is a native text attribute, not
@@ -469,8 +734,8 @@ task titles wrap to two lines and one rule across a two-line block strikes the
 gap between them and nothing else. The rules are staggered, so a wrapped title is
 struck the way it is read.
 
-**Unchecking gets the squish and nothing else.** It retracts the stroke, deflates
-the fill, and fires no ring — the same rule the routine chips follow, that
+**Unchecking gets contact and nothing else.** It retracts the stroke, deflates
+the fill, restores the ring, and fires no burst — the same rule the routine chips follow, that
 undoing something is a correction and a correction is not celebrated. An app that
 throws the same gesture for "done" and "not done" is telling you it was not
 paying attention.
@@ -491,6 +756,37 @@ also be toggled by tapping its label — but **"is this still the same item"**.
 Same item with a new value is a completion and gets the performance; a different
 item is a recycle and snaps to the finished state with no animation at all, which
 is what a checkbox you never touched should look like anyway.
+
+### Finishing a whole time of day
+
+Finishing one activity and finishing an entire morning were the same event as far
+as the screen was concerned: the day's shape changed and nothing said so. A
+time-of-day block now gets a **confetti burst and Pip cheering**.
+
+The frequency gate is the whole argument for letting it be big. A task is
+completed tens of times a day and gets a 500ms flourish on a 26pt control; a
+block completes **at most three times a day**, is genuinely the thing the user
+came here to do, and is rare enough to afford the mascot — the same tier as the
+focus-session finish. It is also what makes the mascot worth having: Pip is
+absent from every screen you look at repeatedly precisely so the few places he
+does appear still mean something.
+
+**It never blocks.** `pointerEvents="none"` throughout, and it dismisses itself
+off the confetti's own completion rather than a second timer. A celebration that
+has to be acknowledged is a modal, and a modal between someone and the next thing
+on their list is a punishment for finishing.
+
+Three things make a slot look newly-complete when it is not, and each would put
+confetti on screen for something the user did not just do: **arriving** at a day
+that is already finished (the first observation is a baseline, never an event),
+**changing date** (yesterday's finished morning is not a completion), and an
+**empty slot** (`every()` is vacuously true on an empty array, so a slot with
+nothing in it reports itself complete forever).
+
+The copy does not congratulate anyone on being good. The audience is people who
+struggle to start, so the failure mode of celebration copy is making the *next*
+block feel like a standard to live up to. Each line says the block is finished
+and stops.
 
 ## Arrival
 
@@ -530,7 +826,7 @@ calendar, because it is data-bearing: it shows the current date.
 
 ## Pip
 
-The mascot. Two supplied illustrations in `assets/mascot/`, rendered by
+The mascot. Three supplied illustrations in `assets/mascot/`, rendered by
 `src/components/mascot/`.
 
 **The artwork is shipped as-is, not redrawn.** An earlier version reconstructed
@@ -548,19 +844,25 @@ tokens at all**.
 
 Shipped as WebP — ~75KB each against ~500KB for the same PNG, alpha intact.
 
-**There are two pictures, so a pose is a behaviour, not a file.** `cheer` and
-`rest` both render the sitting illustration; what separates them is that one
-lands with a squash-and-stretch and floats while the other only breathes. Faking
-a third pose by flipping or skewing the artwork would read as a bug, not a
-performance.
+**There are three pictures and four poses.** `cheer` has its own drawing —
+paws up, eyes shut, excitement marks — because a celebration is carried by the
+character's face and paws, and no amount of squash-and-stretch on a calm sitting
+dog supplies either. It used to be the sitting artwork moved differently, which
+was an honest workaround for not having the picture and is strictly worse than
+having it.
+
+`rest` genuinely *is* a behaviour rather than a drawing: a sleeping dog and a
+sitting dog differ by how much they move, which is exactly what `idle` controls.
+Faking a pose by flipping or skewing the artwork would read as a bug, not a
+performance — that constraint still stands for everything not drawn.
 
 Where Pip may appear is decided by the same frequency gate as the motion
 vocabulary, not by where he would be cute:
 
 | Tier | Screens | Pip |
 |---|---|---|
-| Rare / first-run | **launch**, welcome, reminders, ready, focus-complete | Full delight budget — entrance spring, celebration, confetti |
-| Occasional | an empty day, Me | Present, breathing slowly. Nothing else |
+| Rare / first-run | **launch**, welcome, reminders, ready, focus-complete, **a finished time of day** | Full delight budget — entrance spring, celebration, confetti |
+| Occasional | an empty day, Me, an empty Routines screen | Present, breathing slowly. Nothing else |
 | Tens of times a day | task rows, tab bar, headers, a running timer | **Absent** |
 
 The bottom row is load-bearing. A mascot on a FlashList row would replay its
@@ -571,11 +873,13 @@ He is also absent from Focus *while the timer runs*. That screen's only ambient
 motion is the halo and it is the one screen you are meant to stop looking at. He
 arrives when the session ends.
 
-**Confetti fires once in the whole app**, on finishing a focus session — not on
-the onboarding `ready` screen, because answering five setup questions is not an
-achievement and spending the gesture there means it means nothing the first time
-it is earned. The pieces are painted from `TINTS`, so the celebration is visibly
-made of the user's own day.
+**Confetti fires on two moments, both earned**: finishing a focus session, and
+finishing a whole time-of-day block. Not on the onboarding `ready` screen —
+answering five setup questions is not an achievement, and spending the gesture
+there means it means nothing the first time it is actually earned. Both moments
+clear the frequency gate: a block completes at most three times a day. The pieces
+are painted from `TINTS`, so the celebration is visibly made of the user's own
+day.
 
 Two implementation notes:
 

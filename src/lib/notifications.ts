@@ -58,6 +58,25 @@ function isAllowed(status: Notifications.NotificationPermissionsStatus): boolean
   return status.granted || status.ios?.status === Notifications.IosAuthorizationStatus.PROVISIONAL;
 }
 
+/**
+ * ── THIS ONE MUST BE ALLOWED TO THROW ──────────────────────────────────────
+ * It briefly had a `try/catch` returning `false`, matching the request below,
+ * and that was a bad trade dressed up as hardening. The two calls answer
+ * different questions and their failures mean different things.
+ *
+ * `false` here does not mean "we could not ask", it means "the user has said
+ * no" — and `reconcile` acts on that by cancelling every pending reminder,
+ * while `useTaskNotifications` switches the feature off and records a
+ * revocation the settings screen then explains as "turned off in iOS
+ * Settings". A transient native failure would therefore delete the user's
+ * reminders and blame them for it.
+ *
+ * Letting it throw restores the behaviour `syncTaskNotifications` already
+ * documents: a sync that blew up is no evidence about permission, so it
+ * reports the status quo rather than talking the caller into switching the
+ * feature off underneath the user. Callers that need a value for display must
+ * handle the rejection themselves and say "unknown", not "denied".
+ */
 export async function hasNotificationPermission(): Promise<boolean> {
   return isAllowed(await Notifications.getPermissionsAsync());
 }
@@ -66,9 +85,25 @@ export async function hasNotificationPermission(): Promise<boolean> {
  * Asks the OS. Once the user has said no, iOS resolves this instantly with the
  * old denial and shows nothing, so a `false` here means "send them to
  * Settings", not "try again".
+ *
+ * ── IT MUST NEVER REJECT ───────────────────────────────────────────────────
+ * The caller is a switch. An exception here — the native module unavailable,
+ * a request already in flight, an entitlement missing from the build — rejects
+ * the async handler, which React Native reports as an unhandled promise
+ * rejection and the user sees as A SWITCH THAT WILL NOT MOVE: no prompt, no
+ * alert, no error, nothing. That failure is indistinguishable from the feature
+ * being broken, which is exactly what it was mistaken for.
+ *
+ * Reporting `false` turns it into the one case the UI already handles properly:
+ * not permitted, here is the way to Settings.
  */
 export async function requestNotificationPermission(): Promise<boolean> {
-  return isAllowed(await Notifications.requestPermissionsAsync());
+  try {
+    return isAllowed(await Notifications.requestPermissionsAsync());
+  } catch (err) {
+    console.warn('[notifications] permission request failed', err);
+    return false;
+  }
 }
 
 // ---- what the plan wants scheduled -----------------------------------------
@@ -88,6 +123,21 @@ function startsAt(t: Task): Date | null {
 }
 
 /**
+ * How many of the plan's activities are even ELIGIBLE for a reminder.
+ *
+ * Exported because the settings screen needs it, and it needs it for a reason
+ * that is the real defect this feature had: a reminder can only be attached to
+ * something that sits at a time on a day, and most activities in this app do
+ * not. Switching reminders on with nothing scheduled therefore did exactly
+ * nothing, silently, forever — the switch said the feature was on, the OS had
+ * no notifications, and there was no surface anywhere that could tell the user
+ * the difference between "working" and "nothing to work on".
+ */
+export function remindableCount(tasks: Task[], lead: number): number {
+  return plan(tasks, Date.now(), lead).length;
+}
+
+/**
  * Folds the visible copy into the identifier, so renaming an activity or
  * swapping its emoji yields a different id. That is what lets the reconcile
  * below notice a content change at all — comparing against the native pending
@@ -99,21 +149,64 @@ function fingerprint(s: string): string {
   return h.toString(36);
 }
 
-function plan(tasks: Task[], now: number): Planned[] {
+/**
+ * What a reminder should say, given how far ahead of the activity it lands.
+ *
+ * Kept next to the scheduling rather than in the UI, because the onboarding
+ * screen previews this copy and the promise it makes has to be the
+ * notification the user actually receives.
+ */
+export function reminderBody(minutes: number, lead: number): string {
+  /**
+   * TWO SENTENCES, NOT A DASH.
+   *
+   * This was `Starts in ${lead} — ${duration}`, borrowing the shape of the
+   * original `Starting now — 30m`, where the dash could only mean duration
+   * because nothing else was in the line. With a lead time there are now two
+   * durations in one sentence, and the preview rendered `Starts in 30m — 30m`,
+   * which does not tell you which number is which. Naming both is worth the
+   * extra word in a line that is read at a glance and acted on immediately.
+   */
+  const dur = formatDuration(minutes);
+  return lead <= 0
+    ? `Starting now. Takes ${dur}.`
+    : `Starts in ${formatDuration(lead)}. Takes ${dur}.`;
+}
+
+function plan(tasks: Task[], now: number, lead: number): Planned[] {
   const planned: Planned[] = [];
 
   for (const t of tasks) {
-    const at = startsAt(t);
-    if (at == null) continue;
+    const begins = startsAt(t);
+    if (begins == null) continue;
+
+    /**
+     * THE LEAD TIME.
+     *
+     * The notification fires `lead` minutes BEFORE the activity, not at it.
+     * Firing exactly on the start time is what this shipped with, and it is
+     * the one moment a nudge cannot help: a reminder that arrives at the
+     * instant you were supposed to have started is a notification about being
+     * late. The whole value of a reminder is the gap between hearing it and
+     * needing to act.
+     */
+    const at = new Date(begins.getTime() - lead * 60_000);
+
     // Something already ticked off does not need nudging, and iOS never
     // delivers a date trigger that is already in the past — scheduling one
     // would just consume a slot against the 64 limit forever.
     if (t.done || at.getTime() <= now) continue;
 
     const title = `${t.emoji}  ${t.title}`;
-    // The wording the onboarding screen previews, so the promise it makes is
-    // the notification the user actually receives.
-    const body = `Starting now — ${formatDuration(t.minutes)}`;
+    const body = reminderBody(t.minutes, lead);
+    /**
+     * The fire time is folded in, so CHANGING THE LEAD TIME RESCHEDULES.
+     * The reconcile below can only compare identifiers against the OS's
+     * pending list — it never sees the input that produced them — so anything
+     * that changes what a reminder is or when it lands has to change its id,
+     * or the old one is recognised as still-wanted and left exactly where it
+     * was. `at` already moves with the lead, which is why it is enough.
+     */
     const identifier = `${ID_PREFIX}${t.id}:${at.getTime()}:${fingerprint(`${title}${body}`)}`;
 
     planned.push({
@@ -152,12 +245,12 @@ function ensureAndroidChannel(): Promise<unknown> {
   return androidChannel;
 }
 
-async function reconcile(tasks: Task[], enabled: boolean): Promise<boolean> {
+async function reconcile(tasks: Task[], enabled: boolean, lead: number): Promise<boolean> {
   // Permission is re-read every time instead of trusted from the stored flag,
   // because it can be revoked in iOS Settings while the app is not running.
   const permitted = enabled ? await hasNotificationPermission() : false;
   const wanted = new Map<string, Planned>(
-    permitted ? plan(tasks, Date.now()).map((p) => [p.identifier, p]) : []
+    permitted ? plan(tasks, Date.now(), lead).map((p) => [p.identifier, p]) : []
   );
 
   if (wanted.size > 0) await ensureAndroidChannel();
@@ -191,8 +284,12 @@ let chain: Promise<unknown> = Promise.resolve();
  * only when reminders are switched on and the OS has refused to deliver them,
  * so the caller can stop claiming the feature is active. Never rejects.
  */
-export function syncTaskNotifications(tasks: Task[], enabled: boolean): Promise<boolean> {
-  const run = chain.then(() => reconcile(tasks, enabled)).catch((err: unknown) => {
+export function syncTaskNotifications(
+  tasks: Task[],
+  enabled: boolean,
+  lead: number
+): Promise<boolean> {
+  const run = chain.then(() => reconcile(tasks, enabled, lead)).catch((err: unknown) => {
     // A sync that blew up is no evidence that permission was revoked, so it
     // reports the status quo rather than talking the caller into switching the
     // feature off underneath the user.
@@ -211,16 +308,29 @@ export function syncTaskNotifications(tasks: Task[], enabled: boolean): Promise<
 export function useTaskNotifications(): void {
   const tasks = usePlanStore((s) => s.tasks);
   const reminders = usePlanStore((s) => s.profile.reminders);
+  const lead = usePlanStore((s) => s.profile.reminderLead);
 
   const sync = useCallback(() => {
-    void syncTaskNotifications(tasks, reminders).then((permitted) => {
-      // The switch in Me must not go on promising nudges the OS is discarding,
-      // so a revoked permission turns the feature off rather than failing mute.
+    void syncTaskNotifications(tasks, reminders, lead).then((permitted) => {
+      /**
+       * The switch must not go on promising nudges the OS is discarding, so a
+       * revoked permission turns the feature off rather than failing mute.
+       *
+       * IT ALSO HAS TO SAY SO. This used to flip the flag and nothing else,
+       * which is the worst of both: the user comes back to the app, finds the
+       * switch they turned on has turned itself off, and has no way to learn
+       * that the reason is a permission they revoked in iOS Settings — it just
+       * looks like the setting does not stick. `revokedAt` is the record that
+       * it happened, and the settings screen reads it to explain itself.
+       */
       if (reminders && !permitted) {
-        usePlanStore.setState((s) => ({ profile: { ...s.profile, reminders: false } }));
+        usePlanStore.setState((s) => ({
+          profile: { ...s.profile, reminders: false },
+          remindersRevokedAt: Date.now(),
+        }));
       }
     });
-  }, [tasks, reminders]);
+  }, [tasks, reminders, lead]);
 
   useEffect(sync, [sync]);
 
