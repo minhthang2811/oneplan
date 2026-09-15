@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { View, ActionSheetIOS, Alert } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -12,7 +12,7 @@ import { PipScene } from '../../src/components/mascot/PipScene';
 import { Button } from '../../src/components/Button';
 import { TAB_BAR_HEIGHT } from '../../src/components/TabBar';
 import { ScrollEdge } from '../../src/components/ScrollEdge';
-import { useChromeScroll } from '../../src/components/Chrome';
+import { useChromeScroll, useChromeReset } from '../../src/components/Chrome';
 import { SlotCelebration, useSlotCompletion } from '../../src/components/SlotCelebration';
 import { useTheme } from '../../src/theme/useTheme';
 import { space } from '../../src/theme/tokens';
@@ -33,6 +33,7 @@ export default function Today() {
   const insets = useSafeAreaInsets();
   const { c, isDark } = useTheme();
   const scroll = useChromeScroll();
+  const resetChrome = useChromeReset();
 
   const tasks = usePlanStore((s) => s.tasks);
   const layout = usePlanStore((s) => s.layout);
@@ -88,6 +89,16 @@ export default function Today() {
 
   const { celebrating, dismiss } = useSlotCompletion(key, slotsComplete);
 
+  /**
+   * A day with nothing in it renders no list, so there is nothing left that
+   * could scroll the chrome back into place. Paging from a scrolled day to an
+   * empty one — which is most days — otherwise left the tab bar contracted
+   * with no way to restore it, because a date change is not a navigation
+   * focus change and nothing else fires.
+   */
+  const empty = dayTasks.length === 0;
+  useEffect(() => { if (empty) resetChrome(); }, [empty, resetChrome]);
+
   const openMenu = useCallback(() => {
     const options = ['Compact layout', 'Timeline layout', 'Cancel'];
     if (process.env.EXPO_OS === 'ios') {
@@ -123,7 +134,7 @@ export default function Today() {
     />
   );
 
-  if (dayTasks.length === 0) {
+  if (empty) {
     return (
       <View style={{ flex: 1, backgroundColor: c.canvas, paddingHorizontal: space.lg, paddingTop: insets.top + space.sm }}>
         {header}

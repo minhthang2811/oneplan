@@ -179,6 +179,34 @@ export function useChrome(): Chrome | null {
   return useContext(ChromeContext);
 }
 
+/**
+ * Puts the chrome back on screen.
+ *
+ * ── WHY THIS IS NOT ONLY `useChromeScroll`'S JOB ───────────────────────────
+ * `collapsed` is shared, and only screens that SCROLL ever set it back to 0 —
+ * so anything that leaves the app showing content it cannot scroll strands a
+ * contracted bar with no way to restore it. Two ways to reach that, both easy:
+ *
+ *   - Switch to a tab that does not scroll. Focus never calls
+ *     `useChromeScroll` at all, so it inherits whatever the previous tab left
+ *     and the bar simply stays shrunk for the whole session.
+ *   - Page Today to an empty day. The empty branch renders no list, and a date
+ *     change is not a navigation focus change, so nothing fires.
+ *
+ * Both are the same defect — the value outliving the screen that set it — so
+ * this is one function, called wherever a screen knows there is nothing to
+ * scroll. It is idempotent and safe to call on every render pass.
+ */
+export function useChromeReset(): () => void {
+  const chrome = useContext(ChromeContext);
+  const reduced = useReducedMotion();
+  return useCallback(() => {
+    if (!chrome) return;
+    chrome.y.set(0);
+    chrome.collapsed.set(reduced ? 0 : withSpring(0, motion.lead));
+  }, [chrome, reduced]);
+}
+
 export function ChromeProvider({ children }: { children: ReactNode }) {
   const y = useSharedValue(0);
   const collapsed = useSharedValue(0);

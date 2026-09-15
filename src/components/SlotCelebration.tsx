@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { View, StyleSheet } from 'react-native';
+import { useFocusEffect } from 'expo-router';
 import Animated, {
   useAnimatedStyle, useSharedValue, withDelay, withSpring, withTiming,
   useReducedMotion, interpolate, Extrapolation, runOnJS,
@@ -188,8 +189,8 @@ export function SlotCelebration({
 
         It started inside, above Pip, and was almost invisible: the pieces are
         painted from `TINTS`, which in light mode are pastels, and a pastel on a
-        white `surface` has nothing to read against. Narrowing the spread to
-        keep them from leaving the card only made it worse — it concentrated
+        white `surface` has nothing to read against. Narrowing the burst to keep
+        the pieces from leaving the card only made it worse — it concentrated
         them on the one background they could not be seen on.
 
         Bursting across the whole overlay puts them over the scrim instead,
@@ -241,6 +242,8 @@ const COPY: Record<Exclude<Slot, 'anytime'>, string> = {
  *   3. AN EMPTY SLOT. `every()` is vacuously true on an empty array, so a slot
  *      with nothing in it reports itself complete forever. It has to have
  *      something in it to have finished.
+ *   4. THE SCREEN BEING BLURRED. Today stays mounted under a pushed screen and
+ *      the plan can change from one — see the note on `focused` below.
  */
 export function useSlotCompletion(
   dayKey: string,
@@ -249,12 +252,32 @@ export function useSlotCompletion(
   const [celebrating, setCelebrating] = useState<Exclude<Slot, 'anytime'> | null>(null);
   const seen = useRef<{ key: string; state: Record<string, boolean> } | null>(null);
 
+  /**
+   * ── 4. THE SCREEN IS NOT BEING LOOKED AT ─────────────────────────────────
+   * Today stays mounted under a pushed screen, and the plan can change from
+   * one: emptying the last outstanding step of a routine from the Routines
+   * editor rolls its parent up, which completes the slot. Without this the
+   * celebration fired behind that screen — a success haptic with no
+   * explanation, and the app's rarest moment spent where nobody could see it.
+   *
+   * Blurred is treated exactly like arriving: the baseline is still recorded
+   * below, so coming back to a day that finished while you were away is a
+   * state, not an event. That is the same rule as 1 and 2.
+   */
+  const [focused, setFocused] = useState(true);
+  useFocusEffect(
+    useCallback(() => {
+      setFocused(true);
+      return () => setFocused(false);
+    }, [])
+  );
+
   useEffect(() => {
     const prev = seen.current;
     seen.current = { key: dayKey, state: complete };
 
     // No baseline, or a baseline for a different day — record and say nothing.
-    if (!prev || prev.key !== dayKey) return;
+    if (!prev || prev.key !== dayKey || !focused) return;
 
     for (const slot of ['morning', 'afternoon', 'evening'] as const) {
       if (complete[slot] && !prev.state[slot]) {
@@ -262,7 +285,7 @@ export function useSlotCompletion(
         return;
       }
     }
-  }, [dayKey, complete]);
+  }, [dayKey, complete, focused]);
 
   const dismiss = useCallback(() => setCelebrating(null), []);
   return { celebrating, dismiss };

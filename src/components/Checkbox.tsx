@@ -113,6 +113,22 @@ export function Checkbox({ checked, onToggle, size = 26, subtle = false, identit
   const press = useSharedValue(0);
   /** One-shot burst, only ever on the way in. */
   const burst = useSharedValue(0);
+  /**
+   * Which burst is current.
+   *
+   * A cancelled `withTiming` still runs its callback, with `done: false`, and
+   * that is wanted for a recycle — the spokes must come down. It is NOT wanted
+   * for a RESTART, and the two arrive through the same door: ticking a box,
+   * unticking it and ticking it again inside the burst leaves run #1 in flight,
+   * so starting run #2 cancels it, and run #1's callback then queues
+   * `setBursting(false)` onto the JS thread. That lands AFTER the synchronous
+   * `setBursting(true)` that just ran, unmounting the spokes of the burst that
+   * had only just started — so a fast second tick rendered nothing.
+   *
+   * The generation is bumped before the cancel, so a superseded run can see
+   * that it is no longer the one holding the views.
+   */
+  const run = useSharedValue(0);
 
   /**
    * THE SPOKES ONLY EXIST WHILE THEY ARE FLYING.
@@ -159,6 +175,9 @@ export function Checkbox({ checked, onToggle, size = 26, subtle = false, identit
       fill.set(v);
       draw.set(v);
       squish.set(0);
+      // Bumped so the cancel below cannot have its callback clear a burst
+      // started by whatever this view is recycled into next.
+      run.set(run.get() + 1);
       burst.set(0);
       setBursting(false);
       return;
@@ -185,14 +204,19 @@ export function Checkbox({ checked, onToggle, size = 26, subtle = false, identit
       // a surface rather than in mid-air.
       draw.set(withDelay(motion.check.drawDelay, withTiming(1, { duration: motion.check.draw, easing: EASE })));
 
+      const id = run.get() + 1;
+      run.set(id);
       setBursting(true);
       burst.set(0);
       burst.set(
-        withTiming(1, { duration: motion.check.burst, easing: EASE }, (done) => {
+        withTiming(1, { duration: motion.check.burst, easing: EASE }, () => {
           'worklet';
           // Cleared on cancellation too — `done` is false when a recycle
-          // interrupts, and that is exactly when the views must come down.
-          runOnJS(setBursting)(false);
+          // interrupts, and that is exactly when the views must come down. But
+          // ONLY if this run is still the current one: a run cancelled to make
+          // way for a newer burst must not take the newer burst's views with
+          // it. See `run`.
+          if (run.get() === id) runOnJS(setBursting)(false);
         })
       );
       return;
@@ -205,7 +229,7 @@ export function Checkbox({ checked, onToggle, size = 26, subtle = false, identit
     ));
     draw.set(withTiming(0, { duration: 140, easing: EASE }));
     fill.set(withDelay(60, withTiming(0, { duration: motion.check.undo, easing: EASE })));
-  }, [checked, identity, reduced, fill, draw, squish, burst]);
+  }, [checked, identity, reduced, fill, draw, squish, burst, run]);
 
   /**
    * The rubbery part. Anti-phase X/Y, so it deforms rather than just scaling,

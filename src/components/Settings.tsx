@@ -115,14 +115,13 @@ export function Section({
 }
 
 export function RowItem({
-  icon, label, value, onPress, trailing, tone,
+  icon, label, value, onPress, trailing,
 }: {
   icon?: SymbolViewProps['name'];
   label: string;
   value?: string;
   onPress?: () => void;
   trailing?: ReactNode;
-  tone?: 'default' | 'danger';
 }) {
   const { c } = useTheme();
   const body = (
@@ -132,7 +131,7 @@ export function RowItem({
         paddingHorizontal: space.base, paddingVertical: 14, minHeight: 54,
       }}
     >
-      {icon ? <Icon name={icon} size={17} color={tone === 'danger' ? c.accentInk : c.inkMuted} /> : null}
+      {icon ? <Icon name={icon} size={17} color={c.inkMuted} /> : null}
       {/* The label keeps priority on space and the value gives way. Without
           `flexShrink` on the value, a long one takes its full natural width and
           squeezes the label to nothing — at large Dynamic Type sizes the label

@@ -58,14 +58,27 @@ function isAllowed(status: Notifications.NotificationPermissionsStatus): boolean
   return status.granted || status.ios?.status === Notifications.IosAuthorizationStatus.PROVISIONAL;
 }
 
+/**
+ * ── THIS ONE MUST BE ALLOWED TO THROW ──────────────────────────────────────
+ * It briefly had a `try/catch` returning `false`, matching the request below,
+ * and that was a bad trade dressed up as hardening. The two calls answer
+ * different questions and their failures mean different things.
+ *
+ * `false` here does not mean "we could not ask", it means "the user has said
+ * no" — and `reconcile` acts on that by cancelling every pending reminder,
+ * while `useTaskNotifications` switches the feature off and records a
+ * revocation the settings screen then explains as "turned off in iOS
+ * Settings". A transient native failure would therefore delete the user's
+ * reminders and blame them for it.
+ *
+ * Letting it throw restores the behaviour `syncTaskNotifications` already
+ * documents: a sync that blew up is no evidence about permission, so it
+ * reports the status quo rather than talking the caller into switching the
+ * feature off underneath the user. Callers that need a value for display must
+ * handle the rejection themselves and say "unknown", not "denied".
+ */
 export async function hasNotificationPermission(): Promise<boolean> {
-  try {
-    return isAllowed(await Notifications.getPermissionsAsync());
-  } catch {
-    // Same reasoning as the request below: an unavailable module is "not
-    // permitted", not an exception for the UI to deal with.
-    return false;
-  }
+  return isAllowed(await Notifications.getPermissionsAsync());
 }
 
 /**

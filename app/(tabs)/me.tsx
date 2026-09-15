@@ -24,7 +24,7 @@ const APPEARANCE_LABEL = {
 
 export default function Me() {
   const insets = useSafeAreaInsets();
-  const { c } = useTheme();
+  const { c, isDark } = useTheme();
   const scroll = useChromeScroll();
 
   const tasks = usePlanStore((s) => s.tasks);
@@ -32,7 +32,6 @@ export default function Me() {
   const layout = usePlanStore((s) => s.layout);
   const setLayout = usePlanStore((s) => s.setLayout);
   const resetOnboarding = usePlanStore((s) => s.resetOnboarding);
-  const { isDark } = useTheme();
 
   /**
    * What the routines actually contain, read back.

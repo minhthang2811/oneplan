@@ -393,7 +393,22 @@ export const usePlanStore = create<PlanState>()(
            */
           const next = buildRoutine(s.profile, slot, today);
           const kept = s.tasks.filter((t) => t.id !== id);
-          if (!next) return { tasks: kept };
+
+          /**
+           * EMPTYING A SLOT REMOVES TODAY'S ACTIVITY, AND ONLY TODAY'S.
+           *
+           * The delete used to filter by id alone, with no date check — the
+           * guard that protects completion state three lines down had no
+           * equivalent here. So removing the last step from the morning
+           * routine deleted the morning activity even when it was dated
+           * yesterday and carried yesterday's ticks: a record of a finished
+           * day, destroyed by an edit to a future one.
+           *
+           * A routine activity on another date is that date's record, not a
+           * stale copy of this one. It is left alone, and the slot simply has
+           * nothing on today.
+           */
+          if (!next) return was && was.date !== today ? {} : { tasks: kept };
 
           // Yesterday's ticks are yesterday's. Progress is only carried across
           // when the activity being replaced is the one on screen.

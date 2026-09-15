@@ -291,15 +291,9 @@ const PIECES = [
 export const CONFETTI_DURATION = 2200;
 
 export function Confetti({
-  height = 260, spread = 1, onDone,
+  height = 260, onDone,
 }: {
   height?: number;
-  /**
-   * Scales how far the pieces fly sideways. A burst inside a task row has a
-   * row's width to play with, not a screen's — at `spread={1}` the outermost
-   * pieces simply leave the card and the burst reads as clipped.
-   */
-  spread?: number;
   /** Fired once the last piece has gone, so an overlay can unmount itself. */
   onDone?: () => void;
 }) {
@@ -331,15 +325,15 @@ export function Confetti({
       style={{ position: 'absolute', top: 0, height, left: 0, right: 0 }}
     >
       {PIECES.map((p) => (
-        <Piece key={`${p.x}-${p.tint}`} piece={p} height={height} spread={spread} />
+        <Piece key={`${p.x}-${p.tint}`} piece={p} height={height} />
       ))}
     </View>
   );
 }
 
 function Piece({
-  piece, height, spread,
-}: { piece: (typeof PIECES)[number]; height: number; spread: number }) {
+  piece, height,
+}: { piece: (typeof PIECES)[number]; height: number }) {
   const { isDark } = useTheme();
   const t = useSharedValue(0);
 
@@ -358,7 +352,7 @@ function Piece({
       // Out and up first, then down past the bottom — a burst, not a drizzle.
       opacity: v < 0.08 ? v / 0.08 : v > 0.75 ? (1 - v) / 0.25 : 1,
       transform: [
-        { translateX: piece.x * spread * Math.min(1, v * 2.2) },
+        { translateX: piece.x * Math.min(1, v * 2.2) },
         { translateY: -70 * Math.sin(Math.PI * Math.min(1, v * 1.3)) + height * v },
         { rotate: `${piece.r * v * 4}deg` },
         { scale: piece.s },

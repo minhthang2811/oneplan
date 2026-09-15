@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { View, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
 import { BlurView } from 'expo-blur';
 import {
-  GlassView, GlassContainer, isLiquidGlassAvailable, isGlassEffectAPIAvailable,
+  GlassView, isLiquidGlassAvailable, isGlassEffectAPIAvailable,
 } from 'expo-glass-effect';
 import { useTheme } from '../theme/useTheme';
 import { glass } from '../theme/tokens';
@@ -31,38 +31,6 @@ import { GelSurface, gelInsetShadow } from './Gel';
  * the real path requires both.
  */
 export const LIQUID_GLASS = isLiquidGlassAvailable() && isGlassEffectAPIAvailable();
-
-/**
- * Makes the glass surfaces inside it FUSE as they approach each other.
- *
- * This is the behaviour that separates Liquid Glass from a blur: two glass
- * objects near each other do not stay two rounded rectangles with a gap, they
- * bulge towards one another and merge, the way two droplets on a windscreen do.
- * The system does the whole thing — there is no way to paint it, which is why
- * the fallback path below simply renders the children and lets them stay apart.
- *
- * It only earns its place where there are genuinely SIBLING floating controls.
- * A single continuous surface has nothing to fuse with, and wrapping one in a
- * container is a layer that costs a native view and buys nothing.
- *
- * `spacing` is the distance at which the merge begins, so it wants to be a
- * little larger than the actual gap between the controls — at exactly the gap,
- * the two only start reaching for each other once they are already touching.
- */
-export function GlassGroup({
-  children, spacing = 22, style,
-}: {
-  children: ReactNode;
-  spacing?: number;
-  style?: StyleProp<ViewStyle>;
-}) {
-  if (!LIQUID_GLASS) return <View style={style}>{children}</View>;
-  return (
-    <GlassContainer spacing={spacing} style={style}>
-      {children}
-    </GlassContainer>
-  );
-}
 
 /**
  * The app's one glass primitive, with TWO IMPLEMENTATIONS.

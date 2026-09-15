@@ -27,7 +27,7 @@ import { Icon } from './Icon';
 import { CalendarDayIcon } from './CalendarDayIcon';
 import { GlassPanel, LIQUID_GLASS } from './Glass';
 import { GelSurface, gelInsetShadow } from './Gel';
-import { useChrome } from './Chrome';
+import { useChrome, useChromeReset } from './Chrome';
 import { useTheme } from '../theme/useTheme';
 import { motion, radius, space } from '../theme/tokens';
 import { haptic } from '../lib/haptics';
@@ -121,6 +121,19 @@ export function TabBar({ state, navigation }: TabBarProps) {
   const reduced = useReducedMotion();
   const today = new Date().getDate();
   const chrome = useChrome();
+  const resetChrome = useChromeReset();
+
+  /**
+   * ARRIVING AT A TAB ALWAYS SHOWS ITS NAVIGATION.
+   *
+   * `collapsed` is shared by every screen, and only screens that scroll ever
+   * put it back — so switching to one that does not (Focus never calls
+   * `useChromeScroll` at all) inherited a contracted bar with no way to
+   * restore it. Doing this here rather than in each screen means a tab added
+   * later cannot forget: the bar itself guarantees it, for every tab, whether
+   * or not that tab scrolls.
+   */
+  useEffect(() => { resetChrome(); }, [state.index, resetChrome]);
 
   const count = state.routes.length;
   const [row, setRow] = useState(0);

@@ -39,7 +39,10 @@ export default function Reminders() {
     haptic.tap();
     // A real request — the button says "Turn on reminders", so it must.
     const granted = ask ? await requestNotificationPermission() : false;
-    usePlanStore.setState((s) => ({ profile: { ...s.profile, reminders: granted } }));
+    // The ACTION, not a hand-rolled `setState`: it also clears any recorded
+    // revocation, so a user who re-runs onboarding and grants permission is
+    // not left with a stale "turned off in iOS Settings" notice behind them.
+    usePlanStore.getState().setReminders(granted);
     router.push('/onboarding/ready');
   };
 

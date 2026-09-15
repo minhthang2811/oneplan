@@ -13,6 +13,7 @@ import {
   hasNotificationPermission, requestNotificationPermission, remindableCount, reminderBody,
 } from '../../src/lib/notifications';
 import { formatDuration } from '../../src/lib/time';
+import { useNowMinutes } from '../../src/lib/useNowMinutes';
 import { haptic } from '../../src/lib/haptics';
 
 /**
@@ -52,7 +53,11 @@ export default function Reminders() {
    */
   const [permitted, setPermitted] = useState<boolean | null>(null);
   const refresh = useCallback(() => {
-    void hasNotificationPermission().then(setPermitted);
+    // `null` is UNKNOWN, not denied, and that distinction is the whole reason
+    // this has a catch: `hasNotificationPermission` throws rather than
+    // reporting `false` when it cannot ask, so that a native failure is never
+    // mistaken for the user having said no. The row reads "Checking…".
+    hasNotificationPermission().then(setPermitted, () => setPermitted(null));
   }, []);
 
   useEffect(() => {
@@ -71,9 +76,20 @@ export default function Reminders() {
    * the difference between "working" and "nothing to work on". Now the screen
    * says which it is.
    */
+  /**
+   * `now` is in the deps because the count is a function of the CLOCK, not
+   * only of the plan. `remindableCount` filters on `at <= now`, so a memo
+   * keyed on tasks and settings alone kept asserting "1 reminder is scheduled"
+   * after that reminder had already fired — on the one number whose entire job
+   * is to be trustworthy, since it is what separates "working" from "nothing
+   * to schedule". `useNowMinutes` is the app's existing minute ticker.
+   */
+  const now = useNowMinutes();
   const scheduled = useMemo(
     () => (enabled && permitted ? remindableCount(tasks, lead) : 0),
-    [tasks, lead, enabled, permitted]
+    // `remindableCount` reads `Date.now()` internally; `now` is the trigger.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [tasks, lead, enabled, permitted, now]
   );
 
   const timedTotal = useMemo(
