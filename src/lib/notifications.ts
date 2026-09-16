@@ -4,7 +4,7 @@ import * as Notifications from 'expo-notifications';
 import type { Task } from '../store/types';
 import { usePlanStore } from '../store/usePlanStore';
 import { formatDuration, parseKey } from './time';
-import { translate, useLanguageStore, resolveLocale } from '../i18n';
+import { translate, useLanguageStore, resolveLocale, currentLocale, type Locale } from '../i18n';
 
 /**
  * Local reminders: one notification per activity that sits at a real time on a
@@ -138,6 +138,16 @@ function plan(tasks: Task[], now: number): Planned[] {
 // ---- reconcile -------------------------------------------------------------
 
 let androidChannel: Promise<unknown> | null = null;
+/**
+ * The language the channel was last named in.
+ *
+ * Without it the `??=` below would freeze the channel's name at whatever the
+ * app launched in, so a user who switches to Vietnamese keeps an "Activity
+ * reminders" row in Android's own notification settings forever. Re-calling
+ * `setNotificationChannelAsync` with the same id renames an existing channel,
+ * so re-running it on a language change is both safe and the whole fix.
+ */
+let androidChannelLocale: Locale | null = null;
 
 /**
  * Android 8+ drops any notification that is not assigned to a channel. Naming
@@ -146,7 +156,10 @@ let androidChannel: Promise<unknown> | null = null;
  */
 function ensureAndroidChannel(): Promise<unknown> {
   if (process.env.EXPO_OS !== 'android') return Promise.resolve();
-  androidChannel ??= Notifications.setNotificationChannelAsync(ANDROID_CHANNEL_ID, {
+  const locale = currentLocale();
+  if (androidChannel && androidChannelLocale === locale) return androidChannel;
+  androidChannelLocale = locale;
+  androidChannel = Notifications.setNotificationChannelAsync(ANDROID_CHANNEL_ID, {
     name: translate('notification.channel'),
     importance: Notifications.AndroidImportance.HIGH,
   });

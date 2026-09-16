@@ -1,10 +1,11 @@
-import { useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useId, useMemo, useState } from 'react';
 import { View, useWindowDimensions } from 'react-native';
 import Svg, { Circle, Defs, RadialGradient, Stop } from 'react-native-svg';
 import Animated, {
   useSharedValue, useAnimatedStyle, withRepeat, withSequence, withTiming,
-  useReducedMotion, Easing,
+  cancelAnimation, useReducedMotion, Easing,
 } from 'react-native-reanimated';
+import { useFocusEffect } from 'expo-router';
 import { useTheme } from '../theme/useTheme';
 import type { TintName } from '../theme/tokens';
 
@@ -82,6 +83,33 @@ export function FocusAura({
   const { c, isDark } = theme;
 
   /**
+   * The drift stops while Focus is not the visible tab.
+   *
+   * Expo Router keeps every tab screen mounted, so a `withRepeat(-1)` started
+   * here runs for the life of the app unless something stops it — three of
+   * them, driving transforms on the UI thread behind whatever the user is
+   * actually looking at. `PipScene` gates its idle loop on navigation focus and
+   * `Halo` on its `active` prop; this is the same rule.
+   *
+   * Starts FALSE: Today is the launch tab, so this screen mounts unfocused, and
+   * a `true` default would start all three loops behind it at app start — the
+   * very thing being fixed. `useFocusEffect` turns them on when Focus is opened.
+   */
+  const [focused, setFocused] = useState(false);
+  useFocusEffect(
+    useCallback(() => {
+      setFocused(true);
+      return () => setFocused(false);
+    }, [])
+  );
+
+  /**
+   * Gradient ids live in a process-wide registry in react-native-svg, so they
+   * have to be unique per instance — the convention `Gel.tsx` established.
+   */
+  const uid = useId().replace(/:/g, '');
+
+  /**
    * In LIGHT the bloom is the tint's `bg` — the pastel — because the canvas is
    * already near-white and there is nowhere brighter to go; colour has to
    * arrive as pigment.
@@ -106,11 +134,12 @@ export function FocusAura({
         <Drift
           key={i}
           bloom={b}
-          id={`aura${i}`}
+          id={`aura${i}${uid}`}
           color={hues[b.hue]}
           opacity={base * b.weight * intensity}
           screenW={width}
           screenH={height}
+          drifting={focused}
         />
       ))}
     </View>
@@ -118,7 +147,7 @@ export function FocusAura({
 }
 
 function Drift({
-  bloom, id, color, opacity, screenW, screenH,
+  bloom, id, color, opacity, screenW, screenH, drifting,
 }: {
   bloom: Bloom;
   id: string;
@@ -126,12 +155,17 @@ function Drift({
   opacity: number;
   screenW: number;
   screenH: number;
+  /** False while the screen is not focused — see `FocusAura`. */
+  drifting: boolean;
 }) {
   const reduced = useReducedMotion();
   const phase = useSharedValue(0);
 
   useEffect(() => {
-    if (reduced) return;
+    if (!drifting || reduced) {
+      cancelAnimation(phase);
+      return;
+    }
     const half = (bloom.period * 1000) / 2;
     phase.set(
       withRepeat(
@@ -143,7 +177,10 @@ function Drift({
         false
       )
     );
-  }, [phase, reduced, bloom.period]);
+    // Unmounting mid-loop leaves the animation running against a freed value
+    // otherwise; `withRepeat(-1)` has no natural end to clean itself up on.
+    return () => cancelAnimation(phase);
+  }, [phase, reduced, drifting, bloom.period]);
 
   const d = screenW * bloom.size;
 

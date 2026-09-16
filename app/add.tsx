@@ -81,7 +81,9 @@ export default function Add() {
       } else {
         Alert.alert(t('add.discardTitle'), t('add.discardBody'), [
           { text: t('add.keepEditing'), style: 'cancel' },
-          { text: t('common.delete'), style: 'destructive', onPress: discard },
+          // "Discard", not "Delete" — nothing exists to delete yet, which is
+          // exactly what the alert's own body says.
+          { text: t('add.discard'), style: 'destructive', onPress: discard },
         ]);
       }
     });

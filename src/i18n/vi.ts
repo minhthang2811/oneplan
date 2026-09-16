@@ -205,6 +205,7 @@ export const vi: Dict = {
     discardTitle: 'Bỏ hoạt động này?',
     discardBody: 'Nó chưa được thêm vào.',
     discardAction: 'Bỏ hoạt động',
+    discard: 'Bỏ',
     keepEditing: 'Tiếp tục sửa',
   },
 

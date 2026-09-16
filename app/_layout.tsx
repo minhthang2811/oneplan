@@ -18,15 +18,33 @@ import { usePlanStore } from '../src/store/usePlanStore';
 import { useTaskNotifications } from '../src/lib/notifications';
 import { LaunchScreen } from '../src/components/LaunchScreen';
 import { useTheme } from '../src/theme/useTheme';
-import { useDeviceLocaleSync, translate } from '../src/i18n';
+import { useDeviceLocaleSync, translate, type TKey } from '../src/i18n';
 import { motion, palette, radius, space } from '../src/theme/tokens';
+
+/**
+ * The boundary's own copy, translated but never trusting the translator.
+ *
+ * `translate()` reaches the language store, which reaches MMKV — so if storage
+ * or rehydration is what threw, asking for a translated string while rendering
+ * the screen that reports the failure would throw again and leave the user a
+ * blank view with no way out. The English literal is the floor: worse copy for
+ * a non-English reader beats no recovery button for anyone.
+ */
+function fallbackSafe(key: TKey, english: string): string {
+  try {
+    return translate(key);
+  } catch {
+    return english;
+  }
+}
 
 /**
  * Expo Router renders this instead of the red box when a route throws.
  *
  * Deliberately styled with system fonts and literal palette values rather than
  * the `Txt`/`useTheme` components: if the thing that failed IS the font load or
- * the theme, a boundary built on them fails with it.
+ * the theme, a boundary built on them fails with it. `fallbackSafe` above
+ * extends that same rule to the strings.
  */
 export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
   const dark = useColorScheme() === 'dark';
@@ -40,10 +58,13 @@ export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
       }}
     >
       <Text style={{ fontSize: 22, fontWeight: '600', color: c.ink, textAlign: 'center' }}>
-        {translate('error.title')}
+        {fallbackSafe('error.title', 'That screen did not load')}
       </Text>
       <Text style={{ fontSize: 15, color: c.inkMuted, textAlign: 'center', lineHeight: 21 }}>
-        {translate('error.body')}
+        {fallbackSafe(
+          'error.body',
+          'Your plan is safe — it is stored on this device. You can try again.'
+        )}
       </Text>
       <Text
         selectable
@@ -61,7 +82,7 @@ export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
         }}
       >
         <Text style={{ color: c.onSolid, fontSize: 16, fontWeight: '600' }}>
-          {translate('common.tryAgain')}
+          {fallbackSafe('common.tryAgain', 'Try again')}
         </Text>
       </Pressable>
     </View>

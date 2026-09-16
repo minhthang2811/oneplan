@@ -209,6 +209,8 @@ export const en = {
     discardTitle: 'Discard activity?',
     discardBody: 'It has not been added yet.',
     discardAction: 'Discard activity',
+    /** The bare verb, for the Android alert whose title already names the thing. */
+    discard: 'Discard',
     keepEditing: 'Keep editing',
   },
 

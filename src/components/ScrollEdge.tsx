@@ -1,4 +1,4 @@
-import { useCallback, useRef, type ReactNode } from 'react';
+import { useCallback, useEffect, useId, useMemo, useState, type ReactNode } from 'react';
 import { View, useWindowDimensions, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
 import { BlurView } from 'expo-blur';
 import Animated, {
@@ -7,6 +7,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFocusEffect } from 'expo-router';
 import { Txt } from './Txt';
 import { useTheme } from '../theme/useTheme';
 import { glass, space } from '../theme/tokens';
@@ -93,42 +94,58 @@ const IN = { duration: 220, easing: Easing.out(Easing.quad) } as const;
 const OUT = { duration: 260, easing: Easing.out(Easing.quad) } as const;
 
 /**
+ * The pair of values a screen's edge is made of.
+ *
+ * `shown` is a shared value rather than a JS ref for one specific reason: the
+ * overlay has to be able to CLEAR it. The hook lives in the screen, which
+ * outlives the scroll view — a screen that swaps its list out for an empty
+ * state and back would otherwise come back with the edge still latched on over
+ * a list that is at offset 0. Keeping both halves in the same place lets
+ * `ScrollEdge` reset them together when it mounts; a ref would leave `shown`
+ * stuck true and the effect unable to re-trigger.
+ */
+export type ScrollEdgeValue = {
+  /** 0 → 1 animated strength, read by the overlay and the collapsed title. */
+  progress: SharedValue<number>;
+  /** Settled on/off state — the deadband's memory. */
+  shown: SharedValue<boolean>;
+};
+
+/**
  * Drives the edge effect from a scroll view.
  *
- * Returns the props to spread on the scrollable, plus the 0→1 shared value that
+ * Returns the props to spread on the scrollable, plus the value that
  * `ScrollEdge` animates against. Both consumers read one source of truth, so a
  * screen cannot end up with a bar that disagrees with its own list.
  */
 export function useScrollEdge(): {
-  edge: SharedValue<number>;
+  edge: ScrollEdgeValue;
   scrollProps: {
     onScroll: (e: NativeSyntheticEvent<NativeScrollEvent>) => void;
     scrollEventThrottle: number;
   };
 } {
-  const edge = useSharedValue(0);
+  const progress = useSharedValue(0);
+  const shown = useSharedValue(false);
   const reduced = useReducedMotion();
-  /**
-   * The current state, on the JS side.
-   *
-   * A ref, not state: this is read and written once per scroll event and must
-   * never cause a re-render — re-rendering a list on every scroll frame is the
-   * exact cost this design exists to avoid.
-   */
-  const shown = useRef(false);
+
+  const edge = useMemo(() => ({ progress, shown }), [progress, shown]);
 
   const onScroll = useCallback(
     (e: NativeSyntheticEvent<NativeScrollEvent>) => {
       const y = e.nativeEvent.contentOffset.y;
-      if (!shown.current && y > APPEAR) {
-        shown.current = true;
-        edge.set(reduced ? 1 : withTiming(1, IN));
-      } else if (shown.current && y < HIDE) {
-        shown.current = false;
-        edge.set(reduced ? 0 : withTiming(0, OUT));
+      // Read and write once per scroll event, and never through React state —
+      // re-rendering a list on every scroll frame is the exact cost this
+      // design exists to avoid.
+      if (!shown.get() && y > APPEAR) {
+        shown.set(true);
+        progress.set(reduced ? 1 : withTiming(1, IN));
+      } else if (shown.get() && y < HIDE) {
+        shown.set(false);
+        progress.set(reduced ? 0 : withTiming(0, OUT));
       }
     },
-    [edge, reduced]
+    [progress, shown, reduced]
   );
 
   return { edge, scrollProps: { onScroll, scrollEventThrottle: 16 } };
@@ -153,12 +170,59 @@ export function ScrollEdge({
   edge,
   children,
 }: {
-  edge: SharedValue<number>;
+  edge: ScrollEdgeValue;
   children?: ReactNode;
 }) {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const { c, isDark } = useTheme();
+
+  /**
+   * Gradient ids are resolved by react-native-svg through a process-wide
+   * registry, and three of these are mounted at once (Today, To-do, Me) because
+   * the tabs navigator never detaches a screen. Two panes sharing one id is a
+   * collision: the last mount wins, and an unmount can unregister the id out
+   * from under the survivors. `Gel.tsx` solved this first; this is the same fix.
+   */
+  const uid = useId().replace(/:/g, '');
+  const washId = `edgeWash${uid}`;
+
+  /**
+   * Mounting means the scroll view mounted with us, and a fresh scroll view is
+   * at offset 0 — so the edge must be off, whatever the previous occupant of
+   * this screen left behind. Today swapping between a populated day and an
+   * empty one is the case that needs it: the hook outlives both trees.
+   */
+  useEffect(() => {
+    edge.shown.set(false);
+    edge.progress.set(0);
+  }, [edge]);
+
+  /**
+   * The blur stack is torn down while the screen is not the focused tab.
+   *
+   * Seven `BlurView`s per screen across three permanently-mounted screens is 21
+   * live backdrop layers, and only the focused one can ever be visible. This is
+   * the same navigation-focus gate `PipScene` uses for its idle loop, for the
+   * same reason: Expo Router keeps tab screens mounted, so nothing else ever
+   * releases them. It costs one re-render of THIS component per tab switch, and
+   * remounting on focus also gives the blur a fresh capture, which is the
+   * behaviour expo-blur wants anyway.
+   *
+   * Starts FALSE, not true. Every tab screen mounts at launch but only one is
+   * focused, and `useFocusEffect` never runs for a screen that has not been
+   * visited — so a `true` default would leave To-do and Me holding blur stacks
+   * until the user happened to open and leave each of them. The focused screen
+   * flips this on during its own mount, long before anything can be scrolled
+   * far enough to show the edge.
+   */
+  const [focused, setFocused] = useState(false);
+  useFocusEffect(
+    useCallback(() => {
+      setFocused(true);
+      return () => setFocused(false);
+    }, [])
+  );
 
   const height = insets.top + EDGE_BAR;
   const total = height + TAPER;
@@ -167,12 +231,20 @@ export function ScrollEdge({
   const count = android ? ANDROID_LAYERS : LAYERS;
   const strength = android ? ANDROID_LAYER_INTENSITY : LAYER_INTENSITY;
 
-  const fade = useAnimatedStyle(() => ({ opacity: edge.get() }));
+  const fade = useAnimatedStyle(() => ({ opacity: edge.progress.get() }));
 
   return (
+    /**
+     * Sized to `total`, not to `height`. The blur and wash extend a further
+     * TAPER points below the bar, and Android clips children to their parent's
+     * bounds far more eagerly than iOS does — a short container would cut the
+     * taper off at a hard line, which is the exact appearance this component
+     * exists to avoid. Nothing else changes: the bar row inside is absolutely
+     * positioned and the container does not take touches.
+     */
     <View
       pointerEvents="box-none"
-      style={{ position: 'absolute', top: 0, left: 0, right: 0, height }}
+      style={{ position: 'absolute', top: 0, left: 0, right: 0, height: total }}
     >
       <Animated.View
         pointerEvents="none"
@@ -181,7 +253,7 @@ export function ScrollEdge({
           fade,
         ]}
       >
-        {Array.from({ length: count }, (_, i) => (
+        {focused && Array.from({ length: count }, (_, i) => (
           <BlurView
             key={i}
             /**
@@ -219,7 +291,7 @@ export function ScrollEdge({
             window width anyway. */}
         <Svg width={width} height={total} style={{ position: 'absolute', top: 0, left: 0 }}>
           <Defs>
-            <LinearGradient id="edgeWash" x1="0" y1="0" x2="0" y2="1">
+            <LinearGradient id={washId} x1="0" y1="0" x2="0" y2="1">
               <Stop offset="0" stopColor={c.canvas} stopOpacity={isDark ? 0.86 : 0.8} />
               <Stop
                 offset={(height / total).toFixed(3)}
@@ -229,7 +301,7 @@ export function ScrollEdge({
               <Stop offset="1" stopColor={c.canvas} stopOpacity={0} />
             </LinearGradient>
           </Defs>
-          <Rect x={0} y={0} width={width} height={total} fill="url(#edgeWash)" />
+          <Rect x={0} y={0} width={width} height={total} fill={`url(#${washId})`} />
         </Svg>
       </Animated.View>
 
@@ -269,12 +341,12 @@ export function ScrollEdgeTitle({
   edge,
   title,
 }: {
-  edge: SharedValue<number>;
+  edge: ScrollEdgeValue;
   title: string;
 }) {
   const anim = useAnimatedStyle(() => ({
-    opacity: edge.get(),
-    transform: [{ translateY: (1 - edge.get()) * 6 }],
+    opacity: edge.progress.get(),
+    transform: [{ translateY: (1 - edge.progress.get()) * 6 }],
   }));
 
   return (
