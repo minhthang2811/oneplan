@@ -4,6 +4,7 @@ import { Txt } from './Txt';
 import { Icon } from './Icon';
 import { PressScale, EASE } from './Press';
 import { useTheme } from '../theme/useTheme';
+import { useT } from '../i18n';
 import { radius, space, type TintName } from '../theme/tokens';
 import type { Slot } from '../lib/time';
 import type { SymbolViewProps } from 'expo-symbols';
@@ -20,7 +21,8 @@ export function SlotChip({
   slot, label, count, expanded, onToggle,
 }: { slot: Slot; label: string; count: number; expanded: boolean; onToggle: () => void }) {
   const theme = useTheme();
-  const t = theme.tint(SLOT_TINT[slot]);
+  const { t } = useT();
+  const tint = theme.tint(SLOT_TINT[slot]);
   const rot = useSharedValue(expanded ? 0 : -90);
   const reduced = useReducedMotion();
 
@@ -34,19 +36,19 @@ export function SlotChip({
     <PressScale
       onPress={onToggle}
       accessibilityRole="button"
-      accessibilityLabel={`${label}, ${count} ${count === 1 ? 'activity' : 'activities'}`}
+      accessibilityLabel={t('today.slotCount', { label, count })}
       accessibilityState={{ expanded }}
       style={{
         flexDirection: 'row', alignItems: 'center', gap: space.sm,
         alignSelf: 'flex-start',
         paddingVertical: 7, paddingHorizontal: space.md,
-        borderRadius: radius.pill, backgroundColor: t.bg,
+        borderRadius: radius.pill, backgroundColor: tint.bg,
       }}
     >
-      <Icon name={SLOT_ICON[slot]} size={13} color={t.fg} weight="semibold" />
-      <Txt variant="micro" color={t.fg}>{label.toUpperCase()} ({count})</Txt>
+      <Icon name={SLOT_ICON[slot]} size={13} color={tint.fg} weight="semibold" />
+      <Txt variant="micro" color={tint.fg}>{label.toUpperCase()} ({count})</Txt>
       <Animated.View style={chev}>
-        <Icon name="chevron.down" size={11} color={t.fg} weight="bold" />
+        <Icon name="chevron.down" size={11} color={tint.fg} weight="bold" />
       </Animated.View>
     </PressScale>
   );

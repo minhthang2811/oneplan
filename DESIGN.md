@@ -594,3 +594,111 @@ Two implementation notes:
 - High-frequency typing surfaces use uncontrolled `TextInput`s.
 - Lists are virtualised with FlashList; no row carries an `entering` animation,
   because recycled rows would replay it.
+
+## The scroll edge
+
+Chrome at the top of a scrolling screen is the one place where "blurred" and
+"polished" are not the same thing.
+
+iOS 26 gives a scroll view running under a bar an automatic treatment at that
+edge, and ships **two** styles. A **hard edge** is the pre-iOS-26 look: a flat
+blurred slab with a defined boundary. A **soft edge** is a blur that is
+strongest at the very top and dissolves downward to nothing, so content fades
+out as it travels up under the bar rather than sliding beneath a line.
+
+Oneplan takes the soft one. The hard edge is the clunky version — it cuts the
+list with a visible rule, and the rule is the thing the eye keeps catching.
+
+Three decisions follow from that, and all three are in `ScrollEdge.tsx`:
+
+1. **The blur is a stack of panes, not one pane.** A single `BlurView` is a
+   rectangle of uniform blur, so its bottom edge is a step change in sharpness —
+   a hard edge with extra steps, and React Native has no mask primitive to
+   feather one with. So the gradient is built from geometry: seven panes, all
+   anchored at the top, with heights `H·(N-i)/N`. The number of panes covering
+   any depth then falls linearly to **zero at the bottom**, which is the part
+   that matters — the effect has no boundary to see. What is left is N discrete
+   steps, kept under the perceptual threshold by giving each pane an intensity
+   of 7 rather than 40.
+
+2. **The wash falls on the same curve as the blur.** Blur alone does not
+   guarantee contrast; it only smears what is underneath, and a smeared dark
+   title is still dark. A gradient of `canvas` provides the legibility, and it
+   has to fade out on the same profile as the blur or the two become two
+   separate visible edges.
+
+3. **The fade is time-based, not scroll-linked.** UIKit does not interpolate a
+   bar background against scroll offset — it crossfades between
+   `scrollEdgeAppearance` and `standardAppearance` when content passes under.
+   Matching that is both more faithful and far more robust here: `FlashList`
+   intercepts `onScroll` and re-dispatches it from JS, so a Reanimated scroll
+   handler attached to it never reaches the UI thread. A JS callback flipping
+   one boolean, with the animation itself on the UI thread, costs nothing per
+   frame. The appear (14pt) and hide (4pt) thresholds differ on purpose: one
+   threshold flickers while a finger rests on it.
+
+The collapsed title rises 6pt as it fades in. A pure crossfade reads as two
+labels; a crossfade with displacement reads as one title arriving from below.
+
+## The focus ground
+
+Focus is the app's one full-screen moment — the only screen with nothing else
+competing for the ground — and it was a flat wash of `canvasTinted`. Flat is the
+right instinct for a screen you are meant to stop looking at, but a flat *fill*
+reads as an unset screen rather than a calm one.
+
+The reference class is unanimous that this screen carries atmosphere rather than
+chrome: Tiimo's soft tinted field with drifting specks, Waking Up's slow mesh
+gradient with nothing on it at all, Oura's full-bleed ground. What was taken is
+the idea — a field of light with no edges — not anyone's palette.
+
+**The field is made of the activity's own colour.** The colour contract reserves
+`TINTS` for data, so a decorative gradient here would break it for nothing.
+`FocusAura` is therefore built from exactly two hues that already mean
+something: the tint of the activity being focused on, and the single accent.
+Starting a session on "Lunch" turns the room the colour of Lunch. With no
+activity attached there is no identity to show, so all three blooms fall back to
+the accent and the screen goes quietly monochrome — the honest rendering of "this
+session is not about anything in particular".
+
+Two details carry it:
+
+- **Radial gradients, never discs.** Same rule as `Halo`: a flat circle at any
+  opacity you can notice has an edge, and an edge is an object. Only a gradient
+  with no edge reads as light. The gradient's midpoint is pulled in to 0.45
+  rather than left at a linear 0.5, because a straight ramp puts most of the
+  colour in the outer ring where the three blooms overlap, and that stacks into
+  a visible grey halo.
+- **Periods of 17s, 21s and 26s.** Mutually prime-ish, so the composition never
+  visibly loops, and far slower than anything else in the app. At this speed it
+  is not an animation you watch; it is a room that is not quite still. Under
+  Reduce Motion the blooms are painted once and never move.
+
+## Language
+
+The app ships English and Vietnamese, and **opens in the phone's language**
+without being asked.
+
+- **Detection walks the whole preference list.** `getLocales()` is ordered by
+  the user's own ranking, so a phone set to [Khmer, Vietnamese, English] opens
+  in Vietnamese. Matching only the top entry would throw that second choice
+  away. Matching is on `languageCode`, never `languageTag` — "vi-VN" and
+  "vi-US" are both Vietnamese.
+- **`system` is a real state, not a shortcut for today's answer.** Following the
+  phone is not the same as having picked the language the phone currently
+  happens to be set to, so the picker's first row is `System` and it carries the
+  language it resolves to on its right.
+- **Every language is named in itself.** "Tiếng Việt", never "Vietnamese". The
+  person most likely to open that screen has landed in a language they cannot
+  read and is looking for the shape of their own word.
+- **Keys are stored; words are not.** An onboarding answer, a tag and a routine
+  pick are all persisted as stable identifiers and turned into words at render,
+  so they follow a later language change. Task titles are the deliberate
+  exception: the seeded starter day is written in whatever language is in effect
+  at first launch and then left alone, because those rows become editable user
+  content the moment they are stored and re-translating them would overwrite
+  someone's own words.
+- **Translations are checked by the compiler.** `en.ts` is the schema, every
+  other catalogue is typed as `Dict`, and a missing key fails the build rather
+  than falling back at runtime. This is why the app does not use a string-keyed
+  i18n library.

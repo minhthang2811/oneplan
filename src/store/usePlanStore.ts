@@ -3,7 +3,10 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import { mmkvStorage } from './storage';
 import type { Task, FocusSession, Profile, Priority } from './types';
 import { seedTasks } from '../data/seed';
-import { ROUTINES, ROUTINE_PARENT, ROUTINE_SLOTS, type RoutineSlot } from '../data/routines';
+import {
+  ROUTINES, ROUTINE_PARENT, ROUTINE_SLOTS, routineTitle, routineParentTitle,
+  type RoutineSlot,
+} from '../data/routines';
 import { dateKey, slotForMinutes, type Slot } from '../lib/time';
 
 let counter = 0;
@@ -162,7 +165,7 @@ export const usePlanStore = create<PlanState>()(
             const chosen = ROUTINES[slot].filter((o) => picks[slot].includes(o.id));
             return {
               id: parent.id,
-              title: parent.title,
+              title: routineParentTitle(slot),
               emoji: parent.emoji,
               tint: parent.tint,
               // The routine's length is the sum of its steps, so the day's
@@ -173,8 +176,12 @@ export const usePlanStore = create<PlanState>()(
               date: today,
               priority: 'todo',
               done: false,
-              steps: chosen.map((o) => ({ id: `${parent.id}-${o.id}`, title: o.title, done: false })),
-              tag: 'Self care',
+              steps: chosen.map((o) => ({
+                id: `${parent.id}-${o.id}`,
+                title: routineTitle(o.id),
+                done: false,
+              })),
+              tag: 'selfCare',
             };
           });
 

@@ -38,10 +38,24 @@
           "imageWidth": 140,
           "resizeMode": "contain",
           "backgroundColor": "#F4F1ED",
-          "dark": { "backgroundColor": "#0C0B0A" }
+          "dark": {
+            "backgroundColor": "#0C0B0A"
+          }
+        }
+      ],
+      [
+        "expo-localization",
+        {
+          "_comment": "Declares the app's own localizations. On iOS this writes CFBundleLocalizations, which is what makes iOS treat the app as Vietnamese-capable and list it under Settings > Oneplan > Language; on Android it writes the locales_config used by per-app language settings. Without it the OS has no way to know this app speaks anything but English.",
+          "supportedLocales": {
+            "ios": ["en", "vi"],
+            "android": ["en", "vi"]
+          }
         }
       ]
     ],
-    "experiments": { "typedRoutes": true }
+    "experiments": {
+      "typedRoutes": true
+    }
   }
 }

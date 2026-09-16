@@ -18,6 +18,7 @@ import { usePlanStore } from '../src/store/usePlanStore';
 import { useTaskNotifications } from '../src/lib/notifications';
 import { LaunchScreen } from '../src/components/LaunchScreen';
 import { useTheme } from '../src/theme/useTheme';
+import { useDeviceLocaleSync, translate } from '../src/i18n';
 import { motion, palette, radius, space } from '../src/theme/tokens';
 
 /**
@@ -39,10 +40,10 @@ export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
       }}
     >
       <Text style={{ fontSize: 22, fontWeight: '600', color: c.ink, textAlign: 'center' }}>
-        That screen did not load
+        {translate('error.title')}
       </Text>
       <Text style={{ fontSize: 15, color: c.inkMuted, textAlign: 'center', lineHeight: 21 }}>
-        Your plan is safe — it is stored on this device. You can try again.
+        {translate('error.body')}
       </Text>
       <Text
         selectable
@@ -59,7 +60,9 @@ export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
           borderRadius: radius.pill, backgroundColor: c.solid,
         }}
       >
-        <Text style={{ color: c.onSolid, fontSize: 16, fontWeight: '600' }}>Try again</Text>
+        <Text style={{ color: c.onSolid, fontSize: 16, fontWeight: '600' }}>
+          {translate('common.tryAgain')}
+        </Text>
       </Pressable>
     </View>
   );
@@ -89,6 +92,13 @@ export default function RootLayout() {
   // from whichever screen edits it, and so importing the module — which is what
   // registers the foreground notification handler — happens on the first frame.
   useTaskNotifications();
+
+  /**
+   * Keeps the detected device language current. Android can change it while the
+   * app is merely backgrounded; iOS cannot, where this costs one native read
+   * per foreground and nothing else.
+   */
+  useDeviceLocaleSync();
 
   /**
    * The launch overlay stays mounted until its own exit animation has finished.
@@ -178,6 +188,15 @@ export default function RootLayout() {
                    * by default, and it is what separates "swiping the screen"
                    * from "triggering a back animation".
                    */
+                  animationMatchesGesture: true,
+                }}
+              />
+              <Stack.Screen
+                name="language"
+                options={{
+                  headerShown: false,
+                  animation: process.env.EXPO_OS === 'ios' ? 'default' : 'ios_from_right',
+                  fullScreenGestureEnabled: true,
                   animationMatchesGesture: true,
                 }}
               />

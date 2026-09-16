@@ -4,6 +4,7 @@ import * as Notifications from 'expo-notifications';
 import type { Task } from '../store/types';
 import { usePlanStore } from '../store/usePlanStore';
 import { formatDuration, parseKey } from './time';
+import { translate, useLanguageStore, resolveLocale } from '../i18n';
 
 /**
  * Local reminders: one notification per activity that sits at a real time on a
@@ -113,7 +114,7 @@ function plan(tasks: Task[], now: number): Planned[] {
     const title = `${t.emoji}  ${t.title}`;
     // The wording the onboarding screen previews, so the promise it makes is
     // the notification the user actually receives.
-    const body = `Starting now — ${formatDuration(t.minutes)}`;
+    const body = translate('notification.startingNow', { duration: formatDuration(t.minutes) });
     const identifier = `${ID_PREFIX}${t.id}:${at.getTime()}:${fingerprint(`${title}${body}`)}`;
 
     planned.push({
@@ -146,7 +147,7 @@ let androidChannel: Promise<unknown> | null = null;
 function ensureAndroidChannel(): Promise<unknown> {
   if (process.env.EXPO_OS !== 'android') return Promise.resolve();
   androidChannel ??= Notifications.setNotificationChannelAsync(ANDROID_CHANNEL_ID, {
-    name: 'Activity reminders',
+    name: translate('notification.channel'),
     importance: Notifications.AndroidImportance.HIGH,
   });
   return androidChannel;
@@ -211,6 +212,16 @@ export function syncTaskNotifications(tasks: Task[], enabled: boolean): Promise<
 export function useTaskNotifications(): void {
   const tasks = usePlanStore((s) => s.tasks);
   const reminders = usePlanStore((s) => s.profile.reminders);
+  /**
+   * The language is a DEPENDENCY of the schedule, not just of the UI.
+   *
+   * A reminder's body is written when it is scheduled and then sits in the OS
+   * for hours or days. Without this, switching to Vietnamese would leave every
+   * already-pending notification to arrive in English. Because the visible copy
+   * is folded into each identifier, a re-run after a language change sees every
+   * pending id as stale and rewrites it — no special-casing needed here.
+   */
+  const locale = useLanguageStore((s) => resolveLocale(s.language, s.device));
 
   const sync = useCallback(() => {
     void syncTaskNotifications(tasks, reminders).then((permitted) => {
@@ -220,7 +231,7 @@ export function useTaskNotifications(): void {
         usePlanStore.setState((s) => ({ profile: { ...s.profile, reminders: false } }));
       }
     });
-  }, [tasks, reminders]);
+  }, [tasks, reminders, locale]);
 
   useEffect(sync, [sync]);
 

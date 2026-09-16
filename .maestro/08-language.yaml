@@ -1,0 +1,56 @@
+# Language — the picker, and that the whole app actually follows it.
+#
+# The assertions deliberately land on THREE different surfaces after the switch:
+# the picker itself, a tab bar label, and a screen title. A language bug that
+# only reached the screen you were looking at would pass a single-surface check
+# and still ship an app that is half English.
+#
+# The flow restores "System" at the end, so it leaves the simulator in the state
+# every other flow in this suite expects to find.
+appId: com.oneplan.app
+name: Language — switch to Vietnamese and back
+---
+- launchApp
+
+# Guard: if this run lands in onboarding, this flow has nothing to assert.
+- assertVisible: "Today"
+
+- tapOn: "Me"
+- assertVisible: "Run onboarding again"
+
+# The row shows the MODE while following the phone, not the resolved language —
+# that distinction is the reason the System row exists at all.
+- tapOn: "Language"
+- assertVisible: "System"
+# Endonyms, never translated names. This is the promise the screen makes to
+# someone who cannot read the language they have landed in.
+- assertVisible: "English"
+- assertVisible: "Tiếng Việt"
+- takeScreenshot: artifacts/11-language-picker
+
+- tapOn: "Tiếng Việt"
+
+# 1. The picker relabels itself in place.
+- assertVisible: "Ngôn ngữ"
+- takeScreenshot: artifacts/12-language-vietnamese
+
+- tapOn: "Quay lại"
+
+# 2. The screen behind it, which was never remounted.
+- assertVisible: "Chạy lại phần giới thiệu"
+- assertVisible: "Tôi"
+
+# 3. The tab bar, which lives outside every screen.
+- assertVisible: "Hôm nay"
+- assertVisible: "Tập trung"
+- tapOn: "Tập trung"
+- assertVisible: "Chọn khoảng thời gian bạn muốn biến mất"
+- takeScreenshot: artifacts/13-focus-vietnamese
+
+# Back to following the phone, so the rest of the suite sees English again.
+- tapOn: "Tôi"
+- tapOn: "Ngôn ngữ"
+- tapOn: "Hệ thống"
+- assertVisible: "Language"
+- tapOn: "Back"
+- assertVisible: "Run onboarding again"

@@ -8,10 +8,12 @@ import { Bloom } from '../../src/components/Bloom';
 import { PipScene } from '../../src/components/mascot/PipScene';
 import { useTheme } from '../../src/theme/useTheme';
 import { space } from '../../src/theme/tokens';
+import { useT } from '../../src/i18n';
 import { haptic } from '../../src/lib/haptics';
 
 export default function Welcome() {
   const { c } = useTheme();
+  const { t } = useT();
   const insets = useSafeAreaInsets();
   const reduced = useReducedMotion();
 
@@ -45,19 +47,18 @@ export default function Welcome() {
         >
           <Txt variant="displayLg" style={{ fontSize: 44, lineHeight: 50 }}>Oneplan</Txt>
           <Txt variant="body" tone="muted" style={{ textAlign: 'center', maxWidth: 280 }}>
-            One day at a time, laid out so you can see it. Built for brains that
-            do better with pictures than lists.
+            {t('onboarding.welcomeBody')}
           </Txt>
         </Animated.View>
       </View>
 
       <View style={{ paddingBottom: Math.max(insets.bottom, space.base), gap: space.md }}>
         <Button
-          label="Get started"
+          label={t('onboarding.getStarted')}
           onPress={() => { haptic.tap(); router.push('/onboarding/need'); }}
         />
         <Txt variant="caption" tone="faint" style={{ textAlign: 'center' }}>
-          No account needed. Everything stays on your phone.
+          {t('onboarding.noAccount')}
         </Txt>
       </View>
     </View>

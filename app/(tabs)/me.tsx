@@ -7,10 +7,12 @@ import { Icon } from '../../src/components/Icon';
 import { Bloom } from '../../src/components/Bloom';
 import { PipScene } from '../../src/components/mascot/PipScene';
 import { TAB_BAR_HEIGHT } from '../../src/components/TabBar';
+import { ScrollEdge, ScrollEdgeTitle, useScrollEdge } from '../../src/components/ScrollEdge';
 import { useTheme } from '../../src/theme/useTheme';
 import { radius, space } from '../../src/theme/tokens';
+import { useT, useLanguageStore, hasKey, LOCALE_NAME, type TKey } from '../../src/i18n';
 import { usePlanStore } from '../../src/store/usePlanStore';
-import { dateKey, formatDuration } from '../../src/lib/time';
+import { dateKey, formatDurationShort } from '../../src/lib/time';
 import { haptic } from '../../src/lib/haptics';
 import { requestNotificationPermission } from '../../src/lib/notifications';
 import type { SymbolViewProps } from 'expo-symbols';
@@ -18,11 +20,14 @@ import type { SymbolViewProps } from 'expo-symbols';
 export default function Me() {
   const insets = useSafeAreaInsets();
   const { c } = useTheme();
+  const { t } = useT();
+  const { edge, scrollProps } = useScrollEdge();
   const tasks = usePlanStore((s) => s.tasks);
   const profile = usePlanStore((s) => s.profile);
   const layout = usePlanStore((s) => s.layout);
   const setLayout = usePlanStore((s) => s.setLayout);
   const resetOnboarding = usePlanStore((s) => s.resetOnboarding);
+  const language = useLanguageStore((s) => s.language);
 
   /**
    * What onboarding picked, read back. Without this the routine choice becomes
@@ -33,15 +38,27 @@ export default function Me() {
     const r = profile.routines;
     const parts = ([ 'morning', 'afternoon', 'evening' ] as const).filter((k) => r[k]?.length);
     const total = parts.reduce((n, k) => n + r[k].length, 0);
-    if (total === 0) return 'None set';
-    return `${total} picked`;
-  }, [profile.routines]);
+    if (total === 0) return t('me.routinesNone');
+    return t('me.routinesPicked', { count: total });
+  }, [profile.routines, t]);
+
+  /**
+   * The onboarding answer, which is stored as a translation KEY so it follows a
+   * later language change. A build from before that stored the English sentence
+   * itself, so anything unrecognised is shown as it was saved rather than as a
+   * raw key.
+   */
+  const needText = useMemo(() => {
+    const v = profile.need;
+    if (!v) return null;
+    return hasKey(v) ? t(v) : v;
+  }, [profile.need, t]);
 
   const stats = useMemo(() => {
     const today = dateKey(new Date());
-    const todays = tasks.filter((t) => t.date === today);
-    const done = todays.filter((t) => t.done);
-    const planned = todays.reduce((n, t) => n + t.minutes, 0);
+    const todays = tasks.filter((task) => task.date === today);
+    const done = todays.filter((task) => task.done);
+    const planned = todays.reduce((n, task) => n + task.minutes, 0);
     return { done: done.length, total: todays.length, planned };
   }, [tasks]);
 
@@ -51,14 +68,10 @@ export default function Me() {
     // second request instantly with the stored denial and shows no prompt, so
     // the only honest move is to leave the switch off and point at Settings.
     if (on && !(await requestNotificationPermission())) {
-      Alert.alert(
-        'Notifications are off',
-        'Allow notifications for Oneplan in Settings to get a nudge when an activity starts.',
-        [
-          { text: 'Not now', style: 'cancel' },
-          { text: 'Open Settings', onPress: () => Linking.openSettings() },
-        ]
-      );
+      Alert.alert(t('me.notifOffTitle'), t('me.notifOffBody'), [
+        { text: t('common.notNow'), style: 'cancel' },
+        { text: t('common.openSettings'), onPress: () => Linking.openSettings() },
+      ]);
       return;
     }
     usePlanStore.setState((s) => ({ profile: { ...s.profile, reminders: on } }));
@@ -68,14 +81,18 @@ export default function Me() {
     haptic.tap();
     if (process.env.EXPO_OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions(
-        { options: ['Compact', 'Timeline', 'Cancel'], cancelButtonIndex: 2, title: 'Day layout' },
+        {
+          options: [t('me.compact'), t('me.timeline'), t('common.cancel')],
+          cancelButtonIndex: 2,
+          title: t('me.dayLayout'),
+        },
         (i) => { if (i === 0) setLayout('compact'); if (i === 1) setLayout('timeline'); }
       );
     } else {
-      Alert.alert('Day layout', undefined, [
-        { text: 'Compact', onPress: () => setLayout('compact') },
-        { text: 'Timeline', onPress: () => setLayout('timeline') },
-        { text: 'Cancel', style: 'cancel' },
+      Alert.alert(t('me.dayLayout'), undefined, [
+        { text: t('me.compact'), onPress: () => setLayout('compact') },
+        { text: t('me.timeline'), onPress: () => setLayout('timeline') },
+        { text: t('common.cancel'), style: 'cancel' },
       ]);
     }
   };
@@ -85,15 +102,18 @@ export default function Me() {
     if (process.env.EXPO_OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions(
         {
-          options: ['Start over', 'Cancel'], destructiveButtonIndex: 0, cancelButtonIndex: 1,
-          title: 'Run onboarding again?', message: 'Your activities are kept.',
+          options: [t('me.startOver'), t('common.cancel')],
+          destructiveButtonIndex: 0,
+          cancelButtonIndex: 1,
+          title: t('me.startOverTitle'),
+          message: t('me.startOverBody'),
         },
         (i) => { if (i === 0) go(); }
       );
     } else {
-      Alert.alert('Run onboarding again?', 'Your activities are kept.', [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Start over', style: 'destructive', onPress: go },
+      Alert.alert(t('me.startOverTitle'), t('me.startOverBody'), [
+        { text: t('common.cancel'), style: 'cancel' },
+        { text: t('me.startOver'), style: 'destructive', onPress: go },
       ]);
     }
   };
@@ -101,7 +121,14 @@ export default function Me() {
   return (
     <View style={{ flex: 1, backgroundColor: c.canvas }}>
       <ScrollView
-        contentInsetAdjustmentBehavior="automatic"
+        {...scrollProps}
+        /**
+         * `never`, not `automatic`. The blurred edge is driven by
+         * `contentOffset.y`, and an automatic content inset would start the
+         * screen at a non-zero offset — which reads as "already scrolled" and
+         * would show the bar over an untouched screen.
+         */
+        contentInsetAdjustmentBehavior="never"
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
           paddingHorizontal: space.lg,
@@ -122,45 +149,63 @@ export default function Me() {
             </View>
             <PipScene pose="sit" size={124} idle="breathe" />
           </View>
-          <Txt variant="displayLg">Me</Txt>
-          {profile.need ? (
+          <Txt variant="displayLg">{t('me.title')}</Txt>
+          {needText ? (
             <Txt variant="caption" tone="muted" style={{ textAlign: 'center' }}>
-              Here to {profile.need.toLowerCase()}
+              {t('me.hereTo', { need: needText.toLowerCase() })}
             </Txt>
           ) : null}
         </View>
 
         <View style={{ flexDirection: 'row', gap: space.md }}>
-          <Stat label="Done today" value={`${stats.done}`} sub={`of ${stats.total}`} />
-          <Stat label="Planned" value={formatDuration(stats.planned)} sub="today" />
-          <Stat label="Activities" value={`${tasks.length}`} sub="total" />
+          <Stat
+            label={t('me.doneToday')}
+            value={`${stats.done}`}
+            sub={t('me.ofTotal', { total: stats.total })}
+          />
+          <Stat label={t('me.planned')} value={formatDurationShort(stats.planned)} sub={t('me.todaySub')} />
+          <Stat label={t('me.activities')} value={`${tasks.length}`} sub={t('me.totalSub')} />
         </View>
 
-        <Section title="Planning">
+        <Section title={t('me.planning')}>
           <RowItem
             icon="rectangle.3.group"
-            label="Day layout"
-            value={layout === 'compact' ? 'Compact' : 'Timeline'}
+            label={t('me.dayLayout')}
+            value={layout === 'compact' ? t('me.compact') : t('me.timeline')}
             onPress={pickLayout}
           />
-          <RowItem icon="repeat" label="Routines" value={routineSummary} />
+          <RowItem icon="repeat" label={t('me.routines')} value={routineSummary} />
           <RowItem
             icon="bell"
-            label="Reminders"
+            label={t('me.reminders')}
             trailing={<Switch value={profile.reminders} onValueChange={toggleReminders} />}
           />
         </Section>
 
-        <Section title="About">
-          <RowItem icon="paintpalette" label="Appearance" value="Follows system" />
-          <RowItem icon="lock" label="Your data" value="On this device" />
-          <RowItem icon="arrow.counterclockwise" label="Run onboarding again" onPress={startOver} />
+        <Section title={t('me.about')}>
+          {/* Language sits beside Appearance because they are the same KIND of
+              setting: both default to following the phone, and both can be
+              pinned. Showing "System" rather than the resolved language is what
+              makes that distinction visible from here. */}
+          <RowItem
+            icon="globe"
+            label={t('language.row')}
+            value={language === 'system' ? t('language.system') : LOCALE_NAME[language]}
+            onPress={() => { haptic.tap(); router.push('/language'); }}
+          />
+          <RowItem icon="paintpalette" label={t('me.appearance')} value={t('me.followsSystem')} />
+          <RowItem icon="lock" label={t('me.yourData')} value={t('me.onThisDevice')} />
+          <RowItem icon="arrow.counterclockwise" label={t('me.runOnboarding')} onPress={startOver} />
         </Section>
 
         <Txt variant="caption" tone="faint" style={{ textAlign: 'center' }}>
-          Oneplan 1.0
+          {t('me.version')}
         </Txt>
       </ScrollView>
+
+      <ScrollEdge edge={edge}>
+        <ScrollEdgeTitle edge={edge} title={t('me.title')} />
+      </ScrollEdge>
     </View>
   );
 }
@@ -175,7 +220,14 @@ function Stat({ label, value, sub }: { label: string; value: string; sub: string
       }}
     >
       <Txt variant="micro" tone="faint" numberOfLines={1}>{label.toUpperCase()}</Txt>
-      <Txt variant="displaySm" tabular>{value}</Txt>
+      {/* One line, always. A tile is a glanceable number; a serif display size
+          that wraps onto a second line makes the three tiles disagree on height
+          and stops reading as a number at all. `adjustsFontSizeToFit` is the
+          backstop for large Dynamic Type, where even the short form runs out of
+          room. */}
+      <Txt variant="displaySm" tabular numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+        {value}
+      </Txt>
       <Txt variant="caption" tone="muted">{sub}</Txt>
     </View>
   );

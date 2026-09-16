@@ -5,19 +5,21 @@ import { OnboardingScaffold } from '../../src/components/OnboardingScaffold';
 import { Bloom } from '../../src/components/Bloom';
 import { PipScene, PipBubble } from '../../src/components/mascot/PipScene';
 import { space } from '../../src/theme/tokens';
+import { useT } from '../../src/i18n';
 import { haptic } from '../../src/lib/haptics';
 import { usePlanStore } from '../../src/store/usePlanStore';
 
 export default function Ready() {
   const complete = usePlanStore((s) => s.completeOnboarding);
+  const { t } = useT();
   const reduced = useReducedMotion();
 
   return (
     <OnboardingScaffold
       step={5}
-      title={'Your day is\nready to look at'}
-      subtitle="We have put a starter day in for you. Change anything, delete anything — it is yours."
-      ctaLabel="Start planning"
+      title={t('onboarding.readyTitle')}
+      subtitle={t('onboarding.readySubtitle')}
+      ctaLabel={t('onboarding.readyCta')}
       onCta={() => {
         haptic.success();
         // The one-way door. Flipping `onboarded` drops every onboarding entry
@@ -45,7 +47,7 @@ export default function Ready() {
           </Animated.View>
           <PipScene pose="cheer" size={182} delay={120} idle="bob" />
         </View>
-        <PipBubble text="Right then. Let's have a look at it." delay={520} />
+        <PipBubble text={t('onboarding.readyBubble')} delay={520} />
       </View>
       <View style={{ height: space.base }} />
     </OnboardingScaffold>

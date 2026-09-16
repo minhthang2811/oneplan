@@ -8,10 +8,13 @@ import { SLOT_TINT, SLOT_ICON } from '../../src/components/SlotChip';
 import { Txt } from '../../src/components/Txt';
 import { useTheme } from '../../src/theme/useTheme';
 import { space } from '../../src/theme/tokens';
+import { useT } from '../../src/i18n';
 import { haptic } from '../../src/lib/haptics';
-import { SLOT_LABEL, formatDuration } from '../../src/lib/time';
+import { slotLabel, formatDuration } from '../../src/lib/time';
 import { usePlanStore } from '../../src/store/usePlanStore';
-import { ROUTINES, ROUTINE_SLOTS, ROUTINE_COPY, type RoutineSlot } from '../../src/data/routines';
+import {
+  ROUTINES, ROUTINE_SLOTS, ROUTINE_COPY, routineTitle, type RoutineSlot,
+} from '../../src/data/routines';
 
 type Picks = Record<RoutineSlot, string[]>;
 
@@ -29,6 +32,7 @@ type Picks = Record<RoutineSlot, string[]>;
  */
 export default function Routines() {
   const theme = useTheme();
+  const { t: tr } = useT();
   const reduced = useReducedMotion();
   const applyRoutines = usePlanStore((s) => s.applyRoutines);
 
@@ -38,7 +42,7 @@ export default function Routines() {
   const slot = ROUTINE_SLOTS[phase];
   const options = ROUTINES[slot];
   const chosen = picks[slot];
-  const t = theme.tint(SLOT_TINT[slot]);
+  const tint = theme.tint(SLOT_TINT[slot]);
   const last = phase === ROUTINE_SLOTS.length - 1;
 
   const minutes = useMemo(
@@ -64,11 +68,11 @@ export default function Routines() {
       // Routines is step 3 of 5, and each phase moves the bar a third of the
       // way through that step rather than leaving it frozen for three screens.
       step={2 + (phase + 1) / ROUTINE_SLOTS.length}
-      title={ROUTINE_COPY[slot].title}
-      subtitle={ROUTINE_COPY[slot].subtitle}
+      title={tr(ROUTINE_COPY[slot].title)}
+      subtitle={tr(ROUTINE_COPY[slot].subtitle)}
       onBack={() => (phase === 0 ? router.back() : setPhase((p) => p - 1))}
       onSkip={() => { haptic.tap(); commit(); }}
-      ctaLabel={last ? 'Continue with my routines' : 'Continue'}
+      ctaLabel={tr(last ? 'onboarding.routinesCta' : 'common.continue')}
       onCta={() => {
         haptic.tap();
         if (last) commit();
@@ -78,14 +82,17 @@ export default function Routines() {
         // Keyed on the slot so the badge re-enters — and visibly re-tints —
         // every time the phase changes.
         <Animated.View key={slot} entering={reduced ? undefined : FadeIn.duration(260)}>
-          <SlotBadge icon={SLOT_ICON[slot]} label={SLOT_LABEL[slot]} bg={t.bg} fg={t.fg} />
+          <SlotBadge icon={SLOT_ICON[slot]} label={slotLabel(slot)} bg={tint.bg} fg={tint.fg} />
         </Animated.View>
       }
       footer={
         <Txt variant="caption" tone="faint" style={{ textAlign: 'center' }}>
           {chosen.length === 0
-            ? 'Pick as many or as few as you like — you can skip this.'
-            : `${chosen.length} picked · about ${formatDuration(minutes)}`}
+            ? tr('onboarding.routinesEmpty')
+            : tr('onboarding.routinesPicked', {
+                count: chosen.length,
+                duration: formatDuration(minutes),
+              })}
         </Txt>
       }
     >
@@ -104,7 +111,7 @@ export default function Routines() {
           >
             <RoutineChip
               emoji={o.emoji}
-              label={o.title}
+              label={routineTitle(o.id)}
               selected={chosen.includes(o.id)}
               onPress={() => toggle(o.id)}
             />

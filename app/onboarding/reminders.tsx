@@ -7,17 +7,28 @@ import { EmojiAvatar } from '../../src/components/EmojiAvatar';
 import { PipScene } from '../../src/components/mascot/PipScene';
 import { useTheme } from '../../src/theme/useTheme';
 import { radius, space } from '../../src/theme/tokens';
+import { useT, type TKey } from '../../src/i18n';
 import { haptic } from '../../src/lib/haptics';
 import { requestNotificationPermission } from '../../src/lib/notifications';
 import { usePlanStore } from '../../src/store/usePlanStore';
 
-const PREVIEW = [
-  { emoji: '🌅', tint: 'peach' as const, title: 'Morning routine', body: 'Starting now — 30m' },
-  { emoji: '🥪', tint: 'mint' as const, title: 'Lunch', body: 'Coming up at 12:30' },
+/** Fake notifications, so they are translated copy like any other. */
+const PREVIEW: Array<{ emoji: string; tint: 'peach' | 'mint'; title: TKey; body: TKey }> = [
+  {
+    emoji: '🌅', tint: 'peach',
+    title: 'onboarding.remindersPreview1Title',
+    body: 'onboarding.remindersPreview1Body',
+  },
+  {
+    emoji: '🥪', tint: 'mint',
+    title: 'onboarding.remindersPreview2Title',
+    body: 'onboarding.remindersPreview2Body',
+  },
 ];
 
 export default function Reminders() {
   const { c, shadow } = useTheme();
+  const { t } = useT();
 
   const finish = async (ask: boolean) => {
     haptic.tap();
@@ -30,9 +41,9 @@ export default function Reminders() {
   return (
     <OnboardingScaffold
       step={4}
-      title={'A nudge when\nsomething starts'}
-      subtitle="Oneplan can tell you when an activity begins, so the plan does the remembering instead of you."
-      ctaLabel="Turn on reminders"
+      title={t('onboarding.remindersTitle')}
+      subtitle={t('onboarding.remindersSubtitle')}
+      ctaLabel={t('onboarding.remindersCta')}
       onCta={() => finish(true)}
       headerSlot={
         /* The notification marks are part of the artwork, so there is no
@@ -52,7 +63,7 @@ export default function Reminders() {
           style={{ alignSelf: 'center', paddingVertical: space.sm }}
         >
           <Txt variant="captionStrong" tone="muted" style={{ textDecorationLine: 'underline' }}>
-            Not right now
+            {t('onboarding.remindersSkip')}
           </Txt>
         </Pressable>
       }
@@ -69,9 +80,9 @@ export default function Reminders() {
           >
             <EmojiAvatar emoji={p.emoji} tint={p.tint} size={38} />
             <View style={{ flex: 1, gap: 1 }}>
-              <Txt variant="micro" tone="faint">ONEPLAN</Txt>
-              <Txt variant="bodyStrong">{p.title}</Txt>
-              <Txt variant="caption" tone="muted">{p.body}</Txt>
+              <Txt variant="micro" tone="faint">{t('onboarding.remindersBrand')}</Txt>
+              <Txt variant="bodyStrong">{t(p.title)}</Txt>
+              <Txt variant="caption" tone="muted">{t(p.body)}</Txt>
             </View>
           </View>
         ))}
