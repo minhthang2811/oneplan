@@ -19,10 +19,14 @@ import { EmojiAvatar } from '../../src/components/EmojiAvatar';
 import { PressScale } from '../../src/components/Press';
 import { PipScene, Confetti } from '../../src/components/mascot/PipScene';
 import { TAB_BAR_HEIGHT } from '../../src/components/TabBar';
+import { FocusAura } from '../../src/components/FocusAura';
 import { useTheme } from '../../src/theme/useTheme';
 import { radius, space, motion } from '../../src/theme/tokens';
+import { useT } from '../../src/i18n';
 import { usePlanStore, remainingFor } from '../../src/store/usePlanStore';
-import { formatTimer, formatDuration, clockFromNow, formatClock, minutesNow } from '../../src/lib/time';
+import {
+  formatTimer, formatDuration, formatDurationShort, clockFromNow, formatClock, minutesNow,
+} from '../../src/lib/time';
 import { haptic } from '../../src/lib/haptics';
 import type { Task } from '../../src/store/types';
 
@@ -36,6 +40,7 @@ const PRESETS = [15, 25, 45, 60];
 export default function Focus() {
   const insets = useSafeAreaInsets();
   const { c } = useTheme();
+  const { t } = useT();
   const params = useLocalSearchParams<{ taskId?: string }>();
 
   const focus = usePlanStore((s) => s.focus);
@@ -88,16 +93,27 @@ export default function Focus() {
 
   const header = (
     <View style={{ alignItems: 'center', gap: space.xs, paddingBottom: space.base }}>
-      <Txt variant="displayLg">Focus</Txt>
+      <Txt variant="displayLg">{t('focus.title')}</Txt>
       {focus && range ? (
         <Txt variant="caption" tone="muted" tabular>
-          {range.from ? `${range.from} → ${range.to}` : `Ends at ${range.to}`}
+          {range.from
+            ? t('focus.range', { from: range.from, to: range.to })
+            : t('focus.endsAtLong', { to: range.to })}
         </Txt>
       ) : (
-        <Txt variant="caption" tone="muted">Pick how long you want to disappear for</Txt>
+        <Txt variant="caption" tone="muted">{t('focus.pickLength')}</Txt>
       )}
     </View>
   );
+
+  /**
+   * The activity whose colour fills the room.
+   *
+   * It follows the session once one is running, and the incoming route param
+   * before that — so tapping "focus on Lunch" from a task row tints the picker
+   * itself, and the screen is already the right colour before Start is pressed.
+   */
+  const auraTint = (focus ? activeTask : paramTask)?.tint ?? null;
 
   /**
    * Only the RUNNING state scrolls.
@@ -110,6 +126,11 @@ export default function Focus() {
    */
   return (
     <View style={{ flex: 1, backgroundColor: c.canvasTinted }}>
+      {/* Behind everything, and outside both branches so switching between the
+          picker and a running session does not remount the field and restart
+          its drift from zero. */}
+      <FocusAura tint={auraTint} intensity={focus ? 1 : 0.72} />
+
       {focus ? (
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={pad}>
           {header}
@@ -133,6 +154,7 @@ export default function Focus() {
 
 function DialPicker({ task }: { task: Task | null }) {
   const { c, shadow, isDark } = useTheme();
+  const { t } = useT();
   const startFocus = usePlanStore((s) => s.startFocus);
   const initial = task ? Math.min(MAX_MIN, task.minutes) : 15;
   const minutes = useSharedValue(initial);
@@ -210,7 +232,7 @@ function DialPicker({ task }: { task: Task | null }) {
         <View
           style={{ width: DIAL, height: DIAL, alignItems: 'center', justifyContent: 'center' }}
           accessibilityRole="adjustable"
-          accessibilityLabel="Focus length"
+          accessibilityLabel={t('focus.dialLabel')}
           accessibilityValue={{ text: formatDuration(display) }}
         >
           <Ring
@@ -220,7 +242,7 @@ function DialPicker({ task }: { task: Task | null }) {
 
           <View style={{ position: 'absolute', alignItems: 'center', gap: -4 }}>
             <Txt variant="numeral" tabular>{display}</Txt>
-            <Txt variant="micro" tone="muted">{display === 1 ? 'MINUTE' : 'MINUTES'}</Txt>
+            <Txt variant="micro" tone="muted">{t('focus.minutes', { count: display })}</Txt>
           </View>
 
           <Animated.View
@@ -247,7 +269,9 @@ function DialPicker({ task }: { task: Task | null }) {
             <PresetChip key={m} minutes={m} active={display === m} onPress={() => pick(m)} />
           ))}
         </View>
-        <Txt variant="caption" tone="faint" tabular>Ends at {clockFromNow(display)}</Txt>
+        <Txt variant="caption" tone="faint" tabular>
+          {t('focus.endsAt', { time: clockFromNow(display) })}
+        </Txt>
       </View>
 
       {task ? (
@@ -266,14 +290,14 @@ function DialPicker({ task }: { task: Task | null }) {
       <PressScale
         onPress={() => { haptic.bump(); startFocus(display * 60, task?.id ?? null); }}
         accessibilityRole="button"
-        accessibilityLabel={`Start ${formatDuration(display)} focus`}
+        accessibilityLabel={t('focus.startA11y', { duration: formatDuration(display) })}
         style={{
           flexDirection: 'row', alignItems: 'center', gap: space.sm,
           height: 54, paddingHorizontal: space.xxl,
           borderRadius: radius.pill, backgroundColor: c.solid,
         }}
       >
-        <Txt variant="title" color={c.onSolid}>Start</Txt>
+        <Txt variant="title" color={c.onSolid}>{t('focus.start')}</Txt>
         <Icon name="play.fill" size={14} color={c.onSolid} weight="bold" />
       </PressScale>
     </View>
@@ -299,7 +323,7 @@ function PresetChip({ minutes, active, onPress }: { minutes: number; active: boo
       }}
     >
       <Txt variant="captionStrong" color={active ? c.accentInk : c.inkMuted} tabular>
-        {minutes}m
+        {formatDurationShort(minutes)}
       </Txt>
     </PressScale>
   );
@@ -323,6 +347,7 @@ function applyAngle(x: number, y: number, minutes: SharedValue<number>) {
 
 function Running({ task }: { task: Task | null }) {
   const { c, shadow } = useTheme();
+  const { t } = useT();
   const reduced = useReducedMotion();
   const focus = usePlanStore((s) => s.focus)!;
   const pause = usePlanStore((s) => s.pauseFocus);
@@ -386,21 +411,21 @@ function Running({ task }: { task: Task | null }) {
     if (process.env.EXPO_OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions(
         {
-          options: ['End session', 'Keep going'],
+          options: [t('focus.endSession'), t('focus.keepGoing')],
           destructiveButtonIndex: 0,
           cancelButtonIndex: 1,
-          title: 'End this focus session?',
-          message: `${formatTimer(left)} left.`,
+          title: t('focus.endTitle'),
+          message: t('focus.endMessage', { time: formatTimer(left) }),
         },
         (i) => { if (i === 0) go(); }
       );
     } else {
-      Alert.alert('End this focus session?', `${formatTimer(left)} left.`, [
-        { text: 'Keep going', style: 'cancel' },
-        { text: 'End session', style: 'destructive', onPress: go },
+      Alert.alert(t('focus.endTitle'), t('focus.endMessage', { time: formatTimer(left) }), [
+        { text: t('focus.keepGoing'), style: 'cancel' },
+        { text: t('focus.endSession'), style: 'destructive', onPress: go },
       ]);
     }
-  }, [end, left]);
+  }, [end, left, t]);
 
   const steps = task?.steps ?? [];
   const stepsDone = steps.filter((s) => s.done).length;
@@ -459,7 +484,7 @@ function Running({ task }: { task: Task | null }) {
           </View>
 
           <Txt variant="displaySm" style={{ textAlign: 'center' }}>
-            {allStepsDone ? 'All of it, done 🎉' : 'Time is up. That counted.'}
+            {t(allStepsDone ? 'focus.allDone' : 'focus.timeUp')}
           </Txt>
 
           {task && !task.done ? (
@@ -473,7 +498,7 @@ function Running({ task }: { task: Task | null }) {
               }}
             >
               <Icon name="checkmark" size={15} color={c.onSolid} weight="bold" />
-              <Txt variant="title" color={c.onSolid}>Mark it done</Txt>
+              <Txt variant="title" color={c.onSolid}>{t('focus.markItDone')}</Txt>
             </PressScale>
           ) : null}
 
@@ -487,7 +512,7 @@ function Running({ task }: { task: Task | null }) {
             }}
           >
             <Txt variant="title" color={task && !task.done ? c.inkMuted : c.onSolid}>
-              {task && !task.done ? 'Not yet' : 'Done'}
+              {t(task && !task.done ? 'focus.notYet' : 'common.done')}
             </Txt>
           </PressScale>
         </Animated.View>
@@ -497,19 +522,19 @@ function Running({ task }: { task: Task | null }) {
             <PressScale
               onPress={() => { haptic.tick(); extend(60); }}
               accessibilityRole="button"
-              accessibilityLabel="Add one minute"
+              accessibilityLabel={t('focus.addMinuteA11y')}
               style={{
                 height: 44, paddingHorizontal: space.lg, justifyContent: 'center',
                 borderRadius: radius.pill, backgroundColor: c.surface, boxShadow: shadow[1],
               }}
             >
-              <Txt variant="captionStrong">+ 1 min</Txt>
+              <Txt variant="captionStrong">{t('focus.addMinute')}</Txt>
             </PressScale>
 
             <PressScale
               onPress={() => { haptic.bump(); running ? pause() : resume(); }}
               accessibilityRole="button"
-              accessibilityLabel={running ? 'Pause' : 'Resume'}
+              accessibilityLabel={t(running ? 'focus.pause' : 'focus.resume')}
               style={{
                 width: 62, height: 62, borderRadius: 31,
                 alignItems: 'center', justifyContent: 'center',
@@ -522,19 +547,19 @@ function Running({ task }: { task: Task | null }) {
             <PressScale
               onPress={confirmEnd}
               accessibilityRole="button"
-              accessibilityLabel="End session"
+              accessibilityLabel={t('focus.endSession')}
               style={{
                 height: 44, paddingHorizontal: space.lg, justifyContent: 'center',
                 borderRadius: radius.pill, backgroundColor: c.surface, boxShadow: shadow[1],
               }}
             >
-              <Txt variant="captionStrong">End</Txt>
+              <Txt variant="captionStrong">{t('focus.end')}</Txt>
             </PressScale>
           </View>
 
           {!running ? (
             <Animated.View entering={reduced ? undefined : FadeIn.duration(200)}>
-              <Txt variant="micro" tone="faint">PAUSED</Txt>
+              <Txt variant="micro" tone="faint">{t('focus.paused')}</Txt>
             </Animated.View>
           ) : null}
         </View>
@@ -546,7 +571,7 @@ function Running({ task }: { task: Task | null }) {
       {steps.length > 0 ? (
         <View style={{ alignSelf: 'stretch', gap: space.sm }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Txt variant="micro" tone="faint">STEPS</Txt>
+            <Txt variant="micro" tone="faint">{t('focus.steps')}</Txt>
             <Txt variant="micro" tone="faint" tabular>{stepsDone}/{steps.length}</Txt>
           </View>
           <View

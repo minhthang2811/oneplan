@@ -10,6 +10,7 @@ import { EmojiAvatar } from './EmojiAvatar';
 import { ProgressBar } from './ProgressBar';
 import { PressHighlight, EASE } from './Press';
 import { useTheme } from '../theme/useTheme';
+import { useT } from '../i18n';
 import { radius, space } from '../theme/tokens';
 import { formatDuration, formatClock } from '../lib/time';
 import { haptic } from '../lib/haptics';
@@ -30,6 +31,7 @@ export function TaskRow({
   task, onToggle, onToggleStep, onPress, onStartFocus, isNow, showTime,
 }: Props) {
   const { c, shadow } = useTheme();
+  const { t } = useT();
   const [open, setOpen] = useState(false);
   const done = task.steps.filter((s) => s.done).length;
   const total = task.steps.length;
@@ -68,9 +70,12 @@ export function TaskRow({
         baseColor={c.surface}
         pressColor={c.surfaceSunken}
         accessibilityRole="button"
-        accessibilityLabel={`${task.title}, ${formatDuration(task.minutes)}${task.done ? ', completed' : ''}`}
+        accessibilityLabel={t(task.done ? 'row.a11yCompleted' : 'row.a11y', {
+          title: task.title,
+          duration: formatDuration(task.minutes),
+        })}
         accessibilityActions={[
-          { name: 'toggle', label: task.done ? 'Mark as not done' : 'Mark as done' },
+          { name: 'toggle', label: t(task.done ? 'row.markNotDone' : 'row.markDone') },
         ]}
         onAccessibilityAction={(e) => {
           if (e.nativeEvent.actionName !== 'toggle') return;
@@ -90,7 +95,7 @@ export function TaskRow({
                 borderRadius: radius.pill, marginBottom: 3,
               }}>
                 <Icon name="play.fill" size={9} color={c.accentInk} weight="bold" />
-                <Txt variant="micro" tone="accent">NOW</Txt>
+                <Txt variant="micro" tone="accent">{t('row.now')}</Txt>
               </View>
             </View>
           ) : null}
@@ -121,7 +126,7 @@ export function TaskRow({
             onPress={() => { haptic.bump(); onStartFocus(); }}
             hitSlop={8}
             accessibilityRole="button"
-            accessibilityLabel={`Start focus on ${task.title}`}
+            accessibilityLabel={t('row.startFocusOn', { title: task.title })}
             style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: c.accentSoft, alignItems: 'center', justifyContent: 'center' }}
           >
             <Icon name="timer" size={15} color={c.accentInk} weight="semibold" />
@@ -141,7 +146,7 @@ export function TaskRow({
           <Pressable
             onPress={() => { haptic.tap(); setOpen((o) => !o); }}
             accessibilityRole="button"
-            accessibilityLabel={`${done} of ${total} steps done`}
+            accessibilityLabel={t('row.stepsDone', { done, total })}
             accessibilityState={{ expanded: open }}
             style={{
               flexDirection: 'row', alignItems: 'center', gap: space.sm,

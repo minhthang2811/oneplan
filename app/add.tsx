@@ -11,9 +11,10 @@ import { Button } from '../src/components/Button';
 import { PressScale } from '../src/components/Press';
 import { useTheme } from '../src/theme/useTheme';
 import { radius, space, TINT_NAMES, type TintName } from '../src/theme/tokens';
+import { useT } from '../src/i18n';
 import { usePlanStore } from '../src/store/usePlanStore';
-import { EMOJI_CHOICES, TAGS, SUGGESTIONS } from '../src/data/seed';
-import { SLOT_ORDER, SLOT_LABEL, formatDuration, formatClock, type Slot } from '../src/lib/time';
+import { EMOJI_CHOICES, TAGS, SUGGESTIONS, tagLabel } from '../src/data/seed';
+import { SLOT_ORDER, slotLabel, formatDurationShort, formatClock, type Slot } from '../src/lib/time';
 import { haptic } from '../src/lib/haptics';
 
 const DURATIONS = [5, 15, 30, 45, 60, 90];
@@ -37,6 +38,7 @@ export default function Add() {
   const params = useLocalSearchParams<{ date?: string; slot?: Slot; inbox?: string }>();
   const insets = useSafeAreaInsets();
   const { c } = useTheme();
+  const { t } = useT();
   const navigation = useNavigation();
   const addTask = usePlanStore((s) => s.addTask);
 
@@ -69,18 +71,24 @@ export default function Add() {
       const discard = () => { savingRef.current = true; navigation.dispatch(e.data.action); };
       if (process.env.EXPO_OS === 'ios') {
         ActionSheetIOS.showActionSheetWithOptions(
-          { options: ['Discard activity', 'Keep editing'], destructiveButtonIndex: 0, cancelButtonIndex: 1 },
+          {
+            options: [t('add.discardAction'), t('add.keepEditing')],
+            destructiveButtonIndex: 0,
+            cancelButtonIndex: 1,
+          },
           (i) => { if (i === 0) discard(); }
         );
       } else {
-        Alert.alert('Discard activity?', 'It has not been added yet.', [
-          { text: 'Keep editing', style: 'cancel' },
-          { text: 'Discard', style: 'destructive', onPress: discard },
+        Alert.alert(t('add.discardTitle'), t('add.discardBody'), [
+          { text: t('add.keepEditing'), style: 'cancel' },
+          // "Discard", not "Delete" — nothing exists to delete yet, which is
+          // exactly what the alert's own body says.
+          { text: t('add.discard'), style: 'destructive', onPress: discard },
         ]);
       }
     });
     return unsub;
-  }, [navigation]);
+  }, [navigation, t]);
 
   const save = (submitted?: string) => {
     const v = (submitted ?? title).trim();
@@ -105,11 +113,11 @@ export default function Add() {
         }}
       >
         <Pressable onPress={() => router.back()} hitSlop={10} accessibilityRole="button">
-          <Txt variant="body" tone="muted">Cancel</Txt>
+          <Txt variant="body" tone="muted">{t('common.cancel')}</Txt>
         </Pressable>
-        <Txt variant="title">{isInbox ? 'New to-do' : 'New activity'}</Txt>
+        <Txt variant="title">{t(isInbox ? 'add.newTodo' : 'add.newActivity')}</Txt>
         <Pressable onPress={() => save()} hitSlop={10} disabled={!title.trim()} accessibilityRole="button">
-          <Txt variant="title" tone={title.trim() ? 'accent' : 'faint'}>Add</Txt>
+          <Txt variant="title" tone={title.trim() ? 'accent' : 'faint'}>{t('common.add')}</Txt>
         </Pressable>
       </View>
 
@@ -128,7 +136,7 @@ export default function Add() {
           <PressScale
             onPress={() => { haptic.tap(); setPickingEmoji((p) => !p); }}
             accessibilityRole="button"
-            accessibilityLabel="Choose an icon"
+            accessibilityLabel={t('add.chooseIcon')}
           >
             <EmojiAvatar emoji={emoji} tint={tint} size={52} />
           </PressScale>
@@ -136,7 +144,7 @@ export default function Add() {
             autoFocus
             value={title}
             onChangeText={setTitle}
-            placeholder={isInbox ? 'What needs doing?' : 'What are you doing?'}
+            placeholder={t(isInbox ? 'add.placeholderTodo' : 'add.placeholderActivity')}
             placeholderTextColor={c.inkFaint}
             returnKeyType="done"
             onSubmitEditing={(e) => save(e.nativeEvent.text)}
@@ -150,14 +158,14 @@ export default function Add() {
         {pickingEmoji ? (
           <View style={{ gap: space.base }}>
             <View>
-              <FieldLabel>Icon</FieldLabel>
+              <FieldLabel>{t('add.icon')}</FieldLabel>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
                 {EMOJI_CHOICES.map((e) => (
                   <Pressable
                     key={e}
                     onPress={() => { haptic.tick(); setEmoji(e); }}
                     accessibilityRole="button"
-                    accessibilityLabel={`Icon ${e}`}
+                    accessibilityLabel={t('add.iconA11y', { emoji: e })}
                     style={{
                       width: 44, height: 44, borderRadius: 22,
                       alignItems: 'center', justifyContent: 'center',
@@ -171,21 +179,21 @@ export default function Add() {
               </View>
             </View>
             <View>
-              <FieldLabel>Colour</FieldLabel>
+              <FieldLabel>{t('add.colour')}</FieldLabel>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
-                {TINT_NAMES.map((t) => (
+                {TINT_NAMES.map((name) => (
                   <Pressable
-                    key={t}
-                    onPress={() => { haptic.tick(); setTint(t); }}
+                    key={name}
+                    onPress={() => { haptic.tick(); setTint(name); }}
                     accessibilityRole="button"
-                    accessibilityLabel={`Colour ${t}`}
+                    accessibilityLabel={t('add.colourA11y', { name })}
                     style={{
                       width: 36, height: 36, borderRadius: 18,
-                      borderWidth: tint === t ? 2.5 : 0, borderColor: c.ink,
+                      borderWidth: tint === name ? 2.5 : 0, borderColor: c.ink,
                       alignItems: 'center', justifyContent: 'center',
                     }}
                   >
-                    <EmojiAvatar emoji="" tint={t} size={tint === t ? 26 : 34} />
+                    <EmojiAvatar emoji="" tint={name} size={tint === name ? 26 : 34} />
                   </Pressable>
                 ))}
               </View>
@@ -195,15 +203,15 @@ export default function Add() {
 
         {!title.trim() && !pickingEmoji ? (
           <View>
-            <FieldLabel>Quick pick</FieldLabel>
+            <FieldLabel>{t('add.quickPick')}</FieldLabel>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
               {SUGGESTIONS.map((s) => (
                 <Chip
-                  key={s.title}
-                  label={`${s.emoji}  ${s.title}`}
+                  key={s.key}
+                  label={`${s.emoji}  ${t(s.key)}`}
                   onPress={() => {
                     haptic.tick();
-                    setTitle(s.title); setEmoji(s.emoji); setTint(s.tint); setMinutes(s.minutes);
+                    setTitle(t(s.key)); setEmoji(s.emoji); setTint(s.tint); setMinutes(s.minutes);
                   }}
                 />
               ))}
@@ -212,12 +220,12 @@ export default function Add() {
         ) : null}
 
         <View>
-          <FieldLabel>How long</FieldLabel>
+          <FieldLabel>{t('add.howLong')}</FieldLabel>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
             {DURATIONS.map((d) => (
               <Chip
                 key={d}
-                label={formatDuration(d)}
+                label={formatDurationShort(d)}
                 selected={minutes === d}
                 onPress={() => { haptic.tick(); setMinutes(d); }}
               />
@@ -227,12 +235,12 @@ export default function Add() {
 
         {!isInbox ? (
           <View>
-            <FieldLabel>When</FieldLabel>
+            <FieldLabel>{t('add.when')}</FieldLabel>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
               {SLOT_ORDER.map((s) => (
                 <Chip
                   key={s}
-                  label={SLOT_LABEL[s]}
+                  label={slotLabel(s)}
                   selected={slot === s}
                   onPress={() => {
                     haptic.tick();
@@ -248,10 +256,10 @@ export default function Add() {
 
         {!isInbox && START_TIMES[slot].length > 0 ? (
           <View>
-            <FieldLabel>Starts at</FieldLabel>
+            <FieldLabel>{t('add.startsAt')}</FieldLabel>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
               <Chip
-                label="No set time"
+                label={t('add.noSetTime')}
                 selected={startMinutes === null}
                 onPress={() => { haptic.tick(); setStartMinutes(null); }}
               />
@@ -268,21 +276,21 @@ export default function Add() {
         ) : null}
 
         <View>
-          <FieldLabel>Tag</FieldLabel>
+          <FieldLabel>{t('add.tag')}</FieldLabel>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
-            {TAGS.map((t) => (
+            {TAGS.map((id) => (
               <Chip
-                key={t}
-                label={t}
-                selected={tag === t}
-                onPress={() => { haptic.tick(); setTag(tag === t ? null : t); }}
+                key={id}
+                label={tagLabel(id)}
+                selected={tag === id}
+                onPress={() => { haptic.tick(); setTag(tag === id ? null : id); }}
               />
             ))}
           </View>
         </View>
 
         <View>
-          <FieldLabel>Steps</FieldLabel>
+          <FieldLabel>{t('add.steps')}</FieldLabel>
           <View style={{ gap: space.sm }}>
             {steps.map((s, i) => (
               <View
@@ -297,7 +305,9 @@ export default function Add() {
                 <Txt variant="body" style={{ flex: 1 }}>{s}</Txt>
                 <Pressable
                   onPress={() => { haptic.tap(); setSteps((p) => p.filter((_, j) => j !== i)); }}
-                  hitSlop={10} accessibilityRole="button" accessibilityLabel={`Remove step ${s}`}
+                  hitSlop={10}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('add.removeStep', { title: s })}
                 >
                   <Icon name="xmark" size={13} color={c.inkFaint} weight="semibold" />
                 </Pressable>
@@ -321,7 +331,7 @@ export default function Add() {
                   setStepDraft('');
                 }}
                 submitBehavior="submit"
-                placeholder="Break it into steps"
+                placeholder={t('add.stepPlaceholder')}
                 placeholderTextColor={c.inkFaint}
                 returnKeyType="done"
                 style={{ flex: 1, color: c.ink, fontFamily: 'Inter_400Regular', fontSize: 15, paddingVertical: space.md }}
@@ -331,7 +341,7 @@ export default function Add() {
           </View>
         </View>
 
-        <Button label="Add activity" onPress={() => save()} disabled={!title.trim()} />
+        <Button label={t('add.addActivity')} onPress={() => save()} disabled={!title.trim()} />
       </KeyboardAwareScrollView>
     </View>
   );

@@ -16,6 +16,7 @@ import { View, Pressable, Text, useColorScheme } from 'react-native';
 import type { ErrorBoundaryProps } from 'expo-router';
 import { usePlanStore } from '../src/store/usePlanStore';
 import { useTaskNotifications } from '../src/lib/notifications';
+import { useDeviceLocaleSync, translate, type TKey } from '../src/i18n';
 import { LaunchScreen } from '../src/components/LaunchScreen';
 import { ChromeProvider } from '../src/components/Chrome';
 import { useTheme, useAppearanceSync } from '../src/theme/useTheme';
@@ -28,6 +29,23 @@ import { motion, palette, radius, space } from '../src/theme/tokens';
  * the `Txt`/`useTheme` components: if the thing that failed IS the font load or
  * the theme, a boundary built on them fails with it.
  */
+/**
+ * The boundary's own copy, translated but never trusting the translator.
+ *
+ * `translate()` reaches the language store, which reaches MMKV — so if storage
+ * or rehydration is what threw, asking for a translated string while rendering
+ * the screen that reports the failure would throw again and leave the user a
+ * blank view with no way out. The English literal is the floor: worse copy for
+ * a non-English reader beats no recovery button for anyone.
+ */
+function fallbackSafe(key: TKey, english: string): string {
+  try {
+    return translate(key);
+  } catch {
+    return english;
+  }
+}
+
 export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
   const dark = useColorScheme() === 'dark';
   const c = dark ? palette.dark : palette.light;
@@ -40,10 +58,13 @@ export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
       }}
     >
       <Text style={{ fontSize: 22, fontWeight: '600', color: c.ink, textAlign: 'center' }}>
-        That screen did not load
+        {fallbackSafe('error.title', 'That screen did not load')}
       </Text>
       <Text style={{ fontSize: 15, color: c.inkMuted, textAlign: 'center', lineHeight: 21 }}>
-        Your plan is safe — it is stored on this device. You can try again.
+        {fallbackSafe(
+          'error.body',
+          'Your plan is safe — it is stored on this device. You can try again.'
+        )}
       </Text>
       <Text
         selectable
@@ -60,7 +81,9 @@ export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
           borderRadius: radius.pill, backgroundColor: c.solid,
         }}
       >
-        <Text style={{ color: c.onSolid, fontSize: 16, fontWeight: '600' }}>Try again</Text>
+        <Text style={{ color: c.onSolid, fontSize: 16, fontWeight: '600' }}>
+          {fallbackSafe('common.tryAgain', 'Try again')}
+        </Text>
       </Pressable>
     </View>
   );
@@ -114,6 +137,13 @@ export default function RootLayout() {
   // from whichever screen edits it, and so importing the module — which is what
   // registers the foreground notification handler — happens on the first frame.
   useTaskNotifications();
+
+  /**
+   * Keeps the detected device language current. Android can change it while the
+   * app is merely backgrounded; iOS cannot, where this costs one native read
+   * per foreground and nothing else.
+   */
+  useDeviceLocaleSync();
 
   /**
    * The launch overlay stays mounted until its own exit animation has finished.
@@ -245,6 +275,7 @@ export default function RootLayout() {
                   push is what gives them the back-swipe and the spatial
                   relationship that says "you are deeper in the same thing".
                   Same two options as the task detail, for the same reasons. */}
+              <Stack.Screen name="language" options={PUSH} />
               <Stack.Screen name="routines" options={PUSH} />
               <Stack.Screen name="settings/appearance" options={PUSH} />
               <Stack.Screen name="settings/reminders" options={PUSH} />

@@ -11,21 +11,24 @@ import { ScrollEdge } from '../../src/components/ScrollEdge';
 import { useChromeScroll } from '../../src/components/Chrome';
 import { useTheme } from '../../src/theme/useTheme';
 import { radius, space } from '../../src/theme/tokens';
+import { useT, useLanguageStore, hasKey, LOCALE_NAME, type TKey } from '../../src/i18n';
 import { usePlanStore, routineSteps } from '../../src/store/usePlanStore';
 import { ROUTINE_SLOTS } from '../../src/data/routines';
-import { dateKey, formatDuration } from '../../src/lib/time';
+import { dateKey, formatDuration, formatDurationShort } from '../../src/lib/time';
 import { haptic } from '../../src/lib/haptics';
 
-const APPEARANCE_LABEL = {
-  system: 'Follows system',
-  light: 'Light',
-  dark: 'Dark',
-} as const;
+const APPEARANCE_LABEL: Record<string, TKey> = {
+  system: 'appearance.system',
+  light: 'appearance.light',
+  dark: 'appearance.dark',
+};
 
 export default function Me() {
   const insets = useSafeAreaInsets();
   const { c, isDark } = useTheme();
+  const { t } = useT();
   const scroll = useChromeScroll();
+  const language = useLanguageStore((s) => s.language);
 
   const tasks = usePlanStore((s) => s.tasks);
   const profile = usePlanStore((s) => s.profile);
@@ -43,16 +46,23 @@ export default function Me() {
    */
   const routineSummary = useMemo(() => {
     const total = ROUTINE_SLOTS.reduce((n, slot) => n + routineSteps(profile, slot).length, 0);
-    if (total === 0) return 'None set';
+    if (total === 0) return t('me.routinesNone');
     const slots = ROUTINE_SLOTS.filter((slot) => routineSteps(profile, slot).length).length;
-    return `${total} ${total === 1 ? 'step' : 'steps'} · ${slots} of 3`;
-  }, [profile]);
+    return t('me.routineSummary', { count: total, slots });
+  }, [profile, t]);
 
   const remindersSummary = !profile.reminders
-    ? 'Off'
+    ? t('me.remindersOff')
     : profile.reminderLead === 0
-      ? 'As things start'
-      : `${formatDuration(profile.reminderLead)} before`;
+      ? t('me.remindersAsStart')
+      : t('me.remindersBefore', { duration: formatDuration(profile.reminderLead) });
+
+  /**
+   * The onboarding answer, stored as a translation KEY so it follows a later
+   * language change. Builds before that stored the English sentence itself, so
+   * anything unrecognised is shown exactly as it was saved.
+   */
+  const needText = profile.need ? (hasKey(profile.need) ? t(profile.need) : profile.need) : null;
 
   const stats = useMemo(() => {
     const today = dateKey(new Date());
@@ -67,18 +77,18 @@ export default function Me() {
     if (process.env.EXPO_OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions(
         {
-          options: ['Compact', 'Timeline', 'Cancel'],
+          options: [t('me.compact'), t('me.timeline'), t('common.cancel')],
           cancelButtonIndex: 2,
-          title: 'Day layout',
+          title: t('me.dayLayout'),
           userInterfaceStyle: isDark ? 'dark' : 'light',
         },
         (i) => { if (i === 0) setLayout('compact'); if (i === 1) setLayout('timeline'); }
       );
     } else {
-      Alert.alert('Day layout', undefined, [
-        { text: 'Compact', onPress: () => setLayout('compact') },
-        { text: 'Timeline', onPress: () => setLayout('timeline') },
-        { text: 'Cancel', style: 'cancel' },
+      Alert.alert(t('me.dayLayout'), undefined, [
+        { text: t('me.compact'), onPress: () => setLayout('compact') },
+        { text: t('me.timeline'), onPress: () => setLayout('timeline') },
+        { text: t('common.cancel'), style: 'cancel' },
       ]);
     }
   };
@@ -88,17 +98,18 @@ export default function Me() {
     if (process.env.EXPO_OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions(
         {
-          options: ['Start over', 'Cancel'], destructiveButtonIndex: 0, cancelButtonIndex: 1,
-          title: 'Run onboarding again?',
-          message: 'Your activities, appearance and reminder settings are kept.',
+          options: [t('me.startOver'), t('common.cancel')],
+          destructiveButtonIndex: 0, cancelButtonIndex: 1,
+          title: t('me.startOverTitle'),
+          message: t('me.startOverBody'),
           userInterfaceStyle: isDark ? 'dark' : 'light',
         },
         (i) => { if (i === 0) go(); }
       );
     } else {
-      Alert.alert('Run onboarding again?', 'Your activities, appearance and reminder settings are kept.', [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Start over', style: 'destructive', onPress: go },
+      Alert.alert(t('me.startOverTitle'), t('me.startOverBody'), [
+        { text: t('common.cancel'), style: 'cancel' },
+        { text: t('me.startOver'), style: 'destructive', onPress: go },
       ]);
     }
   };
@@ -128,25 +139,33 @@ export default function Me() {
             </View>
             <PipScene pose="sit" size={124} idle="breathe" />
           </View>
-          <Txt variant="displayLg">Me</Txt>
-          {profile.need ? (
+          <Txt variant="displayLg">{t('me.title')}</Txt>
+          {needText ? (
             <Txt variant="caption" tone="muted" style={{ textAlign: 'center' }}>
-              Here to {profile.need.toLowerCase()}
+              {t('me.hereTo', { need: needText.toLowerCase() })}
             </Txt>
           ) : null}
         </View>
 
         <View style={{ flexDirection: 'row', gap: space.md }}>
-          <Stat label="Done today" value={`${stats.done}`} sub={`of ${stats.total}`} />
-          <Stat label="Planned" value={formatDuration(stats.planned)} sub="today" />
-          <Stat label="Activities" value={`${tasks.length}`} sub="total" />
+          <Stat
+            label={t('me.doneToday')}
+            value={`${stats.done}`}
+            sub={t('me.ofTotal', { total: stats.total })}
+          />
+          <Stat
+            label={t('me.planned')}
+            value={formatDurationShort(stats.planned)}
+            sub={t('me.todaySub')}
+          />
+          <Stat label={t('me.activities')} value={`${tasks.length}`} sub={t('me.totalSub')} />
         </View>
 
-        <Section title="Planning">
+        <Section title={t('me.planning')}>
           <RowItem
             icon="rectangle.3.group"
-            label="Day layout"
-            value={layout === 'compact' ? 'Compact' : 'Timeline'}
+            label={t('me.dayLayout')}
+            value={layout === 'compact' ? t('me.compact') : t('me.timeline')}
             onPress={pickLayout}
           />
           {/* Both of these used to be dead ends: Routines showed a count and
@@ -154,35 +173,45 @@ export default function Me() {
               behind it. They are screens now. */}
           <RowItem
             icon="repeat"
-            label="Routines"
+            label={t('me.routines')}
             value={routineSummary}
             onPress={() => router.push('/routines')}
           />
           <RowItem
             icon="bell"
-            label="Reminders"
+            label={t('me.reminders')}
             value={remindersSummary}
             onPress={() => router.push('/settings/reminders')}
           />
         </Section>
 
-        <Section title="About">
+        <Section title={t('me.about')}>
+          {/* Language sits beside Appearance because they are the same KIND of
+              setting: both default to following the phone, and both can be
+              pinned. Showing "System" rather than the resolved language is what
+              makes that distinction visible from here. */}
+          <RowItem
+            icon="globe"
+            label={t('language.row')}
+            value={language === 'system' ? t('language.system') : LOCALE_NAME[language]}
+            onPress={() => { haptic.tap(); router.push('/language'); }}
+          />
           <RowItem
             icon="paintpalette"
-            label="Appearance"
-            value={APPEARANCE_LABEL[profile.appearance] ?? 'Follows system'}
+            label={t('me.appearance')}
+            value={t(APPEARANCE_LABEL[profile.appearance] ?? 'appearance.system')}
             onPress={() => router.push('/settings/appearance')}
           />
-          <RowItem icon="lock" label="Your data" value="On this device" />
-          <RowItem icon="arrow.counterclockwise" label="Run onboarding again" onPress={startOver} />
+          <RowItem icon="lock" label={t('me.yourData')} value={t('me.onThisDevice')} />
+          <RowItem icon="arrow.counterclockwise" label={t('me.runOnboarding')} onPress={startOver} />
         </Section>
 
         <Txt variant="caption" tone="faint" style={{ textAlign: 'center' }}>
-          Oneplan 1.0
+          {t('me.version')}
         </Txt>
       </ScrollView>
 
-      <ScrollEdge title="Me" />
+      <ScrollEdge title={t('me.title')} />
     </View>
   );
 }

@@ -4,26 +4,35 @@ import { router } from 'expo-router';
 import { OnboardingScaffold } from '../../src/components/OnboardingScaffold';
 import { ChoiceRow } from '../../src/components/Button';
 import { space } from '../../src/theme/tokens';
+import { useT, type TKey } from '../../src/i18n';
 import { haptic } from '../../src/lib/haptics';
 import { usePlanStore } from '../../src/store/usePlanStore';
 
-const OPTIONS = [
-  'Organise my day and time',
-  'Remember my tasks',
-  'Prioritise my to-dos',
-  'Build and stick to routines',
-  'Support focus work',
+/**
+ * The answer is stored as its translation KEY, not as the sentence.
+ *
+ * "Me" reads this back as "Here to organise my day and time". Storing the
+ * English words would leave that line stuck in English forever for anyone who
+ * later switches the app to Vietnamese — the key follows the language instead.
+ */
+const OPTIONS: TKey[] = [
+  'onboarding.needOrganise',
+  'onboarding.needRemember',
+  'onboarding.needPrioritise',
+  'onboarding.needRoutines',
+  'onboarding.needFocus',
 ];
 
 export default function Need() {
-  const [picked, setPicked] = useState<string | null>(null);
+  const [picked, setPicked] = useState<TKey | null>(null);
+  const { t } = useT();
 
   return (
     <OnboardingScaffold
       step={1}
-      title={'What do you need\nmost right now?'}
-      subtitle="So we can put the right thing on your first screen. You can change this later."
-      ctaLabel="Continue"
+      title={t('onboarding.needTitle')}
+      subtitle={t('onboarding.needSubtitle')}
+      ctaLabel={t('common.continue')}
       ctaDisabled={!picked}
       onCta={() => {
         haptic.tap();
@@ -36,7 +45,7 @@ export default function Need() {
         {OPTIONS.map((o) => (
           <ChoiceRow
             key={o}
-            label={o}
+            label={t(o)}
             selected={picked === o}
             onPress={() => { haptic.tick(); setPicked(o); }}
           />

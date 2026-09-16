@@ -11,6 +11,7 @@ import { Icon } from './Icon';
 import { Button } from './Button';
 import { EASE } from './Press';
 import { useTheme } from '../theme/useTheme';
+import { useT } from '../i18n';
 import { radius, space } from '../theme/tokens';
 import { haptic } from '../lib/haptics';
 
@@ -35,6 +36,7 @@ export function OnboardingScaffold({
   headerSlot?: ReactNode;
 }) {
   const { c } = useTheme();
+  const { t } = useT();
   const insets = useSafeAreaInsets();
   const reduced = useReducedMotion();
   const canGoBack = onBack != null || router.canGoBack();
@@ -67,7 +69,7 @@ export function OnboardingScaffold({
             onPress={() => { haptic.tap(); onBack ? onBack() : router.back(); }}
             hitSlop={12}
             accessibilityRole="button"
-            accessibilityLabel="Back"
+            accessibilityLabel={t('common.back')}
           >
             <Icon name="chevron.left" size={19} color={c.ink} weight="semibold" />
           </Pressable>
@@ -80,7 +82,10 @@ export function OnboardingScaffold({
               borderRadius: radius.bar, backgroundColor: c.accentSoft, overflow: 'hidden',
             }}
             accessibilityRole="progressbar"
-            accessibilityLabel={`Step ${Math.ceil(step)} of ${ONBOARDING_STEPS}`}
+            accessibilityLabel={t('onboarding.stepOf', {
+              step: Math.ceil(step),
+              total: ONBOARDING_STEPS,
+            })}
           >
             <Animated.View
               style={[
@@ -95,7 +100,7 @@ export function OnboardingScaffold({
 
         {onSkip ? (
           <Pressable onPress={onSkip} hitSlop={12} accessibilityRole="button">
-            <Txt variant="captionStrong" tone="muted">Skip</Txt>
+            <Txt variant="captionStrong" tone="muted">{t('common.skip')}</Txt>
           </Pressable>
         ) : null}
       </View>

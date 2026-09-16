@@ -6,24 +6,26 @@ import { Icon } from '../../src/components/Icon';
 import { SettingsScreen, Section, ChoiceRow } from '../../src/components/Settings';
 import { useTheme } from '../../src/theme/useTheme';
 import { palette, radius, space, motion, type Colors } from '../../src/theme/tokens';
+import { useT, type TKey } from '../../src/i18n';
 import { usePlanStore } from '../../src/store/usePlanStore';
 import { haptic } from '../../src/lib/haptics';
 import type { AppearancePref } from '../../src/store/types';
 
-const OPTIONS: Array<{ key: AppearancePref; label: string; hint: string; icon: Parameters<typeof Icon>[0]['name'] }> = [
-  { key: 'system', label: 'System', hint: 'Follows your device', icon: 'circle.lefthalf.filled' },
-  { key: 'light', label: 'Light', hint: 'Always light', icon: 'sun.max' },
-  { key: 'dark', label: 'Dark', hint: 'Always dark', icon: 'moon' },
+const OPTIONS: Array<{ key: AppearancePref; label: TKey; hint: TKey; icon: Parameters<typeof Icon>[0]['name'] }> = [
+  { key: 'system', label: 'appearance.system', hint: 'appearance.systemHint', icon: 'circle.lefthalf.filled' },
+  { key: 'light', label: 'appearance.light', hint: 'appearance.lightHint', icon: 'sun.max' },
+  { key: 'dark', label: 'appearance.dark', hint: 'appearance.darkHint', icon: 'moon' },
 ];
 
 export default function Appearance() {
+  const { t } = useT();
   const pref = usePlanStore((s) => s.profile.appearance);
   const setAppearance = usePlanStore((s) => s.setAppearance);
 
   return (
     <SettingsScreen
-      title="Appearance"
-      subtitle="Oneplan follows your device by default. Pick a side if you would rather it did not change on you."
+      title={t('appearance.title')}
+      subtitle={t('appearance.subtitle')}
     >
       {/*
         THE PREVIEWS ARE DRAWN FROM THE REAL PALETTE, not from screenshots.
@@ -54,13 +56,13 @@ export default function Appearance() {
         carry it in words and a role. Either one alone would leave somebody
         guessing, and the cards are the reason the rows can stay this quiet.
       */}
-      <Section title="Theme">
+      <Section title={t('appearance.theme')}>
         {OPTIONS.map((o, i) => (
           <ChoiceRow
             key={o.key}
             icon={o.icon}
-            label={o.label}
-            hint={o.hint}
+            label={t(o.label)}
+            hint={t(o.hint)}
             first={i === 0}
             selected={pref === o.key}
             onPress={() => setAppearance(o.key)}
@@ -88,6 +90,7 @@ function ThemeCard({
   onPress: () => void;
 }) {
   const { c } = useTheme();
+  const { t } = useT();
   const reduced = useReducedMotion();
   const v = useSharedValue(selected ? 1 : 0);
 
@@ -185,7 +188,7 @@ function ThemeCard({
         <Animated.View style={dot}>
           <Icon name="checkmark.circle.fill" size={13} color={c.accent} weight="semibold" />
         </Animated.View>
-        <Txt variant="captionStrong" tone={selected ? 'ink' : 'muted'}>{option.label}</Txt>
+        <Txt variant="captionStrong" tone={selected ? 'ink' : 'muted'}>{t(option.label)}</Txt>
       </View>
     </Pressable>
   );

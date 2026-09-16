@@ -21,6 +21,8 @@ sequence, the liquid indicator, and navigation grammar.
 - [Zustand](https://github.com/pmndrs/zustand) + [react-native-mmkv](https://github.com/mrousavy/react-native-mmkv) for synchronous, persisted state
 - [react-native-reanimated](https://docs.swmansion.com/react-native-reanimated/) + [react-native-gesture-handler](https://docs.swmansion.com/react-native-gesture-handler/) for the focus dial and press feedback
 - [@shopify/flash-list](https://shopify.github.io/flash-list/) for virtualized lists
+- [expo-localization](https://docs.expo.dev/versions/v57.0.0/sdk/localization/) for
+  device-language detection (English and Vietnamese)
 - TypeScript (strict mode)
 
 > **Note:** this project targets Expo SDK 57, which changed significantly from
@@ -71,6 +73,7 @@ time you run `npm run ios` / `npm run android`, from the config in
 ```
 app/                    Expo Router routes (file-based navigation)
   index.tsx             Root redirect: onboarding vs. main tabs
+  language.tsx          The language picker (System / English / Tiếng Việt)
   onboarding/           One-way onboarding flow
                         (welcome → need → rhythm → routines → reminders → ready)
   (tabs)/                Today / To-do / Focus / Me tab group
@@ -87,8 +90,13 @@ src/
     Strike.tsx          A strikethrough drawn per laid-out text line
     Rise.tsx            Staggered arrival for a pushed screen's own content
     mascot/             Pip — the mascot image (Pip) and his motion (PipScene)
+    FocusAura.tsx       The drifting field of light behind Focus, built from
+                        the focused activity's own tint
   data/seed.ts           Sample/seed data
   data/routines.ts       The morning/afternoon/evening routine catalogue
+  i18n/                  Translations. `en.ts` is the schema; every other
+                         catalogue is typed against it, so a missing key is a
+                         build error rather than a runtime fallback
   lib/                   Small utilities (time formatting, haptics, local reminders)
   store/                 Zustand store, MMKV-backed storage, and types
   theme/                 Design tokens and the light/dark theme hook
@@ -100,6 +108,34 @@ app.json                Expo app config (icons, splash, plugins, bundle IDs)
 eas.json                EAS build/submit profiles
 DESIGN.md               Design system reference
 ```
+
+## Language
+
+The app ships **English** and **Vietnamese**, and opens in whichever one the
+phone is set to — no prompt, no setup. A phone in Vietnamese gets Vietnamese; a
+phone in anything else gets English.
+
+Detection walks the device's whole ordered preference list rather than only its
+top entry, so a phone set to [Khmer, Vietnamese, English] still opens in
+Vietnamese, and it matches on language code so "vi-VN" and "vi-US" both count.
+
+`Me → Language` overrides it. The first row is **System**, which is a real state
+rather than a shortcut for today's answer: pick it and the app keeps following
+the phone, including after a trip or a settings change. Every language is listed
+under its own name, because someone who has landed in a script they cannot read
+is looking for the shape of their own word.
+
+Adding a language is two files and a config line:
+
+1. Copy `src/i18n/vi.ts`, translate the values, and export it typed as `Dict`.
+   TypeScript will list every key you have not filled in.
+2. Register it in `LOCALES`, `LOCALE_NAME` and `LOCALE_TAG` in
+   `src/i18n/index.ts`.
+3. Add its code to `supportedLocales` in [app.json](./app.json), which is what
+   tells iOS and Android the app speaks it.
+
+See the **Language** section of [DESIGN.md](./DESIGN.md) for why translations
+are compiler-checked and why stored data holds keys rather than words.
 
 ## Scripts
 
@@ -130,7 +166,8 @@ npx skills experimental_install
 [Maestro](https://maestro.mobile.dev) flows live in [.maestro/](./.maestro).
 They drive a real simulator through onboarding, the empty day, a full one-minute
 focus session, completing and un-completing an activity, dragging the tab bar's
-liquid indicator, and the animated launch screen's handoff — and capture a
+liquid indicator, switching the app to Vietnamese and back, and the animated
+launch screen's handoff — and capture a
 screenshot at every screen the mascot appears on. A mascot passes
 `assertVisible` just fine while rendering as a blank box, so the screenshots are
 as much the point as the assertions.
@@ -144,6 +181,7 @@ as much the point as the assertions.
 | `05-task-completion` | Completing an activity and taking it back |
 | `06-tab-drag` | Dragging the indicator commits where it *ended*, and tapping still works |
 | `07-launch-handoff` | The launch overlay appears **and then goes away** |
+| `08-language` | Switching to Vietnamese relabels the picker, the screen behind it, and the tab bar |
 
 `07` is the important one. The launch overlay is `pointerEvents="none"` and
 entirely hidden from assistive technology, so if it ever failed to unmount, the

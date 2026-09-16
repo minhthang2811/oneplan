@@ -26,6 +26,7 @@ import { Txt } from './Txt';
 import { Icon } from './Icon';
 import { CalendarDayIcon } from './CalendarDayIcon';
 import { GlassPanel, LIQUID_GLASS } from './Glass';
+import { useT, type TKey } from '../i18n';
 import { GelSurface, gelInsetShadow } from './Gel';
 import { useChrome, useChromeReset } from './Chrome';
 import { useTheme } from '../theme/useTheme';
@@ -48,8 +49,13 @@ const ICONS: Record<string, SymbolViewProps['name']> = {
   me: 'face.smiling',
 };
 
-const LABELS: Record<string, string> = {
-  todo: 'To-do', today: 'Today', focus: 'Focus', me: 'Me',
+/**
+ * Route name -> translation key. The KEY is what is stable; the word is not.
+ * A route whose name is not listed falls back to the raw route name, which is
+ * only ever reachable by adding a tab file and forgetting to add it here.
+ */
+const LABELS: Record<string, TKey> = {
+  todo: 'tabs.todo', today: 'tabs.today', focus: 'tabs.focus', me: 'tabs.me',
 };
 
 /**
@@ -117,6 +123,7 @@ const LABELS: Record<string, string> = {
  */
 export function TabBar({ state, navigation }: TabBarProps) {
   const { c } = useTheme();
+  const { t } = useT();
   const insets = useSafeAreaInsets();
   const reduced = useReducedMotion();
   const today = new Date().getDate();
@@ -409,7 +416,8 @@ export function TabBar({ state, navigation }: TabBarProps) {
             ) : null}
 
             {state.routes.map((route, i) => {
-              const label = LABELS[route.name] ?? route.name;
+              const key = LABELS[route.name];
+              const label = key ? t(key) : route.name;
 
               return (
                 <Pressable

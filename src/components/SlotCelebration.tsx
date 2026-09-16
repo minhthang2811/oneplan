@@ -12,7 +12,8 @@ import { SLOT_TINT, SLOT_ICON } from './SlotChip';
 import { PipScene, Confetti } from './mascot/PipScene';
 import { useTheme } from '../theme/useTheme';
 import { radius, space, motion } from '../theme/tokens';
-import { SLOT_LABEL, type Slot } from '../lib/time';
+import { slotLabel, type Slot } from '../lib/time';
+import { translate, type TKey } from '../i18n';
 import { haptic } from '../lib/haptics';
 
 /** How long the finished frame is held after the burst has gone. */
@@ -136,7 +137,10 @@ export function SlotCelebration({
        */
       accessibilityLiveRegion="polite"
       accessibilityRole="alert"
-      accessibilityLabel={`${SLOT_LABEL[slot]} complete. Every activity in your ${SLOT_LABEL[slot].toLowerCase()} is done.`}
+      accessibilityLabel={translate('celebration.a11y', {
+        slot: slotLabel(slot),
+        slotLower: slotLabel(slot).toLowerCase(),
+      })}
       testID="slot-celebration"
     >
       {/* A scrim, not a blur: this sits over a FlashList that is still
@@ -175,11 +179,13 @@ export function SlotCelebration({
             }}
           >
             <Icon name={SLOT_ICON[slot]} size={13} color={t.fg} weight="semibold" />
-            <Txt variant="micro" color={t.fg}>{SLOT_LABEL[slot].toUpperCase()} DONE</Txt>
+            <Txt variant="micro" color={t.fg}>
+              {translate('celebration.badge', { slot: slotLabel(slot).toUpperCase() })}
+            </Txt>
           </View>
 
           <Txt variant="displaySm" style={{ textAlign: 'center' }}>
-            {COPY[slot]}
+            {translate(COPY[slot])}
           </Txt>
         </Animated.View>
       </View>
@@ -220,10 +226,10 @@ export function SlotCelebration({
  * failure mode of celebration copy is making the NEXT block feel like a
  * standard to live up to. Each of these says the block is finished and stops.
  */
-const COPY: Record<Exclude<Slot, 'anytime'>, string> = {
-  morning: 'Morning done.\nThe rest can wait.',
-  afternoon: 'Afternoon cleared.\nNice work.',
-  evening: "Evening's done.\nYou can stop now.",
+const COPY: Record<Exclude<Slot, 'anytime'>, TKey> = {
+  morning: 'celebration.morning',
+  afternoon: 'celebration.afternoon',
+  evening: 'celebration.evening',
 };
 
 /**

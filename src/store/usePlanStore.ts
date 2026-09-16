@@ -5,7 +5,10 @@ import type {
   Task, FocusSession, Profile, Priority, AppearancePref, CustomRoutineStep,
 } from './types';
 import { seedTasks } from '../data/seed';
-import { ROUTINES, ROUTINE_PARENT, ROUTINE_SLOTS, type RoutineSlot } from '../data/routines';
+import {
+  ROUTINES, ROUTINE_PARENT, ROUTINE_SLOTS, routineTitle, routineParentTitle,
+  type RoutineSlot,
+} from '../data/routines';
 import { dateKey, slotForMinutes, type Slot } from '../lib/time';
 
 let counter = 0;
@@ -107,7 +110,20 @@ export function routineCatalogue(
   profile: Profile,
   slot: RoutineSlot
 ): CustomRoutineStep[] {
-  return [...ROUTINES[slot], ...(profile.routineCustom?.[slot] ?? [])];
+  return [
+    /**
+     * Catalogue steps carry no stored title: their `id` IS their translation
+     * key, so the words follow the app's language. This function is already
+     * the one place an id resolves to a step, which makes it the only place
+     * that has to know that.
+     *
+     * A user's OWN steps are spread in untouched. They were typed by a person
+     * in whatever language that person was using, and translating them would
+     * mean overwriting their words with ours.
+     */
+    ...ROUTINES[slot].map((o) => ({ ...o, title: routineTitle(o.id) })),
+    ...(profile.routineCustom?.[slot] ?? []),
+  ];
 }
 
 /**
@@ -143,7 +159,7 @@ function buildRoutine(profile: Profile, slot: RoutineSlot, date: string): Task |
   if (chosen.length === 0) return null;
   return {
     id: parent.id,
-    title: parent.title,
+    title: routineParentTitle(slot),
     emoji: parent.emoji,
     tint: parent.tint,
     // The routine's length is the sum of its steps, so the day's planned total
@@ -155,7 +171,7 @@ function buildRoutine(profile: Profile, slot: RoutineSlot, date: string): Task |
     priority: 'todo',
     done: false,
     steps: chosen.map((o) => ({ id: `${parent.id}-${o.id}`, title: o.title, done: false })),
-    tag: 'Self care',
+    tag: 'selfCare',
   };
 }
 

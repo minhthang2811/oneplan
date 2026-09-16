@@ -10,6 +10,7 @@ import { CircleButton } from './DayHeader';
 import { ScrollEdge, SCROLL_EDGE_BAND } from './ScrollEdge';
 import { useChromeScroll } from './Chrome';
 import { useTheme } from '../theme/useTheme';
+import { translate } from '../i18n';
 import { radius, space } from '../theme/tokens';
 import { haptic } from '../lib/haptics';
 
@@ -79,7 +80,14 @@ export function SettingsScreen({
       */}
       <ScrollEdge
         title={title}
-        leading={<CircleButton icon="chevron.left" label="Back" onPress={() => router.back()} size={34} />}
+        leading={
+          <CircleButton
+            icon="chevron.left"
+            label={translate('common.back')}
+            onPress={() => router.back()}
+            size={34}
+          />
+        }
         trailing={action}
       />
     </View>

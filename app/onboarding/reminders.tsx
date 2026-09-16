@@ -8,6 +8,7 @@ import { PipScene } from '../../src/components/mascot/PipScene';
 import { useTheme } from '../../src/theme/useTheme';
 import { radius, space } from '../../src/theme/tokens';
 import { haptic } from '../../src/lib/haptics';
+import { useT, type TKey } from '../../src/i18n';
 import { requestNotificationPermission, reminderBody } from '../../src/lib/notifications';
 import { usePlanStore } from '../../src/store/usePlanStore';
 
@@ -27,13 +28,33 @@ import { usePlanStore } from '../../src/store/usePlanStore';
  */
 const PREVIEW_LEAD = 10;
 
-const PREVIEW = [
-  { emoji: '🌅', tint: 'peach' as const, title: 'Morning routine', body: reminderBody(30, PREVIEW_LEAD) },
-  { emoji: '🥪', tint: 'mint' as const, title: 'Lunch', body: reminderBody(20, PREVIEW_LEAD) },
-];
+/**
+ * Built per render, not once at module load.
+ *
+ * `reminderBody` and the titles are translated, and a module-level array would
+ * freeze both in whatever language the app happened to launch in — so a user
+ * who switched to Vietnamese and re-ran onboarding would be shown an English
+ * preview of a notification that will arrive in Vietnamese.
+ */
+function previews(t: (k: TKey) => string) {
+  return [
+    {
+      emoji: '🌅', tint: 'peach' as const,
+      title: t('onboarding.remindersPreview1Title'),
+      body: reminderBody(30, PREVIEW_LEAD),
+    },
+    {
+      emoji: '🥪', tint: 'mint' as const,
+      title: t('onboarding.remindersPreview1Title2'),
+      body: reminderBody(20, PREVIEW_LEAD),
+    },
+  ];
+}
 
 export default function Reminders() {
   const { c, shadow } = useTheme();
+  const { t } = useT();
+  const PREVIEW = previews(t);
 
   const finish = async (ask: boolean) => {
     haptic.tap();
@@ -52,9 +73,9 @@ export default function Reminders() {
       // "BEFORE", not "when". The scheduler now fires ahead of the activity by
       // `PREVIEW_LEAD`, and a headline promising a nudge at the moment
       // something starts would be describing the behaviour this replaced.
-      title={'A nudge just\nbefore you start'}
-      subtitle="Oneplan can tell you a few minutes ahead of an activity, so the plan does the remembering instead of you."
-      ctaLabel="Turn on reminders"
+      title={t('onboarding.remindersTitle')}
+      subtitle={t('onboarding.remindersSubtitle')}
+      ctaLabel={t('onboarding.remindersCta')}
       onCta={() => finish(true)}
       headerSlot={
         /* The notification marks are part of the artwork, so there is no
@@ -74,7 +95,7 @@ export default function Reminders() {
           style={{ alignSelf: 'center', paddingVertical: space.sm }}
         >
           <Txt variant="captionStrong" tone="muted" style={{ textDecorationLine: 'underline' }}>
-            Not right now
+            {t('onboarding.remindersSkip')}
           </Txt>
         </Pressable>
       }
@@ -91,7 +112,7 @@ export default function Reminders() {
           >
             <EmojiAvatar emoji={p.emoji} tint={p.tint} size={38} />
             <View style={{ flex: 1, gap: 1 }}>
-              <Txt variant="micro" tone="faint">ONEPLAN</Txt>
+              <Txt variant="micro" tone="faint">{t('onboarding.remindersBrand')}</Txt>
               <Txt variant="bodyStrong">{p.title}</Txt>
               <Txt variant="caption" tone="muted">{p.body}</Txt>
             </View>

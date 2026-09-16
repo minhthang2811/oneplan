@@ -8,6 +8,7 @@ import { Button } from '../../src/components/Button';
 import { SettingsScreen, Section, RowItem, ChoiceRow } from '../../src/components/Settings';
 import { useTheme } from '../../src/theme/useTheme';
 import { radius, space } from '../../src/theme/tokens';
+import { useT, translate } from '../../src/i18n';
 import { usePlanStore } from '../../src/store/usePlanStore';
 import {
   hasNotificationPermission, requestNotificationPermission, remindableCount, reminderBody,
@@ -28,11 +29,14 @@ import { haptic } from '../../src/lib/haptics';
 const LEADS = [0, 5, 10, 15, 30];
 
 function leadLabel(m: number): string {
-  return m === 0 ? 'As it starts' : `${formatDuration(m)} before`;
+  return m === 0
+    ? translate('reminderSettings.asItStarts')
+    : translate('reminderSettings.before', { duration: formatDuration(m) });
 }
 
 export default function Reminders() {
   const { c, shadow } = useTheme();
+  const { t } = useT();
   const reduced = useReducedMotion();
 
   const tasks = usePlanStore((s) => s.tasks);
@@ -108,11 +112,11 @@ export default function Reminders() {
     setPermitted(granted);
     if (!granted) {
       Alert.alert(
-        'Notifications are off',
-        'Allow notifications for Oneplan in Settings to get a nudge before an activity starts.',
+        t('me.notifOffTitle'),
+        t('me.notifOffBody'),
         [
-          { text: 'Not now', style: 'cancel' },
-          { text: 'Open Settings', onPress: () => Linking.openSettings() },
+          { text: t('common.notNow'), style: 'cancel' },
+          { text: t('common.openSettings'), onPress: () => Linking.openSettings() },
         ]
       );
       return;
@@ -121,12 +125,18 @@ export default function Reminders() {
   };
 
   /** The exact copy the OS will deliver, so the screen cannot over-promise. */
-  const preview = { emoji: '🌅', title: 'Morning routine', body: reminderBody(30, lead) };
+  // The same activity the onboarding preview shows, resolved from the routine
+  // catalogue so the two screens cannot drift — and so it follows the language.
+  const preview = {
+    emoji: '🌅',
+    title: t('routineParent.morning'),
+    body: reminderBody(30, lead),
+  };
 
   return (
     <SettingsScreen
-      title="Reminders"
-      subtitle="A nudge before an activity starts, so the plan does the remembering instead of you."
+      title={t('reminderSettings.title')}
+      subtitle={t('reminderSettings.subtitle')}
     >
       {/*
         THE BANNER ONLY APPEARS WHEN SOMETHING IS ACTUALLY WRONG.
@@ -146,13 +156,12 @@ export default function Reminders() {
         >
           <Icon name="exclamationmark.triangle.fill" size={17} color={c.accentInk} />
           <View style={{ flex: 1, gap: space.sm }}>
-            <Txt variant="bodyStrong" color={c.accentInk}>Reminders were switched off</Txt>
+            <Txt variant="bodyStrong" color={c.accentInk}>{t('reminderSettings.switchedOff')}</Txt>
             <Txt variant="caption" tone="muted">
-              Notifications for Oneplan were turned off in iOS Settings, so the app stopped
-              promising nudges it could not deliver. Allow them again to turn this back on.
+              {t('reminderSettings.switchedOffBody')}
             </Txt>
             <Button
-              label="Open Settings"
+              label={t('common.openSettings')}
               fullWidth={false}
               variant="outline"
               onPress={() => Linking.openSettings()}
@@ -170,11 +179,15 @@ export default function Reminders() {
         symptom of that disagreement is a switch that refuses to move, which
         reads as the app being broken rather than as a permission being off.
       */}
-      <Section title="Notifications">
+      <Section title={t('reminderSettings.notifications')}>
         <RowItem
           icon={permitted === false ? 'bell.slash' : 'bell.badge'}
-          label="System permission"
-          value={permitted == null ? 'Checking…' : permitted ? 'Allowed' : 'Not allowed'}
+          label={t('reminderSettings.systemPermission')}
+          value={
+            permitted == null
+              ? t('reminderSettings.checking')
+              : t(permitted ? 'reminderSettings.allowed' : 'reminderSettings.notAllowed')
+          }
           onPress={permitted === false ? () => Linking.openSettings() : undefined}
         />
       </Section>
@@ -185,14 +198,14 @@ export default function Reminders() {
             ? scheduled > 0
               ? `${scheduled} ${scheduled === 1 ? 'reminder is' : 'reminders are'} scheduled.`
               : timedTotal === 0
-                ? 'Nothing is scheduled yet — reminders attach to activities that have a start time, and none of yours do.'
-                : 'Nothing is scheduled right now. Every activity with a start time today has already begun.'
+                ? t('reminderSettings.nothingWithTimes')
+                : t('reminderSettings.nothingToday')
             : undefined
         }
       >
         <RowItem
           icon="bell"
-          label="Activity reminders"
+          label={t('reminderSettings.activityReminders')}
           trailing={
             <Switch
               value={enabled}
@@ -200,7 +213,7 @@ export default function Reminders() {
               // Without this VoiceOver reads "switch, off" with no indication
               // of what it controls: the label beside it is a SIBLING, not a
               // label, and iOS does not associate the two.
-              accessibilityLabel="Activity reminders"
+              accessibilityLabel={t('reminderSettings.activityReminders')}
             />
           }
         />
@@ -211,12 +224,12 @@ export default function Reminders() {
           entering={reduced ? undefined : FadeIn.duration(220)}
           style={{ gap: space.xl }}
         >
-          <Section title="When" footer="Measured from the activity's own start time.">
+          <Section title={t('reminderSettings.when')} footer={t('reminderSettings.whenFooter')}>
             {LEADS.map((m, i) => (
               <ChoiceRow
                 key={m}
                 label={leadLabel(m)}
-                hint={m === 10 ? 'Enough time to finish what you are doing' : undefined}
+                hint={m === 10 ? t('reminderSettings.tenHint') : undefined}
                 first={i === 0}
                 selected={lead === m}
                 onPress={() => setReminderLead(m)}
@@ -249,7 +262,7 @@ export default function Reminders() {
       ) : null}
 
       <Txt variant="caption" tone="faint" style={{ textAlign: 'center' }}>
-        Reminders are scheduled on this device. Nothing about your plan is sent anywhere.
+        {t('reminderSettings.privacyNote')}
       </Txt>
     </SettingsScreen>
   );

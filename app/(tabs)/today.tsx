@@ -16,8 +16,9 @@ import { useChromeScroll, useChromeReset } from '../../src/components/Chrome';
 import { SlotCelebration, useSlotCompletion } from '../../src/components/SlotCelebration';
 import { useTheme } from '../../src/theme/useTheme';
 import { space } from '../../src/theme/tokens';
+import { useT } from '../../src/i18n';
 import { usePlanStore, tasksForDate, bySlot } from '../../src/store/usePlanStore';
-import { dateKey, isToday, weekdayLong, longDate, SLOT_ORDER, SLOT_LABEL, type Slot } from '../../src/lib/time';
+import { dateKey, isToday, weekdayLong, longDate, SLOT_ORDER, slotLabel, type Slot } from '../../src/lib/time';
 import { useNowMinutes } from '../../src/lib/useNowMinutes';
 import { haptic } from '../../src/lib/haptics';
 import type { Task } from '../../src/store/types';
@@ -32,6 +33,7 @@ export default function Today() {
   const [collapsed, setCollapsed] = useState<Partial<Record<Slot, boolean>>>({});
   const insets = useSafeAreaInsets();
   const { c, isDark } = useTheme();
+  const { t } = useT();
   const scroll = useChromeScroll();
   const resetChrome = useChromeReset();
 
@@ -100,13 +102,13 @@ export default function Today() {
   useEffect(() => { if (empty) resetChrome(); }, [empty, resetChrome]);
 
   const openMenu = useCallback(() => {
-    const options = ['Compact layout', 'Timeline layout', 'Cancel'];
+    const options = [t('today.compactLayout'), t('today.timelineLayout'), t('common.cancel')];
     if (process.env.EXPO_OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions(
         {
           options,
           cancelButtonIndex: 2,
-          title: 'Day options',
+          title: t('today.dayOptions'),
           userInterfaceStyle: isDark ? 'dark' : 'light',
         },
         (i) => {
@@ -115,13 +117,13 @@ export default function Today() {
         }
       );
     } else {
-      Alert.alert('Day options', undefined, [
-        { text: 'Compact layout', onPress: () => setLayout('compact') },
-        { text: 'Timeline layout', onPress: () => setLayout('timeline') },
-        { text: 'Cancel', style: 'cancel' },
+      Alert.alert(t('today.dayOptions'), undefined, [
+        { text: t('today.compactLayout'), onPress: () => setLayout('compact') },
+        { text: t('today.timelineLayout'), onPress: () => setLayout('timeline') },
+        { text: t('common.cancel'), style: 'cancel' },
       ]);
     }
-  }, [setLayout, isDark]);
+  }, [setLayout, isDark, t]);
 
   const header = (
     <DayHeader
@@ -151,13 +153,13 @@ export default function Today() {
             <PipScene pose="rest" size={150} idle="breathe" delay={80} />
           </View>
           <View style={{ alignItems: 'center', gap: space.sm, maxWidth: 270 }}>
-            <Txt variant="displaySm" style={{ textAlign: 'center' }}>Nothing here yet</Txt>
+            <Txt variant="displaySm" style={{ textAlign: 'center' }}>{t('today.emptyTitle')}</Txt>
             <Txt variant="body" tone="muted" style={{ textAlign: 'center' }}>
-              Add one thing you want to get done. One is enough to start a day.
+              {t('today.emptyBody')}
             </Txt>
           </View>
           <Button
-            label="Add activity"
+            label={t('today.addActivity')}
             icon="plus"
             fullWidth={false}
             onPress={() => router.push({ pathname: '/add', params: { date: key } })}
@@ -188,7 +190,7 @@ export default function Today() {
               <View style={{ paddingTop: space.lg, paddingBottom: space.sm }}>
                 <SlotChip
                   slot={item.slot}
-                  label={SLOT_LABEL[item.slot]}
+                  label={slotLabel(item.slot)}
                   count={item.count}
                   expanded={!collapsed[item.slot]}
                   onToggle={() => {
@@ -202,22 +204,23 @@ export default function Today() {
           if (item.kind === 'empty') {
             return (
               <SlotEmpty
-                hint="Anything that works today"
+                hint={t('today.anytimeHint')}
                 onPress={() => router.push({ pathname: '/add', params: { date: key, slot: item.slot } })}
               />
             );
           }
-          const t = item.task;
+          // Named `task`, not `t` — `t` is the translator in this scope now.
+          const task = item.task;
           return (
             <View style={{ paddingBottom: space.sm }}>
               <TaskRow
-                task={t}
+                task={task}
                 isNow={item.isNow}
                 showTime={layout === 'timeline'}
-                onToggle={() => toggleTask(t.id)}
-                onToggleStep={(sid) => toggleStep(t.id, sid)}
-                onPress={() => router.push(`/task/${t.id}`)}
-                onStartFocus={() => router.push({ pathname: '/(tabs)/focus', params: { taskId: t.id } })}
+                onToggle={() => toggleTask(task.id)}
+                onToggleStep={(sid) => toggleStep(task.id, sid)}
+                onPress={() => router.push(`/task/${task.id}`)}
+                onStartFocus={() => router.push({ pathname: '/(tabs)/focus', params: { taskId: task.id } })}
               />
             </View>
           );

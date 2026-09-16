@@ -4,6 +4,7 @@ import { Icon } from './Icon';
 import { RingValue } from './Ring';
 import { PressScale } from './Press';
 import { useTheme } from '../theme/useTheme';
+import { useT } from '../i18n';
 import { radius, space } from '../theme/tokens';
 import { weekdayLong, longDate, weekAround, dateKey, isToday } from '../lib/time';
 import { haptic } from '../lib/haptics';
@@ -19,6 +20,7 @@ export function DayHeader({
   onMenu: () => void;
 }) {
   const { c, shadow } = useTheme();
+  const { t, tag } = useT();
   const week = weekAround(date);
   const activeKey = dateKey(date);
 
@@ -33,7 +35,7 @@ export function DayHeader({
             paddingVertical: 7, paddingLeft: space.md, paddingRight: 14,
             borderRadius: radius.pill, backgroundColor: c.surface, boxShadow: shadow[1],
           }}
-          accessibilityLabel={`${doneCount} of ${total} done`}
+          accessibilityLabel={t('today.a11yProgress', { done: doneCount, total })}
         >
           <RingValue
             size={16} strokeWidth={3}
@@ -44,8 +46,8 @@ export function DayHeader({
         </View>
 
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
-          <CircleButton icon="ellipsis" onPress={onMenu} label="Day options" />
-          <CircleButton icon="plus" onPress={onAdd} label="Add activity" />
+          <CircleButton icon="ellipsis" onPress={onMenu} label={t('today.dayOptions')} />
+          <CircleButton icon="plus" onPress={onAdd} label={t('today.addActivity')} />
         </View>
       </View>
 
@@ -53,7 +55,7 @@ export function DayHeader({
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
         <Pressable
           onPress={() => { haptic.tick(); onChangeDate(new Date(date.getTime() - 86400000)); }}
-          hitSlop={16} accessibilityRole="button" accessibilityLabel="Previous day"
+          hitSlop={16} accessibilityRole="button" accessibilityLabel={t('today.prevDay')}
         >
           <Icon name="chevron.left" size={17} color={c.inkFaint} weight="semibold" />
         </Pressable>
@@ -61,7 +63,10 @@ export function DayHeader({
         <Pressable
           onPress={() => { if (!isToday(activeKey)) { haptic.tap(); onChangeDate(new Date()); } }}
           accessibilityRole="button"
-          accessibilityLabel={`${weekdayLong(date)}, ${longDate(date)}. Tap to jump to today.`}
+          accessibilityLabel={t('today.jumpToToday', {
+            weekday: weekdayLong(date),
+            date: longDate(date),
+          })}
           style={{ alignItems: 'center', gap: 1, flex: 1 }}
         >
           <Txt
@@ -77,7 +82,7 @@ export function DayHeader({
 
         <Pressable
           onPress={() => { haptic.tick(); onChangeDate(new Date(date.getTime() + 86400000)); }}
-          hitSlop={16} accessibilityRole="button" accessibilityLabel="Next day"
+          hitSlop={16} accessibilityRole="button" accessibilityLabel={t('today.nextDay')}
         >
           <Icon name="chevron.right" size={17} color={c.inkFaint} weight="semibold" />
         </Pressable>
@@ -100,7 +105,7 @@ export function DayHeader({
               style={{ alignItems: 'center', gap: 5, width: 40, paddingVertical: 4 }}
             >
               <Txt variant="micro" tone={active ? 'ink' : 'faint'} style={{ fontSize: 10 }}>
-                {d.toLocaleDateString(undefined, { weekday: 'narrow' }).toUpperCase()}
+                {d.toLocaleDateString(tag, { weekday: 'narrow' }).toUpperCase()}
               </Txt>
               <View
                 style={{

@@ -14,19 +14,20 @@ import { ScrollEdge } from '../../src/components/ScrollEdge';
 import { useChromeScroll } from '../../src/components/Chrome';
 import { useTheme } from '../../src/theme/useTheme';
 import { radius, space, TINTS } from '../../src/theme/tokens';
+import { useT, type TKey } from '../../src/i18n';
 import { usePlanStore, inboxTasks } from '../../src/store/usePlanStore';
 import { haptic } from '../../src/lib/haptics';
 import type { Priority, Task } from '../../src/store/types';
 import type { SymbolViewProps } from 'expo-symbols';
 
 const BUCKETS: Array<{
-  key: Priority; label: string; hint: string;
+  key: Priority; label: TKey; hint: TKey;
   tint: keyof typeof TINTS; icon: SymbolViewProps['name'];
 }> = [
-  { key: 'high',   label: 'High',   hint: 'Needs focus — add here',  tint: 'rose',  icon: 'triangle.fill' },
-  { key: 'medium', label: 'Medium', hint: 'Not urgent — add here',   tint: 'peach', icon: 'circle.fill' },
-  { key: 'low',    label: 'Low',    hint: 'No rush — add here',      tint: 'sky',   icon: 'arrowtriangle.down.fill' },
-  { key: 'todo',   label: 'To-do',  hint: 'Add it to your list',     tint: 'stone', icon: 'list.bullet' },
+  { key: 'high',   label: 'todo.high',   hint: 'todo.hintHigh',   tint: 'rose',  icon: 'triangle.fill' },
+  { key: 'medium', label: 'todo.medium', hint: 'todo.hintMedium', tint: 'peach', icon: 'circle.fill' },
+  { key: 'low',    label: 'todo.low',    hint: 'todo.hintLow',    tint: 'sky',   icon: 'arrowtriangle.down.fill' },
+  { key: 'todo',   label: 'todo.plain',  hint: 'todo.hintPlain',  tint: 'stone', icon: 'list.bullet' },
 ];
 
 type Row =
@@ -37,6 +38,7 @@ type Row =
 export default function Todo() {
   const insets = useSafeAreaInsets();
   const { c, isDark } = useTheme();
+  const { t } = useT();
   const scroll = useChromeScroll();
   const tasks = usePlanStore((s) => s.tasks);
   const addTask = usePlanStore((s) => s.addTask);
@@ -86,33 +88,37 @@ export default function Todo() {
                 />
                 <Txt variant="captionStrong" tabular>{doneCount}/{inbox.length}</Txt>
               </View>
-              <CircleButton icon="plus" label="Add to-do" onPress={() => router.push({ pathname: '/add', params: { inbox: '1' } })} />
+              <CircleButton
+                icon="plus"
+                label={t('todo.addTodo')}
+                onPress={() => router.push({ pathname: '/add', params: { inbox: '1' } })}
+              />
             </View>
-            <Txt variant="displayLg" style={{ textAlign: 'center' }}>To-do</Txt>
+            <Txt variant="displayLg" style={{ textAlign: 'center' }}>{t('todo.title')}</Txt>
           </View>
         }
         renderItem={({ item }) => {
           if (item.kind === 'bucket') {
-            const t = TINTS[item.bucket.tint][isDark ? 'dark' : 'light'];
+            const tint = TINTS[item.bucket.tint][isDark ? 'dark' : 'light'];
             return (
               <View style={{ paddingTop: space.lg, paddingBottom: space.sm }}>
                 <View
                   style={{
                     flexDirection: 'row', alignItems: 'center', gap: space.sm,
                     alignSelf: 'flex-start', paddingVertical: 7, paddingHorizontal: space.md,
-                    borderRadius: radius.pill, backgroundColor: t.bg,
+                    borderRadius: radius.pill, backgroundColor: tint.bg,
                   }}
                 >
-                  <Icon name={item.bucket.icon} size={10} color={t.fg} weight="bold" />
-                  <Txt variant="micro" color={t.fg}>
-                    {item.bucket.label.toUpperCase()}{item.count ? ` (${item.count})` : ''}
+                  <Icon name={item.bucket.icon} size={10} color={tint.fg} weight="bold" />
+                  <Txt variant="micro" color={tint.fg}>
+                    {t(item.bucket.label).toUpperCase()}{item.count ? ` (${item.count})` : ''}
                   </Txt>
                 </View>
               </View>
             );
           }
           if (item.kind === 'compose') {
-            return <Compose hint={item.bucket.hint} onSubmit={(title) => {
+            return <Compose hint={t(item.bucket.hint)} onSubmit={(title) => {
               addTask({ title, date: null, priority: item.bucket.key, minutes: 15, tint: item.bucket.tint === 'stone' ? 'lilac' : item.bucket.tint });
               haptic.success();
             }} />;
@@ -131,7 +137,10 @@ export default function Todo() {
       />
 
       {/* Pinned above the list, so the buckets pass UNDER it. */}
-      <ScrollEdge title="To-do" subtitle={`${doneCount} of ${inbox.length} done`} />
+      <ScrollEdge
+        title={t('todo.title')}
+        subtitle={t('today.a11yProgress', { done: doneCount, total: inbox.length })}
+      />
     </View>
   );
 }
@@ -148,6 +157,7 @@ export default function Todo() {
  */
 function Compose({ hint, onSubmit }: { hint: string; onSubmit: (title: string) => void }) {
   const { c } = useTheme();
+  const { t } = useT();
   const valueRef = useRef('');
   // Remounting the input is the only reliable way to empty an uncontrolled
   // field here: `.clear()` is issued against an instance that the list's
@@ -190,7 +200,7 @@ function Compose({ hint, onSubmit }: { hint: string; onSubmit: (title: string) =
         onPress={() => commit()}
         hitSlop={8}
         accessibilityRole="button"
-        accessibilityLabel="Add"
+        accessibilityLabel={t('common.add')}
         style={{ padding: 6 }}
       >
         <Icon name="plus" size={15} color={c.inkFaint} weight="semibold" />

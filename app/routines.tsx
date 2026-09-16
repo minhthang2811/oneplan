@@ -14,7 +14,8 @@ import {
   usePlanStore, routineCatalogue, routineSteps,
 } from '../src/store/usePlanStore';
 import { ROUTINE_SLOTS, ROUTINE_PARENT, type RoutineSlot } from '../src/data/routines';
-import { SLOT_LABEL, formatDuration, formatClock } from '../src/lib/time';
+import { slotLabel, formatDuration, formatClock } from '../src/lib/time';
+import { translate } from '../src/i18n';
 import { haptic } from '../src/lib/haptics';
 
 /** The start times worth offering per slot. A full clock picker is a lot of
@@ -79,8 +80,8 @@ export default function Routines() {
 
   return (
     <SettingsScreen
-      title="Routines"
-      subtitle="The parts of your day that repeat. Change what is in them, what order they happen in, and when they start."
+      title={translate('routines.title')}
+      subtitle={translate('routines.subtitle')}
     >
       {total === 0 ? <EmptyRoutines /> : null}
 
@@ -98,7 +99,7 @@ export default function Routines() {
       ))}
 
       <Txt variant="caption" tone="faint" style={{ textAlign: 'center' }}>
-        Changes apply to today straight away. Anything you have already ticked off stays ticked.
+        {translate('routines.applyNote')}
       </Txt>
     </SettingsScreen>
   );
@@ -118,9 +119,9 @@ function EmptyRoutines() {
           routines screen is an invitation, not a day with nothing in it. */}
       <PipScene pose="cheer" size={112} idle="bob" delay={120} />
       <View style={{ alignItems: 'center', gap: space.xs, paddingHorizontal: space.lg }}>
-        <Txt variant="bodyStrong">No routines yet</Txt>
+        <Txt variant="bodyStrong">{translate('routines.none')}</Txt>
         <Txt variant="caption" tone="muted" style={{ textAlign: 'center' }}>
-          Open a time of day below and pick the things you already do. One or two is plenty.
+          {translate('routines.emptyHint')}
         </Txt>
       </View>
     </View>
@@ -159,20 +160,20 @@ function SlotEditor({
     if (process.env.EXPO_OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions(
         {
-          options: [...labels, 'Cancel'],
+          options: [...labels, translate('common.cancel')],
           cancelButtonIndex: labels.length,
-          title: `When does your ${SLOT_LABEL[slot].toLowerCase()} routine start?`,
+          title: translate('routines.startPrompt', { slot: slotLabel(slot).toLowerCase() }),
           userInterfaceStyle: theme.isDark ? 'dark' : 'light',
         },
         (i) => { if (i < choices.length) commit(() => setTime(slot, choices[i])); }
       );
     } else {
       Alert.alert(
-        `When does your ${SLOT_LABEL[slot].toLowerCase()} routine start?`,
+        translate('routines.startPrompt', { slot: slotLabel(slot).toLowerCase() }),
         undefined,
         [
           ...choices.map((m) => ({ text: formatClock(m), onPress: () => commit(() => setTime(slot, m)) })),
-          { text: 'Cancel', style: 'cancel' as const },
+          { text: translate('common.cancel'), style: 'cancel' as const },
         ]
       );
     }
@@ -185,9 +186,16 @@ function SlotEditor({
         accessibilityRole="button"
         accessibilityState={{ expanded: open }}
         accessibilityLabel={
-          `${SLOT_LABEL[slot]} routine, ${chosen.length === 0
-            ? 'nothing picked'
-            : `${chosen.length} steps, about ${formatDuration(minutes)}, starts at ${formatClock(startsAt)}`}`
+          translate('routines.a11yRow', {
+            slot: slotLabel(slot),
+            summary: chosen.length === 0
+              ? translate('routines.nothingPickedLower')
+              : translate('routines.a11ySummary', {
+                  count: chosen.length,
+                  duration: formatDuration(minutes),
+                  time: formatClock(startsAt),
+                }),
+          })
         }
         style={{
           flexDirection: 'row', alignItems: 'center', gap: space.md,
@@ -205,11 +213,15 @@ function SlotEditor({
           <Icon name={SLOT_ICON[slot]} size={17} color={t.fg} weight="semibold" />
         </View>
         <View style={{ flex: 1, gap: 1 }}>
-          <Txt variant="bodyStrong">{SLOT_LABEL[slot]}</Txt>
+          <Txt variant="bodyStrong">{slotLabel(slot)}</Txt>
           <Txt variant="caption" tone="muted">
             {chosen.length === 0
-              ? 'Nothing picked'
-              : `${chosen.length} ${chosen.length === 1 ? 'step' : 'steps'} · ${formatDuration(minutes)} · ${formatClock(startsAt)}`}
+              ? translate('routines.nothingPicked')
+              : translate('routines.summary', {
+                  count: chosen.length,
+                  duration: formatDuration(minutes),
+                  time: formatClock(startsAt),
+                })}
           </Txt>
         </View>
         <Icon name={open ? 'chevron.up' : 'chevron.down'} size={12} color={c.inkFaint} weight="bold" />
@@ -221,11 +233,14 @@ function SlotEditor({
           exiting={reduced ? undefined : FadeOut.duration(140)}
           style={{ gap: space.base }}
         >
-          <Section title="In this routine" footer="Tap the arrows to change the order things happen in.">
+          <Section
+            title={translate('routines.inThisRoutine')}
+            footer={translate('routines.orderFooter')}
+          >
             {chosen.length === 0 ? (
               <View style={{ padding: space.base }}>
                 <Txt variant="caption" tone="faint">
-                  Nothing here yet. Pick from the list below.
+                  {translate('routines.emptyList')}
                 </Txt>
               </View>
             ) : (
@@ -252,19 +267,19 @@ function SlotEditor({
 
                   <StepButton
                     icon="chevron.up"
-                    label={`Move ${o.title} earlier`}
+                    label={translate('routines.moveEarlier', { title: o.title })}
                     disabled={i === 0}
                     onPress={() => commit(() => moveStep(slot, o.id, -1))}
                   />
                   <StepButton
                     icon="chevron.down"
-                    label={`Move ${o.title} later`}
+                    label={translate('routines.moveLater', { title: o.title })}
                     disabled={i === chosen.length - 1}
                     onPress={() => commit(() => moveStep(slot, o.id, 1))}
                   />
                   <StepButton
                     icon="minus"
-                    label={`Remove ${o.title}`}
+                    label={translate('routines.remove', { title: o.title })}
                     onPress={() => commit(() => toggleStep(slot, o.id))}
                   />
                 </Animated.View>
@@ -292,18 +307,18 @@ function SlotEditor({
 
           <CustomStep onAdd={(title) => commit(() => addStep(slot, { title, emoji: '✨', minutes: 10 }))} />
 
-          <Section title="Starts at">
+          <Section title={translate('routines.startsAt')}>
             <Pressable
               onPress={pickTime}
               accessibilityRole="button"
-              accessibilityLabel={`Start time, ${formatClock(startsAt)}`}
+              accessibilityLabel={translate('routines.a11yStartTime', { time: formatClock(startsAt) })}
               style={{
                 flexDirection: 'row', alignItems: 'center', gap: space.md,
                 paddingHorizontal: space.base, paddingVertical: 14, minHeight: 54,
               }}
             >
               <Icon name="clock" size={17} color={c.inkMuted} />
-              <Txt variant="body" style={{ flex: 1 }}>Start time</Txt>
+              <Txt variant="body" style={{ flex: 1 }}>{translate('routines.startTime')}</Txt>
               <Txt variant="body" tone="muted" tabular>{formatClock(startsAt)}</Txt>
               <Icon name="chevron.right" size={12} color={c.inkFaint} weight="semibold" />
             </Pressable>
@@ -378,11 +393,11 @@ function CustomStep({ onAdd }: { onAdd: (title: string) => void }) {
         key={resetKey}
         onChangeText={(t) => { valueRef.current = t; }}
         onSubmitEditing={(e) => commit(e.nativeEvent.text)}
-        placeholder="Something of your own"
+        placeholder={translate('routines.ownPlaceholder')}
         placeholderTextColor={c.inkFaint}
         returnKeyType="done"
         submitBehavior="submit"
-        accessibilityLabel="Add your own step"
+        accessibilityLabel={translate('routines.addOwn')}
         style={{
           flex: 1, color: c.ink, paddingVertical: space.md,
           fontFamily: 'Inter_400Regular', fontSize: 15,
@@ -392,7 +407,7 @@ function CustomStep({ onAdd }: { onAdd: (title: string) => void }) {
         onPress={() => commit()}
         hitSlop={8}
         accessibilityRole="button"
-        accessibilityLabel="Add step"
+        accessibilityLabel={translate('routines.addStep')}
         style={{ padding: 6 }}
       >
         <Icon name="plus" size={15} color={c.inkFaint} weight="semibold" />
