@@ -28,6 +28,7 @@ import { CalendarDayIcon } from './CalendarDayIcon';
 import { GlassPanel, LIQUID_GLASS } from './Glass';
 import { useT, type TKey } from '../i18n';
 import { GelSurface, gelInsetShadow } from './Gel';
+import { useChrome, useChromeReset } from './Chrome';
 import { useTheme } from '../theme/useTheme';
 import { motion, radius, space } from '../theme/tokens';
 import { haptic } from '../lib/haptics';
@@ -126,6 +127,20 @@ export function TabBar({ state, navigation }: TabBarProps) {
   const insets = useSafeAreaInsets();
   const reduced = useReducedMotion();
   const today = new Date().getDate();
+  const chrome = useChrome();
+  const resetChrome = useChromeReset();
+
+  /**
+   * ARRIVING AT A TAB ALWAYS SHOWS ITS NAVIGATION.
+   *
+   * `collapsed` is shared by every screen, and only screens that scroll ever
+   * put it back — so switching to one that does not (Focus never calls
+   * `useChromeScroll` at all) inherited a contracted bar with no way to
+   * restore it. Doing this here rather than in each screen means a tab added
+   * later cannot forget: the bar itself guarantees it, for every tab, whether
+   * or not that tab scrolls.
+   */
+  useEffect(() => { resetChrome(); }, [state.index, resetChrome]);
 
   const count = state.routes.length;
   const [row, setRow] = useState(0);
@@ -297,17 +312,70 @@ export function TabBar({ state, navigation }: TabBarProps) {
     };
   });
 
+  /**
+   * THE CONTRACTION — iOS 26's tab bar behaviour.
+   *
+   * Apple's own bars (Music, Photos, News) shrink out of the way as you scroll
+   * INTO content and come back the moment you scroll towards the top. It is
+   * the single most recognisable thing the new tab bar does, and it is the
+   * reason the bar can afford to float over the content at all: a bar that
+   * never moves has to be budgeted for permanently, while one that retreats is
+   * only spending screen space when you are not reading.
+   *
+   * It contracts rather than SLIDING AWAY, which is a deliberate difference
+   * from the pattern most apps ship. A bar that leaves entirely has to be
+   * hunted for — you scroll up expecting navigation and get a frame of nothing
+   * — and Apple's guidance is against hiding navigation outright. Shrinking
+   * keeps it continuously present and continuously tappable; it simply stops
+   * claiming to be the thing you are looking at.
+   *
+   * ── NO OPACITY, ON PURPOSE ─────────────────────────────────────────────
+   * The obvious way to make chrome recede is to fade it, and `expo-glass-effect`
+   * documents that opacity 0 on a `GlassView` OR ANY PARENT stops the material
+   * rendering at all. Animating towards zero on the way out would therefore
+   * work perfectly until the final frame and then drop the glass, which is a
+   * bug that only appears at the end of the animation. Transform-only sidesteps
+   * the question entirely, and a scale is the better cue anyway: distance, not
+   * absence.
+   */
+  const barStyle = useAnimatedStyle(() => {
+    if (reduced || !chrome) return { transform: [] };
+    const k = chrome.collapsed.get();
+    return {
+      transform: [
+        { translateY: 10 * k },
+        { scale: 1 - 0.13 * k },
+      ],
+    };
+  });
+
   return (
-    <View
+    <Animated.View
       pointerEvents="box-none"
-      style={{
-        position: 'absolute', left: 0, right: 0, bottom: 0,
-        paddingBottom: Math.max(insets.bottom, space.md),
-        paddingHorizontal: space.base,
-      }}
+      style={[
+        {
+          position: 'absolute', left: 0, right: 0, bottom: 0,
+          paddingBottom: Math.max(insets.bottom, space.md),
+          paddingHorizontal: space.base,
+        },
+        barStyle,
+      ]}
     >
       <GlassPanel
         radius={radius.pill}
+        /**
+         * The system deforms the material under the finger — it swells towards
+         * the touch and settles back on release.
+         *
+         * This bar is the one surface in the app that earns it, and the reason
+         * is the drag. Everything else that floats here is tapped, and a pane
+         * that squirms under a tap reads as instability; this one is a control
+         * you put a finger on and PULL, so a material that yields under that
+         * finger is telling the truth about what the gesture is doing. It is
+         * also the piece of the real material that no amount of painting can
+         * reach, which is the whole reason the native path exists.
+         */
+        interactive
         contentStyle={{ height: TAB_BAR_HEIGHT, paddingHorizontal: BAR_PAD, justifyContent: 'center' }}
       >
         <GestureDetector gesture={pan}>
@@ -372,7 +440,7 @@ export function TabBar({ state, navigation }: TabBarProps) {
           </View>
         </GestureDetector>
       </GlassPanel>
-    </View>
+    </Animated.View>
   );
 }
 

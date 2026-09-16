@@ -156,8 +156,11 @@ export const vi: Dict = {
     timeline: 'Dòng thời gian',
     routines: 'Thói quen',
     routinesNone: 'Chưa đặt',
-    routinesPicked: 'Đã chọn {count}',
+    routineSummary: { one: '{count} bước · {slots} trên 3', other: '{count} bước · {slots} trên 3' },
     reminders: 'Nhắc nhở',
+    remindersOff: 'Tắt',
+    remindersAsStart: 'Ngay khi bắt đầu',
+    remindersBefore: 'Trước {duration}',
     about: 'Giới thiệu',
     appearance: 'Giao diện',
     followsSystem: 'Theo hệ thống',
@@ -169,7 +172,7 @@ export const vi: Dict = {
     notifOffBody:
       'Cho phép Oneplan gửi thông báo trong Cài đặt để được nhắc khi một hoạt động bắt đầu.',
     startOverTitle: 'Chạy lại phần giới thiệu?',
-    startOverBody: 'Các hoạt động của bạn vẫn được giữ.',
+    startOverBody: 'Hoạt động, giao diện và cài đặt nhắc nhở của bạn vẫn được giữ.',
     startOver: 'Bắt đầu lại',
   },
 
@@ -180,6 +183,82 @@ export const vi: Dict = {
     systemSub: 'Theo ngôn ngữ điện thoại',
     footnote:
       'Oneplan mở bằng ngôn ngữ của điện thoại khi có thể. Chọn một ngôn ngữ ở đây để thay thế.',
+  },
+
+  routines: {
+    title: 'Thói quen',
+    subtitle:
+      'Những phần lặp lại trong ngày của bạn. Đổi nội dung, đổi thứ tự, và đổi giờ bắt đầu.',
+    none: 'Chưa có thói quen nào',
+    nothingPicked: 'Chưa chọn gì',
+    nothingPickedLower: 'chưa chọn gì',
+    summary: { one: '{count} bước · {duration} · {time}', other: '{count} bước · {duration} · {time}' },
+    a11ySummary: { one: '{count} bước, khoảng {duration}, bắt đầu lúc {time}', other: '{count} bước, khoảng {duration}, bắt đầu lúc {time}' },
+    a11yRow: 'Thói quen {slot}, {summary}',
+    startPrompt: 'Thói quen {slot} của bạn bắt đầu lúc nào?',
+    inThisRoutine: 'Trong thói quen này',
+    orderFooter: 'Chạm vào mũi tên để đổi thứ tự các việc.',
+    emptyList: 'Chưa có gì ở đây. Chọn từ danh sách bên dưới.',
+    moveEarlier: 'Chuyển {title} lên trước',
+    moveLater: 'Chuyển {title} xuống sau',
+    remove: 'Xoá {title}',
+    startsAt: 'Bắt đầu lúc',
+    startTime: 'Giờ bắt đầu',
+    a11yStartTime: 'Giờ bắt đầu, {time}',
+    ownPlaceholder: 'Một việc của riêng bạn',
+    addOwn: 'Thêm bước của riêng bạn',
+    addStep: 'Thêm bước',
+    applyNote:
+      'Thay đổi áp dụng cho hôm nay ngay lập tức. Những gì bạn đã đánh dấu xong vẫn giữ nguyên.',
+    emptyHint:
+      'Mở một buổi bên dưới và chọn những việc bạn vốn đã làm. Một hoặc hai là đủ.',
+  },
+
+  appearance: {
+    title: 'Giao diện',
+    subtitle:
+      'Oneplan theo thiết bị của bạn mặc định. Chọn một bên nếu bạn không muốn nó tự đổi.',
+    theme: 'Chủ đề',
+    system: 'Hệ thống',
+    systemHint: 'Theo thiết bị của bạn',
+    light: 'Sáng',
+    lightHint: 'Luôn sáng',
+    dark: 'Tối',
+    darkHint: 'Luôn tối',
+  },
+
+  reminderSettings: {
+    title: 'Nhắc nhở',
+    subtitle:
+      'Một lời nhắc trước khi hoạt động bắt đầu, để kế hoạch nhớ thay cho bạn.',
+    switchedOff: 'Nhắc nhở đã bị tắt',
+    notifications: 'Thông báo',
+    systemPermission: 'Quyền hệ thống',
+    checking: 'Đang kiểm tra…',
+    allowed: 'Đã cho phép',
+    notAllowed: 'Chưa cho phép',
+    activityReminders: 'Nhắc nhở hoạt động',
+    nothingWithTimes:
+      'Chưa có gì được lên lịch — nhắc nhở gắn với hoạt động có giờ bắt đầu, và bạn chưa có hoạt động nào như vậy.',
+    nothingToday:
+      'Hiện chưa có gì được lên lịch. Mọi hoạt động có giờ bắt đầu hôm nay đều đã bắt đầu.',
+    when: 'Khi nào',
+    whenFooter: 'Tính từ giờ bắt đầu của chính hoạt động đó.',
+    tenHint: 'Đủ thời gian để làm nốt việc đang dở',
+    asItStarts: 'Ngay khi bắt đầu',
+    before: 'Trước {duration}',
+    switchedOffBody:
+      'Thông báo cho Oneplan đã bị tắt trong Cài đặt iOS, nên ứng dụng ngừng hứa những lời nhắc mà nó không gửi được. Cho phép lại để bật tính năng này.',
+    privacyNote:
+      'Nhắc nhở được lên lịch trên máy này. Không có gì về kế hoạch của bạn được gửi đi đâu cả.',
+  },
+
+  celebration: {
+    morning: 'Xong buổi sáng.\nPhần còn lại đợi được.',
+    afternoon: 'Xong buổi chiều.\nLàm tốt lắm.',
+    evening: 'Xong buổi tối.\nBạn dừng được rồi.',
+    badge: 'XONG {slot}',
+    a11y: 'Đã xong {slot}. Mọi hoạt động trong {slotLower} của bạn đều hoàn tất.',
   },
 
   add: {
@@ -260,14 +339,14 @@ export const vi: Dict = {
     routinesEmpty: 'Chọn nhiều hay ít tuỳ bạn — bạn có thể bỏ qua phần này.',
     routinesPicked: 'Đã chọn {count} · khoảng {duration}',
 
-    remindersTitle: 'Một lời nhắc khi\nviệc gì đó bắt đầu',
+    remindersTitle: 'Một lời nhắc ngay\ntrước khi bạn bắt đầu',
     remindersSubtitle:
-      'Oneplan có thể báo cho bạn khi một hoạt động bắt đầu, để kế hoạch nhớ thay cho bạn.',
+      'Oneplan có thể báo cho bạn vài phút trước một hoạt động, để kế hoạch nhớ thay cho bạn.',
     remindersCta: 'Bật nhắc nhở',
     remindersSkip: 'Không phải bây giờ',
     remindersBrand: 'ONEPLAN',
     remindersPreview1Title: 'Thói quen buổi sáng',
-    remindersPreview1Body: 'Bắt đầu ngay — 30 phút',
+    remindersPreview1Title2: 'Ăn trưa',
     remindersPreview2Title: 'Ăn trưa',
     remindersPreview2Body: 'Sắp tới lúc 12:30',
 
@@ -279,7 +358,8 @@ export const vi: Dict = {
   },
 
   notification: {
-    startingNow: 'Bắt đầu ngay — {duration}',
+    startingNow: 'Bắt đầu ngay. Mất {duration}.',
+    startsIn: 'Bắt đầu sau {lead}. Mất {duration}.',
     channel: 'Nhắc nhở hoạt động',
   },
 

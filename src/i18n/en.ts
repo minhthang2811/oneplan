@@ -158,8 +158,12 @@ export const en = {
     timeline: 'Timeline',
     routines: 'Routines',
     routinesNone: 'None set',
-    routinesPicked: '{count} picked',
+    /** "8 steps · 2 of 3" — how much is in the routines, and how many slots. */
+    routineSummary: { one: '{count} step · {slots} of 3', other: '{count} steps · {slots} of 3' },
     reminders: 'Reminders',
+    remindersOff: 'Off',
+    remindersAsStart: 'As things start',
+    remindersBefore: '{duration} before',
     about: 'About',
     appearance: 'Appearance',
     followsSystem: 'Follows system',
@@ -171,7 +175,7 @@ export const en = {
     notifOffBody:
       'Allow notifications for Oneplan in Settings to get a nudge when an activity starts.',
     startOverTitle: 'Run onboarding again?',
-    startOverBody: 'Your activities are kept.',
+    startOverBody: 'Your activities, appearance and reminder settings are kept.',
     startOver: 'Start over',
   },
 
@@ -184,6 +188,83 @@ export const en = {
     /** Shown under the list, explaining what "System" actually does. */
     footnote:
       'Oneplan opens in your phone’s language when it can. Pick a language here to override that.',
+  },
+
+  routines: {
+    title: 'Routines',
+    subtitle:
+      'The parts of your day that repeat. Change what is in them, what order they happen in, and when they start.',
+    none: 'No routines yet',
+    nothingPicked: 'Nothing picked',
+    nothingPickedLower: 'nothing picked',
+    /** The collapsed row's one-line summary. */
+    summary: { one: '{count} step · {duration} · {time}', other: '{count} steps · {duration} · {time}' },
+    a11ySummary: { one: '{count} step, about {duration}, starts at {time}', other: '{count} steps, about {duration}, starts at {time}' },
+    a11yRow: '{slot} routine, {summary}',
+    startPrompt: 'When does your {slot} routine start?',
+    inThisRoutine: 'In this routine',
+    orderFooter: 'Tap the arrows to change the order things happen in.',
+    emptyList: 'Nothing here yet. Pick from the list below.',
+    moveEarlier: 'Move {title} earlier',
+    moveLater: 'Move {title} later',
+    remove: 'Remove {title}',
+    startsAt: 'Starts at',
+    startTime: 'Start time',
+    a11yStartTime: 'Start time, {time}',
+    ownPlaceholder: 'Something of your own',
+    addOwn: 'Add your own step',
+    addStep: 'Add step',
+    applyNote:
+      'Changes apply to today straight away. Anything you have already ticked off stays ticked.',
+    emptyHint:
+      'Open a time of day below and pick the things you already do. One or two is plenty.',
+  },
+
+  appearance: {
+    title: 'Appearance',
+    subtitle:
+      'Oneplan follows your device by default. Pick a side if you would rather it did not change on you.',
+    theme: 'Theme',
+    system: 'System',
+    systemHint: 'Follows your device',
+    light: 'Light',
+    lightHint: 'Always light',
+    dark: 'Dark',
+    darkHint: 'Always dark',
+  },
+
+  reminderSettings: {
+    title: 'Reminders',
+    subtitle:
+      'A nudge before an activity starts, so the plan does the remembering instead of you.',
+    switchedOff: 'Reminders were switched off',
+    notifications: 'Notifications',
+    systemPermission: 'System permission',
+    checking: 'Checking…',
+    allowed: 'Allowed',
+    notAllowed: 'Not allowed',
+    activityReminders: 'Activity reminders',
+    nothingWithTimes:
+      'Nothing is scheduled yet — reminders attach to activities that have a start time, and none of yours do.',
+    nothingToday:
+      'Nothing is scheduled right now. Every activity with a start time today has already begun.',
+    when: 'When',
+    whenFooter: "Measured from the activity's own start time.",
+    tenHint: 'Enough time to finish what you are doing',
+    asItStarts: 'As it starts',
+    before: '{duration} before',
+    switchedOffBody:
+      'Notifications for Oneplan were turned off in iOS Settings, so the app stopped promising nudges it could not deliver. Allow them again to turn this back on.',
+    privacyNote:
+      'Reminders are scheduled on this device. Nothing about your plan is sent anywhere.',
+  },
+
+  celebration: {
+    morning: 'Morning done.\nThe rest can wait.',
+    afternoon: 'Afternoon cleared.\nNice work.',
+    evening: "Evening's done.\nYou can stop now.",
+    badge: '{slot} DONE',
+    a11y: '{slot} complete. Every activity in your {slotLower} is done.',
   },
 
   add: {
@@ -265,14 +346,14 @@ export const en = {
     routinesEmpty: 'Pick as many or as few as you like — you can skip this.',
     routinesPicked: '{count} picked · about {duration}',
 
-    remindersTitle: 'A nudge when\nsomething starts',
+    remindersTitle: 'A nudge just\nbefore you start',
     remindersSubtitle:
-      'Oneplan can tell you when an activity begins, so the plan does the remembering instead of you.',
+      'Oneplan can tell you a few minutes ahead of an activity, so the plan does the remembering instead of you.',
     remindersCta: 'Turn on reminders',
     remindersSkip: 'Not right now',
     remindersBrand: 'ONEPLAN',
     remindersPreview1Title: 'Morning routine',
-    remindersPreview1Body: 'Starting now — 30m',
+    remindersPreview1Title2: 'Lunch',
     remindersPreview2Title: 'Lunch',
     remindersPreview2Body: 'Coming up at 12:30',
 
@@ -284,7 +365,9 @@ export const en = {
   },
 
   notification: {
-    startingNow: 'Starting now — {duration}',
+    /** Two sentences, not a dash — with a lead time there are two durations. */
+    startingNow: 'Starting now. Takes {duration}.',
+    startsIn: 'Starts in {lead}. Takes {duration}.',
     channel: 'Activity reminders',
   },
 

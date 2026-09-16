@@ -10,7 +10,8 @@ import { CircleButton } from '../../src/components/DayHeader';
 import { RingValue } from '../../src/components/Ring';
 import { PressScale } from '../../src/components/Press';
 import { TAB_BAR_HEIGHT } from '../../src/components/TabBar';
-import { ScrollEdge, ScrollEdgeTitle, useScrollEdge } from '../../src/components/ScrollEdge';
+import { ScrollEdge } from '../../src/components/ScrollEdge';
+import { useChromeScroll } from '../../src/components/Chrome';
 import { useTheme } from '../../src/theme/useTheme';
 import { radius, space, TINTS } from '../../src/theme/tokens';
 import { useT, type TKey } from '../../src/i18n';
@@ -38,7 +39,7 @@ export default function Todo() {
   const insets = useSafeAreaInsets();
   const { c, isDark } = useTheme();
   const { t } = useT();
-  const { edge, scrollProps } = useScrollEdge();
+  const scroll = useChromeScroll();
   const tasks = usePlanStore((s) => s.tasks);
   const addTask = usePlanStore((s) => s.addTask);
   const toggleTask = usePlanStore((s) => s.toggleTask);
@@ -61,11 +62,11 @@ export default function Todo() {
   return (
     <View style={{ flex: 1, backgroundColor: c.canvas }}>
       <FlashList
-        {...scrollProps}
         data={rows}
         keyExtractor={(r) => (r.kind === 'task' ? r.task.id : `${r.kind}-${r.bucket.key}`)}
         getItemType={(r) => r.kind}
         showsVerticalScrollIndicator={false}
+        {...scroll}
         contentContainerStyle={{
           paddingHorizontal: space.lg,
           paddingBottom: TAB_BAR_HEIGHT + insets.bottom + space.xxl,
@@ -135,10 +136,11 @@ export default function Todo() {
         }}
       />
 
-      {/* After the list — see the note in `ScrollEdge`. */}
-      <ScrollEdge edge={edge}>
-        <ScrollEdgeTitle edge={edge} title={t('todo.title')} />
-      </ScrollEdge>
+      {/* Pinned above the list, so the buckets pass UNDER it. */}
+      <ScrollEdge
+        title={t('todo.title')}
+        subtitle={t('today.a11yProgress', { done: doneCount, total: inbox.length })}
+      />
     </View>
   );
 }

@@ -1,364 +1,192 @@
-import { useCallback, useEffect, useId, useMemo, useState, type ReactNode } from 'react';
-import { View, useWindowDimensions, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
-import { BlurView } from 'expo-blur';
-import Animated, {
-  useSharedValue, useAnimatedStyle, withTiming, useReducedMotion,
-  Easing, type SharedValue,
-} from 'react-native-reanimated';
-import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
+import { useId, type ReactNode } from 'react';
+import { View, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useFocusEffect } from 'expo-router';
+import { BlurView } from 'expo-blur';
+import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
+import Animated, {
+  useAnimatedStyle, useReducedMotion, interpolate, Extrapolation,
+} from 'react-native-reanimated';
 import { Txt } from './Txt';
+import { useChrome } from './Chrome';
 import { useTheme } from '../theme/useTheme';
-import { glass, space } from '../theme/tokens';
+import { glass, scrollEdge, space } from '../theme/tokens';
+import { svgStop } from '../theme/svgColor';
+
+/** How tall the blurred band is, below the safe-area inset. Exported so a
+ *  screen can pad its content clear of the controls pinned inside it. */
+export const SCROLL_EDGE_BAND = 44;
+const BAND = SCROLL_EDGE_BAND;
 
 /**
- * THE SCROLL EDGE EFFECT — iOS 26's "soft edge", rebuilt.
+ * THE SCROLL EDGE EFFECT.
  *
- * ── What this is imitating ─────────────────────────────────────────────────
- * From iOS 26, a scroll view running underneath a navigation bar gets an
- * automatic treatment at that edge so the bar's own text stays legible over
- * whatever is passing beneath it. Apple ships two styles:
+ * Apple's own name for it, and their own description of the job: "Scroll edge
+ * effects further enhance legibility by blurring and reducing the opacity of
+ * background content." It is the top counterpart to the floating tab bar — as
+ * a day scrolls up under the status bar, a graded blur builds at the top so
+ * the clock and the compact title stay readable, and it goes away again when
+ * the user scrolls back to the top of their day.
  *
- *   SOFT  — a blur that is strongest at the very top and DISSOLVES downward to
- *           nothing. Content fades out as it travels up under the bar.
- *   HARD  — a flat blurred slab with a defined boundary. This is what iOS 18
- *           and earlier did, and it is what "a bar parked on top of the
- *           content" looks like.
+ * ── WHY THIS IS BLUR AND NOT `GlassPanel` ──────────────────────────────────
+ * It would be easy to assume everything translucent in an iOS 26 app should be
+ * Liquid Glass, and doing that here would be wrong on Apple's own terms. The
+ * HIG separates the two: Liquid Glass "forms a distinct functional layer for
+ * controls and navigation elements ... that floats above the content layer",
+ * while the scroll edge effect is a LEGIBILITY treatment applied to the
+ * content passing underneath. This band contains no controls. Giving it the
+ * material would put a second floating glass object on screen competing with
+ * the tab bar — exactly the "use Liquid Glass sparingly" failure — and it
+ * would read as a bar that is always there rather than as an effect that
+ * builds.
  *
- * This component is the soft one, deliberately. A hard edge is the clunky
- * version: it cuts the list with a visible line, and the line is the thing the
- * eye keeps catching.
+ * ── THE PROGRESSIVE BLUR ───────────────────────────────────────────────────
+ * A single `BlurView` has a hard bottom edge, and a hard edge is the tell: the
+ * real effect ramps out, so what you notice is that the text got readable and
+ * not that a panel appeared. There is no gradient-mask primitive here, so the
+ * ramp is built by STACKING bands that all start at the top and end at
+ * different heights. Content at the very top passes under all four and is
+ * blurred four times; content at the bottom of the band passes under one. The
+ * accumulation is the gradient.
  *
- * ── Why the blur is a STACK ────────────────────────────────────────────────
- * A single `BlurView` is a rectangle of uniform blur, so its bottom edge is a
- * step change in sharpness — a hard edge with extra steps. React Native has no
- * mask primitive to feather one with, so the gradient is built from geometry:
- * N panes, all anchored at the top, each shorter than the last.
+ * Each band therefore runs at a FRACTION of the usual intensity — four bands
+ * at `glass.intensity` would be an opaque slab at the top.
  *
- *     ┌──────────────┐  ← all N cover here          strongest
- *     ├──────────────┤
- *     │  ┌───────────┤  ← N-1 cover here
- *     │  │  ┌────────┤
- *     │  │  │  ┌─────┤  ← 1 covers here             weakest
- *     └──┴──┴──┴─────┘  ← 0 cover here              nothing
- *
- * Heights are `h(i) = H · (N-i)/N`, which makes the number of panes over any
- * given depth fall LINEARLY to zero at the bottom. The consequence that matters
- * is the last one: coverage reaches zero exactly at the bottom edge, so the
- * effect has no boundary to see. What remains is N discrete steps, and they
- * stay below the perceptual threshold only because each pane's intensity is
- * small — which is why `LAYER_INTENSITY` is 7 and not 40.
- *
- * ── Why the fade is TIME-based, not scroll-linked ──────────────────────────
- * UIKit does not interpolate the bar background against scroll offset; it
- * crossfades between `scrollEdgeAppearance` and `standardAppearance` when the
- * content passes under. Matching that is both more faithful and far more
- * robust here: `FlashList` intercepts `onScroll` and re-dispatches it from JS,
- * so a Reanimated scroll handler attached to it never reaches the UI thread.
- * A JS callback that flips one boolean, with the animation itself running on
- * the UI thread, sidesteps that entirely and costs nothing per frame.
- *
- * The two thresholds are not equal ON PURPOSE. A single threshold makes the
- * effect flicker on and off while a finger rests near it; `APPEAR` above `HIDE`
- * gives the state a deadband it has to be pushed out of.
- */
-
-/** Height of the compact bar itself — a UIKit navigation bar is 44pt. */
-export const EDGE_BAR = 44;
-
-/**
- * How far BELOW the bar the blur keeps tapering.
- *
- * Without it the gradient would have to complete inside the bar and would be
- * too steep to read as a dissolve. Apple's effect likewise spills past the bar.
- */
-const TAPER = 30;
-
-const LAYERS = 7;
-const LAYER_INTENSITY = 7;
-/**
- * Android blurs are expensive, so it gets two panes working harder rather than
- * seven. The intensity is higher because Android DIVIDES it by
- * `blurReductionFactor` (4.6 here, matching the tab bar) — 46 there lands in
- * roughly the same place 7 does on iOS.
- */
-const ANDROID_LAYERS = 2;
-const ANDROID_LAYER_INTENSITY = 46;
-
-/** Scroll offsets, in points, that turn the effect on and off. */
-const APPEAR = 14;
-const HIDE = 4;
-
-const IN = { duration: 220, easing: Easing.out(Easing.quad) } as const;
-const OUT = { duration: 260, easing: Easing.out(Easing.quad) } as const;
-
-/**
- * The pair of values a screen's edge is made of.
- *
- * `shown` is a shared value rather than a JS ref for one specific reason: the
- * overlay has to be able to CLEAR it. The hook lives in the screen, which
- * outlives the scroll view — a screen that swaps its list out for an empty
- * state and back would otherwise come back with the edge still latched on over
- * a list that is at offset 0. Keeping both halves in the same place lets
- * `ScrollEdge` reset them together when it mounts; a ref would leave `shown`
- * stuck true and the effect unable to re-trigger.
- */
-export type ScrollEdgeValue = {
-  /** 0 → 1 animated strength, read by the overlay and the collapsed title. */
-  progress: SharedValue<number>;
-  /** Settled on/off state — the deadband's memory. */
-  shown: SharedValue<boolean>;
-};
-
-/**
- * Drives the edge effect from a scroll view.
- *
- * Returns the props to spread on the scrollable, plus the value that
- * `ScrollEdge` animates against. Both consumers read one source of truth, so a
- * screen cannot end up with a bar that disagrees with its own list.
- */
-export function useScrollEdge(): {
-  edge: ScrollEdgeValue;
-  scrollProps: {
-    onScroll: (e: NativeSyntheticEvent<NativeScrollEvent>) => void;
-    scrollEventThrottle: number;
-  };
-} {
-  const progress = useSharedValue(0);
-  const shown = useSharedValue(false);
-  const reduced = useReducedMotion();
-
-  const edge = useMemo(() => ({ progress, shown }), [progress, shown]);
-
-  const onScroll = useCallback(
-    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-      const y = e.nativeEvent.contentOffset.y;
-      // Read and write once per scroll event, and never through React state —
-      // re-rendering a list on every scroll frame is the exact cost this
-      // design exists to avoid.
-      if (!shown.get() && y > APPEAR) {
-        shown.set(true);
-        progress.set(reduced ? 1 : withTiming(1, IN));
-      } else if (shown.get() && y < HIDE) {
-        shown.set(false);
-        progress.set(reduced ? 0 : withTiming(0, OUT));
-      }
-    },
-    [progress, shown, reduced]
-  );
-
-  return { edge, scrollProps: { onScroll, scrollEventThrottle: 16 } };
-}
-
-/**
- * The overlay itself: the graduated blur, the legibility wash, and whatever
- * compact chrome the screen wants sitting in it.
- *
- * Rendered AFTER the list in the tree, never before. expo-blur documents that a
- * `BlurView` mounted ahead of the dynamic content it is supposed to be blurring
- * does not update — the blur freezes on whatever was there at mount.
- *
- * TOUCHES PASS STRAIGHT THROUGH, deliberately. A UIKit navigation bar swallows
- * touches in its own frame because it IS a bar, with controls in it. This is an
- * effect rather than a bar: there is nothing here to hit except a title that is
- * a duplicate of one already in the list. Blocking the top 100pt of a scroll
- * view would mean a row half-visible under the taper could not be tapped, which
- * is a worse outcome than letting the finger reach what it is pointing at.
+ * ── WHAT ANIMATES, AND WHAT DELIBERATELY DOES NOT ──────────────────────────
+ * Only the container's OPACITY. Animating `intensity` instead is the obvious
+ * implementation and it re-renders the blur every frame, which is the same
+ * per-frame re-rasterisation the tab bar's metaball investigation measured at
+ * 15fps. A fixed-intensity blur cross-faded by opacity is one composite of an
+ * already-rendered layer, and it looks identical: a blur at 40% opacity IS a
+ * 40%-strength blur, because what shows through is the unblurred content.
  */
 export function ScrollEdge({
-  edge,
-  children,
+  title, subtitle, leading, trailing,
 }: {
-  edge: ScrollEdgeValue;
-  children?: ReactNode;
+  /** The compact title that takes over once the large one has scrolled away. */
+  title: string;
+  subtitle?: string;
+  /**
+   * Controls pinned at the LEADING edge of the band, outside the fade.
+   *
+   * This is where a back button belongs, and it is the reason the band has a
+   * foreground layer at all. A back affordance that scrolls away with the
+   * content is the one thing iOS never does: the whole point of a navigation
+   * bar is that the way out does not move. The band's blur fades with the
+   * scroll; whatever is passed here does not.
+   */
+  leading?: ReactNode;
+  /** Optional controls pinned in the band. Kept small — this is not a toolbar. */
+  trailing?: ReactNode;
 }) {
-  const insets = useSafeAreaInsets();
-  const { width } = useWindowDimensions();
   const { c, isDark } = useTheme();
+  const chrome = useChrome();
+  const insets = useSafeAreaInsets();
+  const reduced = useReducedMotion();
+  const height = insets.top + BAND;
 
-  /**
-   * Gradient ids are resolved by react-native-svg through a process-wide
-   * registry, and three of these are mounted at once (Today, To-do, Me) because
-   * the tabs navigator never detaches a screen. Two panes sharing one id is a
-   * collision: the last mount wins, and an unmount can unregister the id out
-   * from under the survivors. `Gel.tsx` solved this first; this is the same fix.
-   */
+  const tint = svgStop(c.glassTint);
+  // Gradient ids resolve per `<Svg>` document, but two screens both defining
+  // `#edgeScrim` is the kind of thing that works until the day it does not.
   const uid = useId().replace(/:/g, '');
-  const washId = `edgeWash${uid}`;
 
   /**
-   * Mounting means the scroll view mounted with us, and a fresh scroll view is
-   * at offset 0 — so the edge must be off, whatever the previous occupant of
-   * this screen left behind. Today swapping between a populated day and an
-   * empty one is the case that needs it: the hook outlives both trees.
+   * The blur's own strength. Ramps over `scrollEdge.ramp` points of travel —
+   * short enough that it has arrived by the time the first row is under it,
+   * long enough that it reads as building rather than switching on.
    */
-  useEffect(() => {
-    edge.shown.set(false);
-    edge.progress.set(0);
-  }, [edge]);
+  const bandStyle = useAnimatedStyle(() => ({
+    opacity: interpolate((chrome?.y.get() ?? 0), [0, scrollEdge.ramp], [0, 1], Extrapolation.CLAMP),
+  }));
 
   /**
-   * The blur stack is torn down while the screen is not the focused tab.
+   * The compact title.
    *
-   * Seven `BlurView`s per screen across three permanently-mounted screens is 21
-   * live backdrop layers, and only the focused one can ever be visible. This is
-   * the same navigation-focus gate `PipScene` uses for its idle loop, for the
-   * same reason: Expo Router keeps tab screens mounted, so nothing else ever
-   * releases them. It costs one re-render of THIS component per tab switch, and
-   * remounting on focus also gives the blur a fresh capture, which is the
-   * behaviour expo-blur wants anyway.
+   * Position-driven, not direction-driven. iOS's own large-title collapse
+   * works this way, and it is the behaviour that makes "scroll back up to
+   * reveal the header" true without any extra mechanism: the big title
+   * returning IS the compact one leaving, because they are two readings of one
+   * scroll offset. A direction-driven version would let you sit halfway down a
+   * day with the big title showing over rows it does not belong to.
    *
-   * Starts FALSE, not true. Every tab screen mounts at launch but only one is
-   * focused, and `useFocusEffect` never runs for a screen that has not been
-   * visited — so a `true` default would leave To-do and Me holding blur stacks
-   * until the user happened to open and leave each of them. The focused screen
-   * flips this on during its own mount, long before anything can be scrolled
-   * far enough to show the edge.
+   * It starts later than the blur — the blur exists to make content legible
+   * under the status bar, which is needed immediately; the compact title only
+   * earns its place once the real one is actually gone.
    */
-  const [focused, setFocused] = useState(false);
-  useFocusEffect(
-    useCallback(() => {
-      setFocused(true);
-      return () => setFocused(false);
-    }, [])
-  );
-
-  const height = insets.top + EDGE_BAR;
-  const total = height + TAPER;
-
-  const android = process.env.EXPO_OS === 'android';
-  const count = android ? ANDROID_LAYERS : LAYERS;
-  const strength = android ? ANDROID_LAYER_INTENSITY : LAYER_INTENSITY;
-
-  const fade = useAnimatedStyle(() => ({ opacity: edge.progress.get() }));
+  const titleStyle = useAnimatedStyle(() => {
+    const t = interpolate(
+      (chrome?.y.get() ?? 0),
+      [scrollEdge.hideAfter, scrollEdge.hideAfter + scrollEdge.ramp],
+      [0, 1],
+      Extrapolation.CLAMP
+    );
+    if (reduced) return { opacity: t, transform: [] };
+    return { opacity: t, transform: [{ translateY: (1 - t) * 10 }] };
+  });
 
   return (
-    /**
-     * Sized to `total`, not to `height`. The blur and wash extend a further
-     * TAPER points below the bar, and Android clips children to their parent's
-     * bounds far more eagerly than iOS does — a short container would cut the
-     * taper off at a hard line, which is the exact appearance this component
-     * exists to avoid. Nothing else changes: the bar row inside is absolutely
-     * positioned and the container does not take touches.
-     */
     <View
-      pointerEvents="box-none"
-      style={{ position: 'absolute', top: 0, left: 0, right: 0, height: total }}
+      // The band is an EFFECT, not a bar: it must never intercept a tap meant
+      // for the row scrolling underneath it. `box-none` lets the optional
+      // trailing controls stay tappable while the band itself does not.
+      pointerEvents={leading || trailing ? 'box-none' : 'none'}
+      style={{ position: 'absolute', top: 0, left: 0, right: 0, height }}
     >
       <Animated.View
         pointerEvents="none"
-        style={[
-          { position: 'absolute', top: 0, left: 0, right: 0, height: total },
-          fade,
-        ]}
+        style={[StyleSheet.absoluteFill, bandStyle]}
       >
-        {focused && Array.from({ length: count }, (_, i) => (
+        {/* Four bands, all anchored at the top, ending at different heights.
+            The overlap is the gradient — see the note above. */}
+        {[1, 0.78, 0.54, 0.28].map((f) => (
           <BlurView
-            key={i}
-            /**
-             * `default` — the adaptive material, NOT one of the `systemThick*`
-             * ones the tab bar uses. Those carry a heavy tint of their own, and
-             * seven of them stacked would render an opaque slab rather than a
-             * gradient. The colour here comes from the wash below instead,
-             * where it can be controlled as one value.
-             */
-            tint={isDark ? 'dark' : 'light'}
-            intensity={strength}
+            key={f}
+            // Explicit light/dark variants rather than the adaptive material,
+            // for the same reason the tab bar uses them: an adaptive tint can
+            // resolve against the wrong trait collection inside an overlay,
+            // and this app now also has an appearance OVERRIDE, which the
+            // adaptive material would not know about at all.
+            tint={isDark ? 'systemThickMaterialDark' : 'systemThickMaterialLight'}
+            intensity={glass.intensity / 2.4}
             blurMethod="dimezisBlurViewSdk31Plus"
             blurReductionFactor={glass.reductionFactor}
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              height: (total * (count - i)) / count,
-            }}
+            pointerEvents="none"
+            style={{ position: 'absolute', top: 0, left: 0, right: 0, height: height * f }}
           />
         ))}
 
-        {/*
-          The legibility wash, on the same falling curve as the blur.
-
-          Blur alone does not guarantee contrast — it only smears what is
-          underneath, and a dark task title smeared is still dark. This is the
-          layer that makes the bar's own text safe to read over an arbitrary
-          list, and it has to fade out on exactly the same profile as the blur
-          or the two edges become visible as two separate boundaries.
-        */}
-        {/* Explicit pixel dimensions, not percentages: react-native-svg resolves
-            a numeric size deterministically, and the edge always spans the full
-            window width anyway. */}
-        <Svg width={width} height={total} style={{ position: 'absolute', top: 0, left: 0 }}>
+        {/* The legibility scrim, fading to nothing at the bottom so the band
+            does not end in a visible line. Same job as `glassTint` on the tab
+            bar: without it the compact title sits on whatever happens to have
+            scrolled underneath. */}
+        <Svg width="100%" height={height} style={StyleSheet.absoluteFill} pointerEvents="none">
           <Defs>
-            <LinearGradient id={washId} x1="0" y1="0" x2="0" y2="1">
-              <Stop offset="0" stopColor={c.canvas} stopOpacity={isDark ? 0.86 : 0.8} />
-              <Stop
-                offset={(height / total).toFixed(3)}
-                stopColor={c.canvas}
-                stopOpacity={isDark ? 0.4 : 0.34}
-              />
-              <Stop offset="1" stopColor={c.canvas} stopOpacity={0} />
+            <LinearGradient id={`edgeScrim${uid}`} x1="0" y1="0" x2="0" y2="1">
+              <Stop offset="0" stopColor={tint.stopColor} stopOpacity={tint.stopOpacity} />
+              <Stop offset="0.62" stopColor={tint.stopColor} stopOpacity={tint.stopOpacity * 0.72} />
+              <Stop offset="1" stopColor={tint.stopColor} stopOpacity={0} />
             </LinearGradient>
           </Defs>
-          <Rect x={0} y={0} width={width} height={total} fill={`url(#${washId})`} />
+          <Rect x={0} y={0} width="100%" height={height} fill={`url(#edgeScrim${uid})`} />
         </Svg>
       </Animated.View>
 
-      {children ? (
-        <View
-          style={{
-            position: 'absolute',
-            left: 0,
-            right: 0,
-            top: insets.top,
-            height: EDGE_BAR,
-            paddingHorizontal: space.lg,
-            justifyContent: 'center',
-          }}
-          pointerEvents="box-none"
-        >
-          {children}
-        </View>
-      ) : null}
+      <View
+        pointerEvents="box-none"
+        style={{
+          position: 'absolute', left: 0, right: 0, bottom: 0, height: BAND,
+          flexDirection: 'row', alignItems: 'center',
+          paddingHorizontal: space.lg, gap: space.sm,
+        }}
+      >
+        {leading}
+        <Animated.View style={[{ flex: 1 }, titleStyle]} pointerEvents="none">
+          <Txt variant="title" numberOfLines={1}>{title}</Txt>
+          {subtitle ? (
+            <Txt variant="caption" tone="muted" numberOfLines={1}>{subtitle}</Txt>
+          ) : null}
+        </Animated.View>
+        {trailing}
+      </View>
     </View>
-  );
-}
-
-/**
- * The collapsed title that arrives in the bar once the big one has scrolled
- * away — iOS's large-title behaviour, in the app's own type.
- *
- * It rises 6pt as it fades. That tiny travel is what sells it as the SAME title
- * arriving from below rather than a second one switching on: a pure crossfade
- * reads as two labels, a crossfade with displacement reads as one moving.
- *
- * `accessibilityElementsHidden` because it is a duplicate: the real title is
- * still in the list, and VoiceOver announcing the screen name twice as the user
- * scrolls is noise.
- */
-export function ScrollEdgeTitle({
-  edge,
-  title,
-}: {
-  edge: ScrollEdgeValue;
-  title: string;
-}) {
-  const anim = useAnimatedStyle(() => ({
-    opacity: edge.progress.get(),
-    transform: [{ translateY: (1 - edge.progress.get()) * 6 }],
-  }));
-
-  return (
-    <Animated.View
-      pointerEvents="none"
-      accessibilityElementsHidden
-      importantForAccessibility="no-hide-descendants"
-      style={[{ alignItems: 'center' }, anim]}
-    >
-      <Txt variant="title" numberOfLines={1}>
-        {title}
-      </Txt>
-    </Animated.View>
   );
 }

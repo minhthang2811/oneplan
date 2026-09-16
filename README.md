@@ -90,8 +90,6 @@ src/
     Strike.tsx          A strikethrough drawn per laid-out text line
     Rise.tsx            Staggered arrival for a pushed screen's own content
     mascot/             Pip — the mascot image (Pip) and his motion (PipScene)
-    ScrollEdge.tsx      iOS 26's soft scroll edge: a graduated blur that
-                        fades in as content passes under the top bar
     FocusAura.tsx       The drifting field of light behind Focus, built from
                         the focused activity's own tint
   data/seed.ts           Sample/seed data

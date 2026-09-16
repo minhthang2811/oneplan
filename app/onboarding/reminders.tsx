@@ -7,40 +7,72 @@ import { EmojiAvatar } from '../../src/components/EmojiAvatar';
 import { PipScene } from '../../src/components/mascot/PipScene';
 import { useTheme } from '../../src/theme/useTheme';
 import { radius, space } from '../../src/theme/tokens';
-import { useT, type TKey } from '../../src/i18n';
 import { haptic } from '../../src/lib/haptics';
-import { requestNotificationPermission } from '../../src/lib/notifications';
+import { useT, type TKey } from '../../src/i18n';
+import { requestNotificationPermission, reminderBody } from '../../src/lib/notifications';
 import { usePlanStore } from '../../src/store/usePlanStore';
 
-/** Fake notifications, so they are translated copy like any other. */
-const PREVIEW: Array<{ emoji: string; tint: 'peach' | 'mint'; title: TKey; body: TKey }> = [
-  {
-    emoji: '🌅', tint: 'peach',
-    title: 'onboarding.remindersPreview1Title',
-    body: 'onboarding.remindersPreview1Body',
-  },
-  {
-    emoji: '🥪', tint: 'mint',
-    title: 'onboarding.remindersPreview2Title',
-    body: 'onboarding.remindersPreview2Body',
-  },
-];
+/**
+ * Built from `reminderBody` — the same function that writes the real
+ * notification — rather than from hand-typed strings.
+ *
+ * The strings here used to be literals, and they had already drifted: this
+ * screen promised "Starting now — 30m" and "Coming up at 12:30", while the
+ * scheduler sent something else entirely. A preview whose whole job is to say
+ * "here is what you will get" is the one place a copy change must not be able
+ * to go stale unnoticed.
+ *
+ * The lead shown is the default a new user will actually get — they have not
+ * been to the settings screen yet, because it is reached from a tab that does
+ * not exist until onboarding finishes.
+ */
+const PREVIEW_LEAD = 10;
+
+/**
+ * Built per render, not once at module load.
+ *
+ * `reminderBody` and the titles are translated, and a module-level array would
+ * freeze both in whatever language the app happened to launch in — so a user
+ * who switched to Vietnamese and re-ran onboarding would be shown an English
+ * preview of a notification that will arrive in Vietnamese.
+ */
+function previews(t: (k: TKey) => string) {
+  return [
+    {
+      emoji: '🌅', tint: 'peach' as const,
+      title: t('onboarding.remindersPreview1Title'),
+      body: reminderBody(30, PREVIEW_LEAD),
+    },
+    {
+      emoji: '🥪', tint: 'mint' as const,
+      title: t('onboarding.remindersPreview1Title2'),
+      body: reminderBody(20, PREVIEW_LEAD),
+    },
+  ];
+}
 
 export default function Reminders() {
   const { c, shadow } = useTheme();
   const { t } = useT();
+  const PREVIEW = previews(t);
 
   const finish = async (ask: boolean) => {
     haptic.tap();
     // A real request — the button says "Turn on reminders", so it must.
     const granted = ask ? await requestNotificationPermission() : false;
-    usePlanStore.setState((s) => ({ profile: { ...s.profile, reminders: granted } }));
+    // The ACTION, not a hand-rolled `setState`: it also clears any recorded
+    // revocation, so a user who re-runs onboarding and grants permission is
+    // not left with a stale "turned off in iOS Settings" notice behind them.
+    usePlanStore.getState().setReminders(granted);
     router.push('/onboarding/ready');
   };
 
   return (
     <OnboardingScaffold
       step={4}
+      // "BEFORE", not "when". The scheduler now fires ahead of the activity by
+      // `PREVIEW_LEAD`, and a headline promising a nudge at the moment
+      // something starts would be describing the behaviour this replaced.
       title={t('onboarding.remindersTitle')}
       subtitle={t('onboarding.remindersSubtitle')}
       ctaLabel={t('onboarding.remindersCta')}
@@ -81,8 +113,8 @@ export default function Reminders() {
             <EmojiAvatar emoji={p.emoji} tint={p.tint} size={38} />
             <View style={{ flex: 1, gap: 1 }}>
               <Txt variant="micro" tone="faint">{t('onboarding.remindersBrand')}</Txt>
-              <Txt variant="bodyStrong">{t(p.title)}</Txt>
-              <Txt variant="caption" tone="muted">{t(p.body)}</Txt>
+              <Txt variant="bodyStrong">{p.title}</Txt>
+              <Txt variant="caption" tone="muted">{p.body}</Txt>
             </View>
           </View>
         ))}

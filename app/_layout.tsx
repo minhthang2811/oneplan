@@ -16,11 +16,19 @@ import { View, Pressable, Text, useColorScheme } from 'react-native';
 import type { ErrorBoundaryProps } from 'expo-router';
 import { usePlanStore } from '../src/store/usePlanStore';
 import { useTaskNotifications } from '../src/lib/notifications';
-import { LaunchScreen } from '../src/components/LaunchScreen';
-import { useTheme } from '../src/theme/useTheme';
 import { useDeviceLocaleSync, translate, type TKey } from '../src/i18n';
+import { LaunchScreen } from '../src/components/LaunchScreen';
+import { ChromeProvider } from '../src/components/Chrome';
+import { useTheme, useAppearanceSync } from '../src/theme/useTheme';
 import { motion, palette, radius, space } from '../src/theme/tokens';
 
+/**
+ * Expo Router renders this instead of the red box when a route throws.
+ *
+ * Deliberately styled with system fonts and literal palette values rather than
+ * the `Txt`/`useTheme` components: if the thing that failed IS the font load or
+ * the theme, a boundary built on them fails with it.
+ */
 /**
  * The boundary's own copy, translated but never trusting the translator.
  *
@@ -38,14 +46,6 @@ function fallbackSafe(key: TKey, english: string): string {
   }
 }
 
-/**
- * Expo Router renders this instead of the red box when a route throws.
- *
- * Deliberately styled with system fonts and literal palette values rather than
- * the `Txt`/`useTheme` components: if the thing that failed IS the font load or
- * the theme, a boundary built on them fails with it. `fallbackSafe` above
- * extends that same rule to the strings.
- */
 export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
   const dark = useColorScheme() === 'dark';
   const c = dark ? palette.dark : palette.light;
@@ -89,6 +89,25 @@ export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
   );
 }
 
+/**
+ * The PLATFORM push, with the two options that make it feel fluid rather than
+ * merely correct. Shared by every pushed detail screen so they cannot drift.
+ *
+ * `animation` stays 'default' on iOS on purpose: the native push already is a
+ * spring-backed, interruptible, gesture-tracking transition, and every JS
+ * reimplementation trades that away for control nobody asked for. On Android
+ * 'default' is a fade-through with no spatial relationship at all, so it gets
+ * the iOS-style push that react-native-screens ships for exactly this.
+ */
+const PUSH = {
+  headerShown: false,
+  animation: process.env.EXPO_OS === 'ios' ? 'default' : 'ios_from_right',
+  /** Back-swipe from ANYWHERE, not just the left 20pt. */
+  fullScreenGestureEnabled: true,
+  /** Makes the dismissal track the finger rather than playing a canned exit. */
+  animationMatchesGesture: true,
+} as const;
+
 SplashScreen.preventAutoHideAsync();
 // `duration` is shared with `LaunchScreen`, which must hold perfectly still for
 // exactly this long while the native splash fades off the top of it.
@@ -109,6 +128,11 @@ export default function RootLayout() {
   const onboarded = usePlanStore((s) => s.onboarded);
   const { c } = useTheme();
 
+  // Pushes the stored light/dark preference down to the platform, so
+  // ActionSheetIOS, Alert, Switch and the keyboard agree with the palette.
+  // Mounted once, here, for the reason given on the hook.
+  useAppearanceSync();
+
   // Above the router rather than inside a tab, so the schedule tracks the plan
   // from whichever screen edits it, and so importing the module — which is what
   // registers the foreground notification handler — happens on the first frame.
@@ -126,8 +150,29 @@ export default function RootLayout() {
    * Unmounting it is what hands the app over — there is no other state to keep,
    * which is why a boolean is the whole mechanism.
    */
-  const [launching, setLaunching] = useState(true);
-  const finishLaunch = useCallback(() => setLaunching(false), []);
+  const [launched, setLaunched] = useState(false);
+  const finishLaunch = useCallback(() => setLaunched(true), []);
+
+  /**
+   * ── THE FONT GATE USED TO BE IN FRONT OF EVERYTHING ────────────────────────
+   * This component used to `return null` until `useFonts` resolved. That reads
+   * as correct and it silently put the font load in FRONT of the whole launch:
+   * returning null means the root never lays out, `onReady` never fires,
+   * `hideAsync()` is never called, and the NATIVE splash stays up. So the time
+   * to Pip's first movement was the font load plus the handoff, and the fonts
+   * were being waited on by a mascot that does not use them.
+   *
+   * Now the overlay paints immediately and the fonts are waited on UNDERNEATH
+   * it, in parallel with the animation — which is dead time that was already
+   * being spent. The two things that gate on fonts are the only two that
+   * actually need them: the router below, and the wordmark inside the overlay.
+   *
+   * The overlay therefore comes down when BOTH are true — its animation has
+   * finished AND there is something behind it to reveal. Without the second
+   * condition a cold start on a slow device could open the iris onto an empty
+   * canvas, which is the one failure worse than the wait it was removing.
+   */
+  const launching = !launched || !fontsLoaded;
 
   /**
    * The native splash is hidden from `onLayout`, NOT from an effect.
@@ -157,12 +202,12 @@ export default function RootLayout() {
     });
   }, []);
 
-  if (!fontsLoaded) return null;
-
   return (
     <GestureHandlerRootView onLayout={onReady} style={{ flex: 1, backgroundColor: c.canvas }}>
       <KeyboardProvider>
         <SafeAreaProvider>
+        <ChromeProvider>
+          {!fontsLoaded ? null : (
           <Stack
             screenOptions={{
               headerShown: false,
@@ -213,15 +258,6 @@ export default function RootLayout() {
                 }}
               />
               <Stack.Screen
-                name="language"
-                options={{
-                  headerShown: false,
-                  animation: process.env.EXPO_OS === 'ios' ? 'default' : 'ios_from_right',
-                  fullScreenGestureEnabled: true,
-                  animationMatchesGesture: true,
-                }}
-              />
-              <Stack.Screen
                 name="add"
                 options={{
                   presentation: 'formSheet',
@@ -233,13 +269,25 @@ export default function RootLayout() {
                   contentStyle: { backgroundColor: c.surface },
                 }}
               />
+
+              {/* Settings detail screens. They PUSH rather than present: each
+                  one is a place inside Me, not a task interrupting it, and a
+                  push is what gives them the back-swipe and the spatial
+                  relationship that says "you are deeper in the same thing".
+                  Same two options as the task detail, for the same reasons. */}
+              <Stack.Screen name="language" options={PUSH} />
+              <Stack.Screen name="routines" options={PUSH} />
+              <Stack.Screen name="settings/appearance" options={PUSH} />
+              <Stack.Screen name="settings/reminders" options={PUSH} />
             </Stack.Protected>
           </Stack>
+          )}
 
           {/* Above the router, so the app is genuinely mounted and laid out
               behind it — the iris reveals the real Today screen rather than a
               placeholder that then has to be swapped. */}
-          {launching ? <LaunchScreen onFinish={finishLaunch} /> : null}
+          {launching ? <LaunchScreen onFinish={finishLaunch} fontsReady={fontsLoaded} /> : null}
+        </ChromeProvider>
         </SafeAreaProvider>
       </KeyboardProvider>
     </GestureHandlerRootView>
