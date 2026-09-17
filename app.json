@@ -1,15 +1,15 @@
 {
   "expo": {
-    "name": "Oneplan",
-    "slug": "oneplan",
+    "name": "Pupu",
+    "slug": "pupu",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "scheme": "oneplan",
+    "scheme": "pupu",
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.oneplan.app",
+      "bundleIdentifier": "com.pupu.app",
       "infoPlist": {
         "_comment": "YES lets iOS derive the status bar style from the view controller's trait collection, so it follows light/dark with no JS. It is incompatible with expo-status-bar's imperative API, which is therefore not used.",
         "UIViewControllerBasedStatusBarAppearance": true
@@ -19,7 +19,7 @@
       }
     },
     "android": {
-      "package": "com.oneplan.app",
+      "package": "com.pupu.app",
       "adaptiveIcon": {
         "backgroundColor": "#F4F1ED",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -34,7 +34,7 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/splash-pip.png",
+          "image": "./assets/splash-pupu.png",
           "imageWidth": 140,
           "resizeMode": "contain",
           "backgroundColor": "#F4F1ED",
@@ -46,7 +46,7 @@
       [
         "expo-localization",
         {
-          "_comment": "Declares the app's own localizations. On iOS this writes CFBundleLocalizations, which is what makes iOS treat the app as Vietnamese-capable and list it under Settings > Oneplan > Language; on Android it writes the locales_config used by per-app language settings. Without it the OS has no way to know this app speaks anything but English.",
+          "_comment": "Declares the app's own localizations. On iOS this writes CFBundleLocalizations, which is what makes iOS treat the app as Vietnamese-capable and list it under Settings > Pupu > Language; on Android it writes the locales_config used by per-app language settings. Without it the OS has no way to know this app speaks anything but English.",
           "supportedLocales": {
             "ios": ["en", "vi"],
             "android": ["en", "vi"]

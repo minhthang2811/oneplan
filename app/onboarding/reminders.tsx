@@ -4,7 +4,7 @@ import { Pressable } from 'react-native';
 import { OnboardingScaffold } from '../../src/components/OnboardingScaffold';
 import { Txt } from '../../src/components/Txt';
 import { EmojiAvatar } from '../../src/components/EmojiAvatar';
-import { PipScene } from '../../src/components/mascot/PipScene';
+import { PupuScene } from '../../src/components/mascot/PupuScene';
 import { useTheme } from '../../src/theme/useTheme';
 import { radius, space } from '../../src/theme/tokens';
 import { haptic } from '../../src/lib/haptics';
@@ -81,10 +81,10 @@ export default function Reminders() {
         /* The notification marks are part of the artwork, so there is no
            separate pulsing overlay to add — drawing our own beside them would
            simply give the dog two sets of the same symbol. With nothing else
-           moving here, Pip gets his ordinary slow breath rather than being held
+           moving here, Pupu gets his ordinary slow breath rather than being held
            unnaturally still. */
         <View style={{ alignItems: 'center', paddingBottom: space.xs }}>
-          <PipScene pose="phone" size={168} />
+          <PupuScene pose="phone" size={168} />
         </View>
       }
       footer={

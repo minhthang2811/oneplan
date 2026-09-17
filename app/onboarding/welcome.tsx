@@ -5,7 +5,7 @@ import { router } from 'expo-router';
 import { Txt } from '../../src/components/Txt';
 import { Button } from '../../src/components/Button';
 import { Bloom } from '../../src/components/Bloom';
-import { PipScene } from '../../src/components/mascot/PipScene';
+import { PupuScene } from '../../src/components/mascot/PupuScene';
 import { useTheme } from '../../src/theme/useTheme';
 import { space } from '../../src/theme/tokens';
 import { useT } from '../../src/i18n';
@@ -20,7 +20,7 @@ export default function Welcome() {
   return (
     <View style={{ flex: 1, backgroundColor: c.canvas, paddingHorizontal: space.lg }}>
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: space.huge }}>
-        {/* Pip stands IN FRONT of the brand mark rather than replacing it. The
+        {/* Pupu stands IN FRONT of the brand mark rather than replacing it. The
             Bloom is built from the same tint palette the tasks use, so keeping
             it behind him says the character and the data belong to one system —
             and it drops to a backdrop opacity so it reads as the ground he is
@@ -38,14 +38,14 @@ export default function Welcome() {
               <Bloom scale={1.06} />
             </View>
           </Animated.View>
-          <PipScene pose="sit" size={208} delay={140} idle="breathe" />
+          <PupuScene pose="sit" size={208} delay={140} idle="breathe" />
         </View>
 
         <Animated.View
           entering={reduced ? undefined : FadeInDown.delay(160).duration(420).springify().damping(18)}
           style={{ alignItems: 'center', gap: space.md }}
         >
-          <Txt variant="displayLg" style={{ fontSize: 44, lineHeight: 50 }}>Oneplan</Txt>
+          <Txt variant="displayLg" style={{ fontSize: 44, lineHeight: 50 }}>Pupu</Txt>
           <Txt variant="body" tone="muted" style={{ textAlign: 'center', maxWidth: 280 }}>
             {t('onboarding.welcomeBody')}
           </Txt>

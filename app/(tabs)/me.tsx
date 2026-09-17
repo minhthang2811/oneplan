@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Txt } from '../../src/components/Txt';
 import { Bloom } from '../../src/components/Bloom';
-import { PipScene } from '../../src/components/mascot/PipScene';
+import { PupuScene } from '../../src/components/mascot/PupuScene';
 import { TAB_BAR_HEIGHT } from '../../src/components/TabBar';
 import { Section, RowItem } from '../../src/components/Settings';
 import { ScrollEdge } from '../../src/components/ScrollEdge';
@@ -148,7 +148,7 @@ export default function Me() {
             <View style={{ position: 'absolute', opacity: 0.5 }}>
               <Bloom scale={0.62} />
             </View>
-            <PipScene pose="sit" size={124} idle="breathe" />
+            <PupuScene pose="sit" size={124} idle="breathe" />
           </View>
           <Txt variant="displayLg">{t('me.title')}</Txt>
           {needText ? (

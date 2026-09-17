@@ -194,7 +194,7 @@ export default function RootLayout() {
    * as correct and it silently put the font load in FRONT of the whole launch:
    * returning null means the root never lays out, `onReady` never fires,
    * `hideAsync()` is never called, and the NATIVE splash stays up. So the time
-   * to Pip's first movement was the font load plus the handoff, and the fonts
+   * to Pupu's first movement was the font load plus the handoff, and the fonts
    * were being waited on by a mascot that does not use them.
    *
    * Now the overlay paints immediately and the fonts are waited on UNDERNEATH

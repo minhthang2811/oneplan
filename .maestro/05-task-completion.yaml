@@ -40,7 +40,7 @@
 # path from completion — it retracts the stroke, deflates the fill, and
 # deliberately fires no celebration — so "it went back" is a real assertion and
 # not a formality.
-appId: com.oneplan.app
+appId: com.pupu.app
 name: Task completion — check, and take it back
 ---
 # Clear state so the seeded starter day is present and nothing is already
@@ -50,7 +50,7 @@ name: Task completion — check, and take it back
 
 # Onboarding stands between a cleared app and the day. Walk it with the
 # defaults — this flow is not testing onboarding, `01-onboarding.yaml` is.
-- assertVisible: "Oneplan"
+- assertVisible: "Pupu"
 - tapOn: "Get started"
 - tapOn: "Organise my day and time"
 - tapOn: "Continue.*"

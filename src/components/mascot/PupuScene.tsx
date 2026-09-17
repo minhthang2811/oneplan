@@ -5,16 +5,16 @@ import Animated, {
   useSharedValue, useAnimatedStyle, withRepeat, withSequence, withTiming,
   withSpring, withDelay, cancelAnimation, useReducedMotion, Easing,
 } from 'react-native-reanimated';
-import { Pip, type PipImage } from './Pip';
+import { Pupu, type PupuImage } from './Pupu';
 import { Txt } from '../Txt';
 import { EASE } from '../Press';
 import { useTheme } from '../../theme/useTheme';
 import { radius, space, TINTS, motion } from '../../theme/tokens';
 
 /**
- * Pip, moving.
+ * Pupu, moving.
  *
- * The art in `Pip.tsx` is deliberately inert. Everything here is a `transform`
+ * The art in `Pupu.tsx` is deliberately inert. Everything here is a `transform`
  * or an `opacity` on a wrapping view, which the animate-expo gate calls free:
  * no layout pass, nothing crossing to the RN runtime once it has started.
  *
@@ -25,7 +25,7 @@ import { radius, space, TINTS, motion } from '../../theme/tokens';
  * because a celebration is carried by the character's face and paws and no
  * amount of squash-and-stretch on a calm sitting dog supplies either.
  *
- * WHERE PIP IS ALLOWED TO MOVE is decided by DESIGN.md's frequency gate, not by
+ * WHERE PUPU IS ALLOWED TO MOVE is decided by DESIGN.md's frequency gate, not by
  * where he would be cute:
  *
  *   Rare / first-run      welcome, ready, focus-complete   full delight budget
@@ -34,7 +34,7 @@ import { radius, space, TINTS, motion } from '../../theme/tokens';
  *
  * That last row is the important one. A mascot on a FlashList row would replay
  * its entrance on every recycle, and a mascot in chrome is a thing you are made
- * to watch dozens of times a day until you resent it. Pip appears where the app
+ * to watch dozens of times a day until you resent it. Pupu appears where the app
  * is otherwise empty or finished — the two moments that can afford him.
  *
  * He is also absent from the Focus screen while a timer runs. That screen's only
@@ -46,9 +46,9 @@ import { radius, space, TINTS, motion } from '../../theme/tokens';
 /**
  * A pose is an INTENT. It picks one of the two images and a way of moving.
  */
-export type PipPose = 'sit' | 'phone' | 'cheer' | 'rest';
+export type PupuPose = 'sit' | 'phone' | 'cheer' | 'rest';
 
-const POSE_IMAGE: Record<PipPose, PipImage> = {
+const POSE_IMAGE: Record<PupuPose, PupuImage> = {
   sit: 'sit',
   phone: 'phone',
   cheer: 'cheer',
@@ -61,19 +61,19 @@ const POSE_IMAGE: Record<PipPose, PipImage> = {
 type Idle =
   /** A slow breath. The empty-state default. */
   | 'breathe'
-  /** A gentle float, for a Pip that is not sitting on anything. */
+  /** A gentle float, for a Pupu that is not sitting on anything. */
   | 'bob'
   /** Perfectly still. */
   | 'none';
 
-export function PipScene({
+export function PupuScene({
   pose = 'sit',
   size = 180,
   idle = 'breathe',
-  /** Delay before the entrance, to stagger Pip against the copy beside him. */
+  /** Delay before the entrance, to stagger Pupu against the copy beside him. */
   delay = 0,
 }: {
-  pose?: PipPose;
+  pose?: PupuPose;
   size?: number;
   idle?: Idle;
   delay?: number;
@@ -91,23 +91,23 @@ export function PipScene({
       // Reduce Motion collapses spatial motion to a CROSS-FADE rather than to
       // nothing — the app-wide rule in DESIGN.md. `enter` still runs 0 to 1, but
       // the style below spends it entirely on opacity and drops the travel and
-      // the scale, so Pip fades up in place instead of popping into existence.
+      // the scale, so Pupu fades up in place instead of popping into existence.
       enter.set(withDelay(delay, withTiming(1, { duration: motion.enter })));
       return;
     }
-    // A spring, because Pip should land rather than stop. `dampingRatio` 0.68
+    // A spring, because Pupu should land rather than stop. `dampingRatio` 0.68
     // gives one visible overshoot — the bounce is the character, and this is
     // the rare tier where that is affordable.
     enter.set(withDelay(delay, withSpring(1, { duration: 620, dampingRatio: 0.68 })));
   }, [reduced, delay, enter]);
 
   /**
-   * Whether this Pip is on the screen you are actually looking at.
+   * Whether this Pupu is on the screen you are actually looking at.
    *
    * Expo Router keeps tab screens MOUNTED when you switch away — that is what
    * makes re-tapping a tab return you to where you were. The cost is that a
    * `withRepeat(-1)` loop started on Today keeps running on the UI thread while
-   * you are on To-do, and with Pip on both Today and Me that is two forever
+   * you are on To-do, and with Pupu on both Today and Me that is two forever
    * loops burning frames for something nobody can see.
    *
    * `Halo` already solves this with its `active` prop; this is the same idea,
@@ -182,7 +182,7 @@ export function PipScene({
     <Animated.View
       style={anim}
       /*
-       * Pip is DECORATIVE, and that is a decision rather than an oversight.
+       * Pupu is DECORATIVE, and that is a decision rather than an oversight.
        *
        * Every screen he appears on already states its meaning in text beside
        * him — "Nothing here yet", "Time is up. That counted.", the speech
@@ -191,7 +191,7 @@ export function PipScene({
        * that it is either meaningful and labelled, or decorative and hidden;
        * what it must never be is unlabelled and focusable.
        *
-       * `Pip` sets the same flags on the Image itself. Belt-and-braces on
+       * `Pupu` sets the same flags on the Image itself. Belt-and-braces on
        * purpose: it stops the correct behaviour from depending on how one
        * particular element happens to be exposed.
        */
@@ -199,7 +199,7 @@ export function PipScene({
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
     >
-      <Pip size={size} image={POSE_IMAGE[pose]} />
+      <Pupu size={size} image={POSE_IMAGE[pose]} />
     </Animated.View>
   );
 }
@@ -207,7 +207,7 @@ export function PipScene({
 /* ------------------------------------------------------------- accessories */
 
 /**
- * Pip's speech bubble.
+ * Pupu's speech bubble.
  *
  * Taken from Finch rather than from Duolingo: for a planner aimed at people who
  * struggle to start, a character who SAYS something reassuring lands differently
@@ -215,13 +215,13 @@ export function PipScene({
  * it is set in the UI sans at caption weight — putting it in the display serif
  * would make it the screen's headline, and a screen gets one of those.
  */
-export function PipBubble({ text, delay = 0 }: { text: string; delay?: number }) {
+export function PupuBubble({ text, delay = 0 }: { text: string; delay?: number }) {
   const { c, shadow } = useTheme();
   const reduced = useReducedMotion();
   const v = useSharedValue(0);
 
   useEffect(() => {
-    // Same cross-fade rule as PipScene: under Reduce Motion the bubble fades in
+    // Same cross-fade rule as PupuScene: under Reduce Motion the bubble fades in
     // where it stands rather than rising and scaling into place.
     if (reduced) { v.set(withDelay(delay, withTiming(1, { duration: motion.enter }))); return; }
     v.set(withDelay(delay, withSpring(1, { duration: 460, dampingRatio: 0.7 })));

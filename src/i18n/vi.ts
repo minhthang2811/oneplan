@@ -128,9 +128,8 @@ export const vi: Dict = {
     title: 'Tập trung',
     alarmTitle: 'Hết giờ rồi',
     alarmBody: 'Phiên tập trung của bạn đã kết thúc.',
+    setLength: 'Đặt độ dài',
     pickLength: 'Chọn khoảng thời gian bạn muốn biến mất',
-    range: '{from} → {to}',
-    endsAtLong: 'Kết thúc lúc {to}',
     endsAt: 'Kết thúc lúc {time}',
     minutes: { one: 'PHÚT', other: 'PHÚT' },
     dialLabel: 'Độ dài phiên tập trung',
@@ -179,10 +178,10 @@ export const vi: Dict = {
     yourData: 'Dữ liệu của bạn',
     onThisDevice: 'Trên máy này',
     runOnboarding: 'Chạy lại phần giới thiệu',
-    version: 'Oneplan 1.0',
+    version: 'Pupu 1.0',
     notifOffTitle: 'Thông báo đang tắt',
     notifOffBody:
-      'Cho phép Oneplan gửi thông báo trong Cài đặt để được nhắc khi một hoạt động bắt đầu.',
+      'Cho phép Pupu gửi thông báo trong Cài đặt để được nhắc khi một hoạt động bắt đầu.',
     startOverTitle: 'Chạy lại phần giới thiệu?',
     startOverBody: 'Hoạt động, giao diện và cài đặt nhắc nhở của bạn vẫn được giữ.',
     startOver: 'Bắt đầu lại',
@@ -194,7 +193,7 @@ export const vi: Dict = {
     system: 'Hệ thống',
     systemSub: 'Theo ngôn ngữ điện thoại',
     footnote:
-      'Oneplan mở bằng ngôn ngữ của điện thoại khi có thể. Chọn một ngôn ngữ ở đây để thay thế.',
+      'Pupu mở bằng ngôn ngữ của điện thoại khi có thể. Chọn một ngôn ngữ ở đây để thay thế.',
   },
 
   routines: {
@@ -235,7 +234,7 @@ export const vi: Dict = {
   appearance: {
     title: 'Giao diện',
     subtitle:
-      'Oneplan theo thiết bị của bạn mặc định. Chọn một bên nếu bạn không muốn nó tự đổi.',
+      'Pupu theo thiết bị của bạn mặc định. Chọn một bên nếu bạn không muốn nó tự đổi.',
     theme: 'Chủ đề',
     system: 'Hệ thống',
     systemHint: 'Theo thiết bị của bạn',
@@ -272,7 +271,7 @@ export const vi: Dict = {
     preview: 'Bạn sẽ thấy gì',
     previewA11y: 'Thông báo mẫu. {title}. {body}',
     switchedOffBody:
-      'Thông báo cho Oneplan đã bị tắt trong Cài đặt iOS, nên ứng dụng ngừng hứa những lời nhắc mà nó không gửi được. Cho phép lại để bật tính năng này.',
+      'Thông báo cho Pupu đã bị tắt trong Cài đặt iOS, nên ứng dụng ngừng hứa những lời nhắc mà nó không gửi được. Cho phép lại để bật tính năng này.',
     privacyNote:
       'Nhắc nhở được lên lịch trên máy này. Không có gì về kế hoạch của bạn được gửi đi đâu cả.',
   },
@@ -384,10 +383,10 @@ export const vi: Dict = {
 
     remindersTitle: 'Một lời nhắc ngay\ntrước khi bạn bắt đầu',
     remindersSubtitle:
-      'Oneplan có thể báo cho bạn vài phút trước một hoạt động, để kế hoạch nhớ thay cho bạn.',
+      'Pupu có thể báo cho bạn vài phút trước một hoạt động, để kế hoạch nhớ thay cho bạn.',
     remindersCta: 'Bật nhắc nhở',
     remindersSkip: 'Không phải bây giờ',
-    remindersBrand: 'ONEPLAN',
+    remindersBrand: 'PUPU',
     remindersPreview1Title: 'Thói quen buổi sáng',
     remindersPreview1Title2: 'Ăn trưa',
     remindersPreview2Title: 'Ăn trưa',

@@ -1,9 +1,12 @@
-# Oneplan
+# Pupu
 
-Oneplan is a visual day planner built with Expo Router. It organizes a day into
+Pupu is a visual day planner built with Expo Router. It organizes a day into
 loose time-of-day buckets (Anytime / Morning / Afternoon / Evening) instead of
 a rigid timetable, and pairs that with a Focus mode built around a countdown
-ring — so a day gets a shape without forcing a schedule.
+ring — so a day gets a shape without forcing a schedule. Focus is split into a
+calm **stage** (the aura, the ring, the number) and a grounded **tray** that
+holds every control at thumb height; see
+[DESIGN.md](./DESIGN.md#focus-the-stage-and-the-tray).
 
 It opens on an animated launch screen that hands over from the native splash
 without a visible seam, navigates from a floating **gel** tab bar whose selection
@@ -89,7 +92,7 @@ src/
     Checkbox.tsx        Completion: squish, fill, self-drawing tick, pop ring
     Strike.tsx          A strikethrough drawn per laid-out text line
     Rise.tsx            Staggered arrival for a pushed screen's own content
-    mascot/             Pip — the mascot image (Pip) and his motion (PipScene)
+    mascot/             The mascot's artwork (Pupu) and his motion (PupuScene)
     FocusAura.tsx       The drifting field of light behind Focus, built from
                         the focused activity's own tint
   data/seed.ts           Sample/seed data
@@ -101,8 +104,8 @@ src/
   store/                 Zustand store, MMKV-backed storage, and types
   theme/                 Design tokens and the light/dark theme hook
 assets/                 App icons and splash images
-  splash-pip.png        The native splash logo. MUST stay a render of
-                        mascot/pip-sit.webp at the same size, or the handoff
+  splash-pupu.png        The native splash logo. MUST stay a render of
+                        mascot/pupu-sit.webp at the same size, or the handoff
                         into the animated launch screen has a visible cut.
 app.json                Expo app config (icons, splash, plugins, bundle IDs)
 eas.json                EAS build/submit profiles
@@ -174,8 +177,8 @@ as much the point as the assertions.
 
 | Flow | What it guards |
 |---|---|
-| `01-onboarding` | The five-step first run, and Pip's three first-run moments |
-| `02-empty-day` | The empty state, and Pip at rest |
+| `01-onboarding` | The five-step first run, and Pupu's three first-run moments |
+| `02-empty-day` | The empty state, and Pupu at rest |
 | `03-focus-celebration` | A real one-minute session through to the confetti |
 | `04-tab-transitions` | Every tab pair, in both directions — the blank-tab regression |
 | `05-task-completion` | Completing an activity and taking it back |
@@ -301,14 +304,14 @@ app.json) is still yours to set.
 
 Before the first submission you will need, on the Apple side: a paid Apple
 Developer account, an App Store Connect app record using the bundle identifier
-`com.oneplan.app`, and the usual store listing (screenshots, description,
+`com.pupu.app`, and the usual store listing (screenshots, description,
 support URL, privacy policy URL).
 
 `ITSAppUsesNonExemptEncryption` is already declared `false` in app.json, which
 is what stops App Store Connect holding every build behind the export
 compliance questionnaire. The app ships no cryptography of its own.
 
-For the privacy questionnaire: Oneplan stores everything locally via MMKV,
+For the privacy questionnaire: Pupu stores everything locally via MMKV,
 makes no network requests, and collects nothing — "Data Not Collected".
 
 ## Contributing

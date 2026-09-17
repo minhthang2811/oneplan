@@ -1,5 +1,5 @@
 /**
- * Oneplan design tokens.
+ * Pupu design tokens.
  *
  * COLOR CONTRACT (read before adding a colour):
  *   1. ONE accent — `accent`. It owns every interactive, progress and active
@@ -340,14 +340,14 @@ export const motion = {
 
   /**
    * The launch sequence, in one place because the four beats have to add up:
-   * Pip settles, the ground blooms, both leave, the app is revealed. Changing
+   * Pupu settles, the ground blooms, both leave, the app is revealed. Changing
    * one number here without the others is what turns a launch into a wait.
    *
    * ── THE BUDGET ─────────────────────────────────────────────────────────
    * These four numbers sum to the delay between tapping the icon and being
    * able to use the app, and that sum is the only figure that matters. It was
    * 2020ms, which is long enough that the animation stopped being a flourish
-   * and became a wait — the complaint was that Pip "takes too long to appear",
+   * and became a wait — the complaint was that Pupu "takes too long to appear",
    * and the honest reading of that is not that one beat was slow but that
    * there were 260ms of dead air before anything moved and 2s of performance
    * after it.
@@ -364,7 +364,7 @@ export const motion = {
      * the JS overlay must sit perfectly still before it may move. Both sides
      * read this one number: `SplashScreen.setOptions({ duration })` in the root
      * layout, and the wake's delay in `LaunchScreen`. If they ever disagree you
-     * get a moment with a static Pip and a moving Pip cross-fading through each
+     * get a moment with a static Pupu and a moving Pupu cross-fading through each
      * other, which looks like a double exposure.
      *
      * 140ms is the floor: below about 120 the cross-fade stops reading as a
@@ -372,7 +372,7 @@ export const motion = {
      * number exists to hide.
      */
     handoff: 140,
-    /** Pip's wake-up, starting the instant the native splash has handed over. */
+    /** Pupu's wake-up, starting the instant the native splash has handed over. */
     wake: { duration: 520, dampingRatio: 0.6 } as const,
     /** How long the finished frame is allowed to simply be looked at. */
     hold: 220,

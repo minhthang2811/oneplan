@@ -1,6 +1,6 @@
-# Oneplan — design system
+# Pupu — design system
 
-Oneplan is a visual day planner. The reference class studied before any code was
+Pupu is a visual day planner. The reference class studied before any code was
 written was **Tiimo** (ADHD task & planning assistant, Apple Design Award
 finalist 2024) — roughly 30 real shipping screens across its onboarding, Today,
 To-do, add-activity and Focus flows, pulled from Mobbin.
@@ -10,6 +10,11 @@ now calls out separately — the **launch screen** (Duolingo, Yazio, Pinterest,
 Me+), the **floating gel tab bar** (Apple Photos and Apple News under iOS 26's
 Liquid Glass, plus Calm, Quizlet and CLEAR), and **task completion** (Finch,
 Numo, and Tiimo itself).
+
+A third pass looked at **Focus** on its own, against **Life Reset**'s pomodoro
+screen and the wider timer class (Waking Up, Oura, Toggl Track, CREME, Runna).
+That comparison is what produced the stage-and-tray split described under
+[Focus: the stage and the tray](#focus-the-stage-and-the-tray).
 
 What was taken is the **pattern**, not the pixels.
 
@@ -28,9 +33,10 @@ What was taken is the **pattern**, not the pixels.
 | **Routine picker**: a time-of-day badge, one question, a field of emoji chips | Tiimo's `MORNING` → "Add morning routines to your schedule" | Asks for what someone already does instead of what they intend to do. Recognition, not recall. |
 | **Ticked dial** and a wall-clock **"Ends at"** readout | Tiimo Focus | Minute ticks give the ring a scale; the end time answers the question a countdown does not ("when am I free?"). |
 | **Steps on the focus screen** | Tiimo Focus with a routine | Focusing on a four-step routine should not mean leaving the timer to tick the steps off elsewhere. |
+| **A calm stage over a grounded control tray** | Life Reset's pomodoro, read against Waking Up, Oura and CREME | The class is unanimous: the time is ambient and untouchable, and every control lives in one panel at the bottom. It puts the primary action where the thumb already is and stops the controls drifting as the content above them changes size. |
 | **Mascot dead centre on the launch screen**, wordmark directly beneath | Duolingo, Yazio, Me+ | The whole class converges on this: one character, centred, name under it, on a single flat or barely-graded ground. Anything busier competes with the app it is about to hand over to. |
 | **Brand shapes flung outward as the splash leaves** | Pinterest's splash | The exit is where a launch screen earns its keep; Pinterest scatters its confetti shapes rather than dissolving. Ours are painted from `TINTS`, so the launch is made of the user's own day. |
-| **A filled capsule chip behind the active tab**, glyph tinted, bar translucent | Apple Photos, Apple News, Calm, Quizlet | Unanimous across the benchmark set, including Apple's own iOS 26 bars. It is what Oneplan already had — the second pass confirmed the shape and changed only the *material*. |
+| **A filled capsule chip behind the active tab**, glyph tinted, bar translucent | Apple Photos, Apple News, Calm, Quizlet | Unanimous across the benchmark set, including Apple's own iOS 26 bars. It is what Pupu already had — the second pass confirmed the shape and changed only the *material*. |
 | **Completion is the checkbox, not the screen** | Finch, Numo, Tiimo | Even the apps that throw confetti elsewhere keep the per-item beat local: fill, tick, strike, dim. A full-screen celebration per task is the thing that stops being charming on day two. |
 
 ## Colour contract
@@ -416,12 +422,12 @@ A custom launch animation in React Native is really **two screens pretending to
 be one**: the OS draws the first from `app.json` before any JavaScript exists,
 and `LaunchScreen` draws the second. The only thing that makes the seam
 invisible is that frame one of the JS overlay is pixel-identical to the native
-splash — the same artwork (`assets/splash-pip.png` is a render of the same
-`pip-sit` file the component loads), at the same **140pt** that `imageWidth: 140`
+splash — the same artwork (`assets/splash-pupu.png` is a render of the same
+`pupu-sit` file the component loads), at the same **140pt** that `imageWidth: 140`
 gives it, dead centre, on the same `canvas`.
 
 Get any of those three wrong and the launch has a visible cut in it, which costs
-more than the animation buys. That constraint is also why **Pip starts at rest
+more than the animation buys. That constraint is also why **Pupu starts at rest
 and wakes up** rather than flying in: there is nowhere to fly in from when your
 first frame is already on screen.
 
@@ -429,10 +435,10 @@ The beats:
 
 | Beat | What happens |
 |---|---|
-| **Handoff** (140ms) | Nothing moves. The native splash fades off the top of an identical JS frame. `motion.launch.handoff` is read by both sides — if they ever disagree you get a static Pip and a moving Pip cross-fading through each other. 140ms is the floor: below about 120 the cross-fade stops reading as a dissolve and starts reading as a cut. |
-| **Wake** (520ms) | Pip settles on a loose spring: squash at the feet, rise, overshoot. The wordmark rises beneath him. Eight tinted discs bloom outward from behind him, each on its own angle, painted from `TINTS`. |
+| **Handoff** (140ms) | Nothing moves. The native splash fades off the top of an identical JS frame. `motion.launch.handoff` is read by both sides — if they ever disagree you get a static Pupu and a moving Pupu cross-fading through each other. 140ms is the floor: below about 120 the cross-fade stops reading as a dissolve and starts reading as a cut. |
+| **Wake** (520ms) | Pupu settles on a loose spring: squash at the feet, rise, overshoot. The wordmark rises beneath him. Eight tinted discs bloom outward from behind him, each on its own angle, painted from `TINTS`. |
 | **Hold** (220ms) | One still frame. A launch with no still frame reads as a stutter, because the eye never gets to land on the brand. |
-| **Reveal** (460ms) | An **iris opens from Pip's own centre**, wiping the launch ground away to the app underneath, while Pip scales *up* and fades and the discs are flung further out. |
+| **Reveal** (460ms) | An **iris opens from Pupu's own centre**, wiping the launch ground away to the app underneath, while Pupu scales *up* and fades and the discs are flung further out. |
 
 ### The budget, and the two things that made it feel slow
 
@@ -442,13 +448,13 @@ none is gone: drop the hold and the launch reads as a stutter, drop the handoff
 and you get a double exposure. The sequence is not compressible past the point
 where the eye can land on the brand at all.
 
-Two separate defects sat underneath the complaint that Pip "takes too long to
+Two separate defects sat underneath the complaint that Pupu "takes too long to
 appear", and neither was a slow beat.
 
 **1. The font load was in front of the whole launch.** `RootLayout` returned
 `null` until `useFonts` resolved. That reads as correct and it means the root
 never lays out, `onLayout` never fires, `hideAsync()` is never called, and the
-*native* splash stays up — so the time to Pip's first movement was the font load
+*native* splash stays up — so the time to Pupu's first movement was the font load
 *plus* the handoff, spent waiting on fonts that the mascot does not use. The
 overlay now paints immediately and the fonts are awaited underneath it, in
 parallel with dead time that was already being spent. The only two things gated
@@ -458,7 +464,7 @@ from nowhere). The overlay comes down when **both** its animation has finished
 and there is something behind it to reveal — without that second condition a
 cold start on a slow device opens the iris onto an empty canvas.
 
-**2. Pip was being scaled UP, which is the one direction a rasterised layer must
+**2. Pupu was being scaled UP, which is the one direction a rasterised layer must
 never go.** He was laid out at `PIP_REST` (140) and scaled to 1.26x awake and on
 to ~1.53x on the way out. A transform on a view is a *compositor* operation: the
 layer is rendered once at its layout size and the GPU stretches that finished
@@ -490,7 +496,7 @@ Two decisions inside the reveal:
 - **The launch ground rushes past the camera** (`scale` to 1.14) as the hole
   opens, rather than sitting still while a hole is cut in it. It is the cheapest
   possible depth cue and it is why the reveal reads as moving *into* the app.
-  Pip scales up too, so he reads as passing the viewer — shrinking would say
+  Pupu scales up too, so he reads as passing the viewer — shrinking would say
   "going away", and the app is what is arriving.
 
 The native splash is hidden from **`onLayout`, not from an effect**. An effect
@@ -871,13 +877,13 @@ is what a checkbox you never touched should look like anyway.
 
 Finishing one activity and finishing an entire morning were the same event as far
 as the screen was concerned: the day's shape changed and nothing said so. A
-time-of-day block now gets a **confetti burst and Pip cheering**.
+time-of-day block now gets a **confetti burst and Pupu cheering**.
 
 The frequency gate is the whole argument for letting it be big. A task is
 completed tens of times a day and gets a 500ms flourish on a 26pt control; a
 block completes **at most three times a day**, is genuinely the thing the user
 came here to do, and is rare enough to afford the mascot — the same tier as the
-focus-session finish. It is also what makes the mascot worth having: Pip is
+focus-session finish. It is also what makes the mascot worth having: Pupu is
 absent from every screen you look at repeatedly precisely so the few places he
 does appear still mean something.
 
@@ -934,7 +940,7 @@ SF Symbols for **all** chrome, via a wrapper that renders a sized spacer as a
 fallback so layout never shifts. The single bespoke glyph is the Today tab's
 calendar, because it is data-bearing: it shows the current date.
 
-## Pip
+## Pupu
 
 The mascot. Three supplied illustrations in `assets/mascot/`, rendered by
 `src/components/mascot/`.
@@ -966,10 +972,10 @@ sitting dog differ by how much they move, which is exactly what `idle` controls.
 Faking a pose by flipping or skewing the artwork would read as a bug, not a
 performance — that constraint still stands for everything not drawn.
 
-Where Pip may appear is decided by the same frequency gate as the motion
+Where Pupu may appear is decided by the same frequency gate as the motion
 vocabulary, not by where he would be cute:
 
-| Tier | Screens | Pip |
+| Tier | Screens | Pupu |
 |---|---|---|
 | Rare / first-run | **launch**, welcome, reminders, ready, focus-complete, **a finished time of day** | Full delight budget — entrance spring, celebration, confetti |
 | Occasional | an empty day, Me, an empty Routines screen | Present, breathing slowly. Nothing else |
@@ -993,8 +999,8 @@ day.
 
 Two implementation notes:
 
-1. **Nothing in `Pip.tsx` animates.** All motion is `transform`/`opacity` on
-   wrapping views in `PipScene`, so every moving part stays on the UI thread.
+1. **Nothing in `Pupu.tsx` animates.** All motion is `transform`/`opacity` on
+   wrapping views in `PupuScene`, so every moving part stays on the UI thread.
 2. **The idle loop pauses on navigation blur.** Expo Router keeps tab screens
    mounted, so a `withRepeat(-1)` started on Today would otherwise run forever
    while you are on another tab — the same trap `Halo` avoids with `active`.
@@ -1008,6 +1014,78 @@ Two implementation notes:
 - High-frequency typing surfaces use uncontrolled `TextInput`s.
 - Lists are virtualised with FlashList; no row carries an `entering` animation,
   because recycled rows would replay it.
+
+## Focus: the stage and the tray
+
+Focus used to be a single centred column floating on the canvas — dial, preset
+chips, "ends at" caption, activity pill, Start — and, once a session was
+running, three loose buttons in a row. Every piece was correct on its own and
+the screen still read as a pile: nothing was anchored to anything, so the eye
+had no order to take them in, the controls shifted vertically whenever the
+content above them changed height, and the primary action sat in the middle of
+the screen, which on a phone is the one place a thumb does not rest.
+
+Life Reset's pomodoro screen answers this by cutting the screen in two, and
+every timer in the benchmark set does some version of the same thing. The
+split is now the structure of `app/(tabs)/focus.tsx`:
+
+```
+┌──────────────────────────┐
+│  STAGE                   │   the aura, the ring, the number.
+│       ( the time )       │   Ambient, and the only thing to look at.
+│                          │
+├──────────────────────────┤ ← the tray's top edge is the screen's
+│  TRAY                    │   only hard line
+│  ─────── rail ───────    │
+│  [+1 min]  (▮▮)  [end]   │   every control, at thumb height
+└──────────────────────────┘
+```
+
+- **The screen title sits above both**, outside the state branch. It is the one
+  thing true in every state, and a title inside the scrolling stage would take
+  the app's only "where am I" cue with it.
+- **The stage does not scroll in the picker**, because the dial is a circular
+  drag: every stroke has a vertical component, and inside a `ScrollView` the
+  scroll gesture wins and the dial stops responding. It *does* scroll during a
+  session, where a routine's step list has to fit.
+- **The tray's surface runs to the bottom edge** and the floating gel tab bar
+  sits on it, so its bottom padding is that bar's height plus the home
+  indicator. Its shadow is written out rather than taken from an `elevation`
+  token: every token offsets downward, and on a panel welded to the bottom of
+  the screen all of that falls off it. The only edge a bottom tray has is its
+  top one.
+- **One primary action, full width.** Start, and later "Mark it done", are the
+  only filled pills in the tray. "Not yet" is text. The four presets share one
+  row on `flex: 1`, which turns four pills into a segmented control and stops
+  them reading as four more decisions.
+
+### The rail
+
+The running tray leads with a 4pt track whose ends are **wall-clock times** —
+when the session began, when you are free. It is deliberately thin and
+unlabelled, because the ring above it is already the progress indicator and two
+heroes for one number is one too many.
+
+It also runs the *other way*: the rail **fills** as time is spent while the ring
+**empties**. That is not the same statement drawn twice. The ring is a
+countdown; the rail is a position on a timeline, and a timeline that ran
+backwards underneath labels reading left to right would be the confusing half of
+both.
+
+A **paused** session gets neither end. Pausing clears `startedAt` — which is
+what stops the remaining time decaying — so there is no start to report, and the
+end time is worse than absent: it is computed at the moment the pause begins and
+nothing recomputes it while nothing runs, so a session paused for ten minutes
+would sit there promising a finish it can no longer make. The rail drops both
+and says `PAUSED`, which is the one thing still true.
+
+### At zero, the ring is replaced
+
+A ring exists to show how much is left. At zero it shows nothing and still
+occupies the best part of the screen, so the completed state hands the whole
+stage to the celebration: confetti, Pupu cheering, the message, the activity's
+name. It is also what keeps that state off the scrollbar on a small phone —
+ring, confetti, mascot and message together did not fit above the tray.
 
 ## The focus ground
 

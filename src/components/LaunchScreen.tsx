@@ -6,7 +6,7 @@ import Animated, {
   Extrapolation,
 } from 'react-native-reanimated';
 import Svg, { Circle, Defs, RadialGradient, Stop } from 'react-native-svg';
-import { Pip } from './mascot/Pip';
+import { Pupu } from './mascot/Pupu';
 import { Txt } from './Txt';
 import { EASE } from './Press';
 import { useTheme } from '../theme/useTheme';
@@ -20,22 +20,22 @@ import { motion, TINTS, type TintName } from '../theme/tokens';
  * to be one. The first is drawn by the OS from `app.json` before any JavaScript
  * exists; the second is this component. The only thing that makes the seam
  * invisible is that frame one of this file is pixel-identical to the native
- * splash: the same artwork (`assets/splash-pip.png` is a render of the same
- * `pip-sit` file this renders), at the same `PIP_REST` = 140pt that
+ * splash: the same artwork (`assets/splash-pupu.png` is a render of the same
+ * `pupu-sit` file this renders), at the same `PUPU_REST` = 140pt that
  * `imageWidth: 140` gives it, dead centre, on the same `canvas`.
  *
  * Get any of those three wrong and the launch has a visible cut in it, which
- * costs more than the animation buys. That constraint is why Pip starts at rest
+ * costs more than the animation buys. That constraint is why Pupu starts at rest
  * and *wakes up* rather than flying in from off-screen — there is nowhere to
  * fly in from when your first frame is already on screen.
  *
  * ── THE BEATS ──────────────────────────────────────────────────────────────
- *   1. WAKE      Pip settles on a loose spring — squash, rise, overshoot. The
+ *   1. WAKE      Pupu settles on a loose spring — squash, rise, overshoot. The
  *                wordmark rises under him. The tinted discs bloom outward.
  *   2. HOLD      One still frame. A launch with no still frame reads as a
  *                stutter, because the eye never gets to land on the brand.
- *   3. REVEAL    An iris opens from Pip's own centre, wiping the tinted launch
- *                ground away to the app's plain canvas underneath, while Pip
+ *   3. REVEAL    An iris opens from Pupu's own centre, wiping the tinted launch
+ *                ground away to the app's plain canvas underneath, while Pupu
  *                and the wordmark scale up through the viewer and fade.
  *
  * The reveal is an EXPANDING HOLE, not a fade. A fade puts the app and the
@@ -53,7 +53,7 @@ import { motion, TINTS, type TintName } from '../theme/tokens';
  * placing the path at `r + W/2` makes the painted band run from exactly `r`
  * outward, and the untouched middle IS the hole. Growing `r` opens it.
  *
- * ── WHY PIP IS ALLOWED HERE AT ALL ─────────────────────────────────────────
+ * ── WHY PUPU IS ALLOWED HERE AT ALL ─────────────────────────────────────────
  * DESIGN.md's frequency gate bans the mascot from anything seen tens of times a
  * day. A launch screen is seen on cold start only, and it is the definition of
  * a rare, first-impression moment, so it sits in the same tier as `welcome` and
@@ -61,14 +61,14 @@ import { motion, TINTS, type TintName } from '../theme/tokens';
  */
 
 /** Matches `imageWidth: 140` in the expo-splash-screen plugin config. */
-const PIP_REST = 140;
+const PUPU_REST = 140;
 /** What he grows to once awake. Small enough that the wake reads as a breath. */
-const PIP_AWAKE = 176;
+const PUPU_AWAKE = 176;
 
 /**
  * THE SIZE THE IMAGE IS ACTUALLY LAID OUT AT — and the fix for a soft mascot.
  *
- * Pip used to be laid out at `PIP_REST` and scaled UP from there: to 1.26x when
+ * Pupu used to be laid out at `PUPU_REST` and scaled UP from there: to 1.26x when
  * he woke, and on to about 1.53x as he passed the viewer on the way out. That
  * is the one direction a rasterised layer must never be scaled.
  *
@@ -84,24 +84,24 @@ const PIP_AWAKE = 176;
  *
  * So the image is laid out at the LARGEST size the sequence ever reaches, and
  * every state below is expressed as a scale DOWN from it. Frame one is still
- * pixel-identical to the native splash — `PIP_REST / PIP_MAX` is the scale that
+ * pixel-identical to the native splash — `PUPU_REST / PUPU_MAX` is the scale that
  * puts a 215pt view back at exactly 140pt — and now every frame of the
  * animation is a downsample of a 645px render instead of an upsample of a
  * 420px one.
  *
  * The cost is one larger decode at launch, which is a 768px WebP either way.
  */
-const PIP_MAX = Math.ceil(PIP_AWAKE * 1.22);
-/** The scale that renders `PIP_MAX` at exactly the native splash's size. */
-const REST_SCALE = PIP_REST / PIP_MAX;
-const AWAKE_SCALE = PIP_AWAKE / PIP_MAX;
+const PUPU_MAX = Math.ceil(PUPU_AWAKE * 1.22);
+/** The scale that renders `PUPU_MAX` at exactly the native splash's size. */
+const REST_SCALE = PUPU_REST / PUPU_MAX;
+const AWAKE_SCALE = PUPU_AWAKE / PUPU_MAX;
 
 /**
  * The bloom. Hand-placed rather than random, and painted from `TINTS` — the
  * same six hues that encode a task's identity everywhere else — so the launch
  * is visibly made of the app's own material instead of generic party colour.
  *
- * `a` is the angle Pip flings each disc along, in radians; `d` the distance it
+ * `a` is the angle Pupu flings each disc along, in radians; `d` the distance it
  * travels as a fraction of the layout radius; `t` when it leaves, as a fraction
  * of the wake.
  */
@@ -116,7 +116,7 @@ const DISCS: { tint: TintName; size: number; a: number; d: number; t: number }[]
   { tint: 'mint',   size: 11, a: -2.62, d: 0.82, t: 0.16 },
 ];
 
-/** How far out the discs settle, from Pip's centre. */
+/** How far out the discs settle, from Pupu's centre. */
 const BLOOM_RADIUS = 132;
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
@@ -138,7 +138,7 @@ export function LaunchScreen({
    * It is safe to withhold ONLY the wordmark, because the wordmark is the one
    * element that is not on the native splash — it is already allowed to arrive
    * from nowhere, so arriving a few milliseconds later than planned cannot
-   * open a seam. Pip, who must be pixel-identical on frame one, needs no fonts
+   * open a seam. Pupu, who must be pixel-identical on frame one, needs no fonts
    * at all and is never gated.
    */
   fontsReady?: boolean;
@@ -147,13 +147,13 @@ export function LaunchScreen({
   const reduced = useReducedMotion();
   const { width, height } = useWindowDimensions();
 
-  /** 0 → 1 across beat 1. Drives Pip, the wordmark and the bloom. */
+  /** 0 → 1 across beat 1. Drives Pupu, the wordmark and the bloom. */
   const wake = useSharedValue(0);
   /** 0 → 1 across beat 3. Drives the iris and the exit. */
   const out = useSharedValue(0);
 
   /**
-   * The iris has to clear the FURTHEST CORNER, not the edge. Pip sits at the
+   * The iris has to clear the FURTHEST CORNER, not the edge. Pupu sits at the
    * centre, so that is half the diagonal — and a little over, because a mask
    * edge that stops exactly at the corner leaves a one-pixel arc of launch
    * ground behind on the last frame.
@@ -233,7 +233,7 @@ export function LaunchScreen({
   }, [reduced, wake, out, onFinish]);
 
   /**
-   * PIP.
+   * PUPU.
    *
    * On the way in: squash at the feet, rise, overshoot, settle — the spring's
    * own overshoot does the work, so `wake` can pass 1 and the scale follows it
@@ -244,15 +244,15 @@ export function LaunchScreen({
    * away"; the app is what is arriving, and he should get out of its way
    * towards us.
    */
-  const pipStyle = useAnimatedStyle(() => {
+  const pupuStyle = useAnimatedStyle(() => {
     const w = wake.get();
     const o = out.get();
 
     if (reduced) return { opacity: (1 - o) * w + (1 - w) * 1, transform: [] };
 
     /**
-     * Every value here is a fraction of `PIP_MAX`, so the transform only ever
-     * scales DOWN — see the note on `PIP_MAX`. The spring is still allowed to
+     * Every value here is a fraction of `PUPU_MAX`, so the transform only ever
+     * scales DOWN — see the note on `PUPU_MAX`. The spring is still allowed to
      * overshoot past `w = 1`, which is what carries him a touch beyond
      * `AWAKE_SCALE` before settling; the ceiling the layout was sized against
      * already includes the exit's 1.22x, so even the overshoot at the very end
@@ -276,7 +276,7 @@ export function LaunchScreen({
   });
 
   /**
-   * The wordmark. It is NOT on the native splash — the native side is Pip
+   * The wordmark. It is NOT on the native splash — the native side is Pupu
    * alone — so this is the one element that may legitimately arrive from
    * nowhere, and it is what tells you the animation has begun.
    */
@@ -383,15 +383,15 @@ export function LaunchScreen({
         </Svg>
       </Animated.View>
 
-      {/* 2. THE BLOOM, behind Pip. */}
+      {/* 2. THE BLOOM, behind Pupu. */}
       <View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }]}>
         {DISCS.map((d, i) => (
           <Disc key={`${d.tint}-${i}`} disc={d} wake={wake} out={out} reduced={reduced} />
         ))}
       </View>
 
-      {/* 3. PIP AND THE WORDMARK, above everything. The wordmark is positioned
-             absolutely below centre so that adding it does not shift Pip off
+      {/* 3. PUPU AND THE WORDMARK, above everything. The wordmark is positioned
+             absolutely below centre so that adding it does not shift Pupu off
              the exact centre the native splash put him on. */}
       <View
         style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }]}
@@ -400,20 +400,20 @@ export function LaunchScreen({
         importantForAccessibility="no-hide-descendants"
       >
         {/* Laid out at the sequence's LARGEST size and scaled down to reach
-            every state, so no frame is ever an upsample. See `PIP_MAX`. */}
-        <Animated.View style={pipStyle}>
-          <Pip size={PIP_MAX} image="sit" />
+            every state, so no frame is ever an upsample. See `PUPU_MAX`. */}
+        <Animated.View style={pupuStyle}>
+          <Pupu size={PUPU_MAX} image="sit" />
         </Animated.View>
 
         {fontsReady ? (
           <Animated.View
             style={[
-              { position: 'absolute', top: '50%', marginTop: PIP_AWAKE / 2 + 4, alignItems: 'center' },
+              { position: 'absolute', top: '50%', marginTop: PUPU_AWAKE / 2 + 4, alignItems: 'center' },
               markStyle,
             ]}
           >
             <Txt variant="displayMd" allowFontScaling={false} style={{ letterSpacing: 0.2 }}>
-              Oneplan
+              Pupu
             </Txt>
           </Animated.View>
         ) : null}
@@ -425,7 +425,7 @@ export function LaunchScreen({
 /**
  * One disc of the bloom.
  *
- * Each starts at Pip's centre at zero size and is flung out along its own angle
+ * Each starts at Pupu's centre at zero size and is flung out along its own angle
  * — so the bloom reads as coming OUT of him, which is the only reason a mascot
  * and an abstract brand mark can share a screen without competing.
  */

@@ -21,7 +21,7 @@
 # `routinesBuiltFor`, and the honest place to exercise that is a unit test over
 # the store. What is asserted here is the half that actually regressed twice:
 # the routine existing at all, and existing once.
-appId: com.oneplan.app
+appId: com.pupu.app
 name: Routines — survive a relaunch, exactly once
 ---
 - launchApp:
@@ -30,7 +30,7 @@ name: Routines — survive a relaunch, exactly once
 # Walk onboarding and actually PICK two morning steps, unlike the other flows
 # which continue straight past this screen. A routine with nothing in it builds
 # no activity, so picking is the whole setup.
-- assertVisible: "Oneplan"
+- assertVisible: "Pupu"
 - tapOn: "Get started"
 - tapOn: "Organise my day and time"
 - tapOn: "Continue.*"

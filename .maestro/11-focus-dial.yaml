@@ -17,13 +17,13 @@
 # siblings, each carrying `accessibilityState={{ selected }}`, and `selected:`
 # is the one state flag RN maps to a real UIKit trait that Maestro can read.
 # `checked:` would not have worked; see the README.
-appId: com.oneplan.app
+appId: com.pupu.app
 name: Focus dial — follows the activity it was opened for
 ---
 - launchApp:
     clearState: true
 
-- assertVisible: "Oneplan"
+- assertVisible: "Pupu"
 - tapOn: "Get started"
 - tapOn: "Organise my day and time"
 - tapOn: "Continue.*"

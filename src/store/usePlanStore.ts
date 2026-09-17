@@ -760,7 +760,7 @@ export const usePlanStore = create<PlanState>()(
       },
     }),
     {
-      name: 'oneplan-v1',
+      name: 'pupu-v1',
       storage: createJSONStorage(() => mmkvStorage),
       /**
        * v2 shrank the tint palette from eight hues to six, because the eight
