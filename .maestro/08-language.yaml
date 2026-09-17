@@ -21,7 +21,11 @@ name: Language — switch to Vietnamese and back
 # The row shows the MODE while following the phone, not the resolved language —
 # that distinction is the reason the System row exists at all.
 - tapOn: "Language"
-- assertVisible: "System"
+# `.*` BECAUSE A `ChoiceRow` FOLDS ITS HINT INTO ITS LABEL. The System row
+# exposes "System. Follows your device · English" as one accessibility element,
+# and a Maestro selector is a FULL-string regex — so the bare word never matched
+# once that row gained its hint.
+- assertVisible: "System.*"
 # Endonyms, never translated names. This is the promise the screen makes to
 # someone who cannot read the language they have landed in.
 - assertVisible: "English"
@@ -50,7 +54,7 @@ name: Language — switch to Vietnamese and back
 # Back to following the phone, so the rest of the suite sees English again.
 - tapOn: "Tôi"
 - tapOn: "Ngôn ngữ"
-- tapOn: "Hệ thống"
+- tapOn: "Hệ thống.*"
 - assertVisible: "Language"
 - tapOn: "Back"
 - assertVisible: "Run onboarding again"

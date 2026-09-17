@@ -1,0 +1,74 @@
+# THE DIAL HAS TO FOLLOW THE ACTIVITY IT WAS OPENED FOR.
+#
+# `DialPicker` seeds itself from `task.minutes` inside `useSharedValue` and
+# `useState` initialisers, and those run once, on mount. A tab screen never
+# unmounts here — `detachInactiveScreens` is deliberately off, because the fade
+# transition breaks without it — so the picker mounted on the first visit to
+# Focus and kept its first value for the life of the process. Open Focus cold
+# (15 minutes), then tap Focus on a 45-minute activity, and the dial still read
+# 15 while the chip below it named the 45-minute activity: two halves of one
+# screen disagreeing about what Start was about to do.
+#
+# THE WITNESS IS A PRESET CHIP'S `selected` STATE, and that is a deliberate
+# choice rather than a convenience. The dial's own numeral is inside a view with
+# `accessibilityRole="adjustable"` and a label, which iOS collapses into a
+# single element — the same trap `05-task-completion.yaml` documents for the
+# checkbox — so the number is not in the hierarchy at all. The preset chips are
+# siblings, each carrying `accessibilityState={{ selected }}`, and `selected:`
+# is the one state flag RN maps to a real UIKit trait that Maestro can read.
+# `checked:` would not have worked; see the README.
+appId: com.oneplan.app
+name: Focus dial — follows the activity it was opened for
+---
+- launchApp:
+    clearState: true
+
+- assertVisible: "Oneplan"
+- tapOn: "Get started"
+- tapOn: "Organise my day and time"
+- tapOn: "Continue.*"
+- tapOn: "Loose — morning, afternoon, evening"
+- tapOn: "Continue.*"
+- tapOn: "Continue.*"
+- tapOn: "Continue.*"
+- tapOn: "Continue.*"
+- tapOn: "Not right now"
+- tapOn: "Start planning"
+
+# --- cold, with no activity ------------------------------------------------
+# Focus opens on its own default of fifteen minutes.
+- tapOn: "Focus"
+- assertVisible: "Pick how long you want to disappear for"
+- assertVisible:
+    text: "15m"
+    selected: true
+- takeScreenshot: artifacts/15-dial-default
+
+# --- opened from a 45-minute activity --------------------------------------
+# "Start work" is the seeded 45-minute afternoon activity, and 45 is one of the
+# four presets, which is what makes this assertable at all.
+- tapOn: "Today"
+- tapOn: "Start work, 45m"
+- assertVisible: "Steps"
+- tapOn: "Focus"
+
+# The dial has travelled. This is the assertion the bug failed: before the fix
+# it was still 15m selected, with "Start work" named in the chip underneath.
+- assertVisible:
+    text: "45m"
+    selected: true
+- assertNotVisible:
+    text: "15m"
+    selected: true
+- assertVisible: "Start work"
+- takeScreenshot: artifacts/16-dial-follows-task
+
+# --- the request is one-shot ------------------------------------------------
+# `taskId` is a param on a TAB route, and a tab route is never popped, so it
+# used to stay set for the rest of the session: the picker stayed pinned to an
+# activity long after the user had moved on, and Start would have attached a
+# new session to it. Leaving the tab and coming back must forget it.
+- tapOn: "Me"
+- tapOn: "Focus"
+- assertNotVisible: "Start work"
+- takeScreenshot: artifacts/17-dial-forgets-task

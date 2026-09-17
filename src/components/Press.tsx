@@ -34,6 +34,18 @@ type Base = Omit<PressableProps, 'style'> & {
  * SPREADS: it loses more height than width, because the material has to go
  * somewhere. So X and Y are scaled by different amounts, and the ratio between
  * them is what separates "squish" from "zoom out".
+ *
+ * ── `style` LANDS ON THE INNER VIEW, SO IT CANNOT CARRY FLEX SIZING ────────
+ * The transform has to live on a view INSIDE the `Pressable` — animating the
+ * Pressable itself would move the touch target out from under the finger — so
+ * whatever is passed here is applied a level below the element the parent
+ * actually lays out. Paint (background, radius, padding, gap) works exactly as
+ * expected. Anything that asks the PARENT for space does not: `flex: 1` here
+ * stretches the inner view inside a Pressable that has already been sized to
+ * its content, so the child ends up with no room and silently collapses.
+ *
+ * Put the flex on a wrapper, or use a plain `Pressable`, when a press target
+ * has to share a row with something else.
  */
 export function PressScale({ children, style, scaleTo = 0.97, ...rest }: Base & { scaleTo?: number }) {
   /** 0 at rest, 1 fully pressed. The spring is allowed to overshoot past 0. */

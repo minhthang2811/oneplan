@@ -712,6 +712,116 @@ morning silently removed the seeded "Evening routine": the day went from eight
 tasks to seven and nothing said why. A routine activity is an ordinary task once
 it exists, and a slot nobody has opened is not an empty routine to clean up.
 
+### A routine has to happen more than once
+
+The word "routine" promises repetition and the app delivered it exactly once. A
+routine was written onto the plan by `applyRoutines` at the end of onboarding
+and by `syncRoutines` when this screen was edited, and by nothing else — so the
+morning someone described on Monday was on Monday's plan, and Tuesday opened to
+an empty grid and a dozing dog. The feature's whole promise lasted a day, and it
+failed in the most demoralising way available to a planner: blank, every
+morning, for a user who had already done the work of telling it what their
+mornings look like.
+
+**The id is dated.** `seed-morning` became `seed-morning:2026-09-17`, and that
+is what made repetition possible at all rather than merely convenient. A routine
+activity is an ordinary task once it exists — editable, tickable, deletable — so
+a second day's copy needs a second identity. With one id per slot for all time,
+building today's morning necessarily destroyed yesterday's, ticks and all. The
+app had been avoiding that data loss by never building a second day.
+
+**`ensureToday` builds, and `syncRoutines` deletes.** The two callers want
+opposite things from an empty slot. On the routines screen, emptying a routine
+is the user removing it and the activity should go. On the daily pass it would
+be an unattended deletion of something nobody touched — the seeded "Evening
+routine" vanishing from the starter day of anyone who configured a morning and
+skipped the evening. Same helper, and the daily pass simply skips a slot with
+nothing in it.
+
+**Gated on a date, not on absence.** Rebuilding whenever today's activity is
+missing would make a routine impossible to delete: remove it at nine because
+today is not a normal day, and the next foreground puts it back.
+`routinesBuiltFor` records that a slot has had its turn today, so a deliberate
+deletion survives until tomorrow — which is when a daily routine is supposed to
+return anyway.
+
+### A step of a routine can be changed
+
+The screen shipped with three controls per step — up, down, and take it out —
+and none for what the step actually *says*. "Shower" could be reordered and
+re-added endlessly but never become "Shower and shave", and "Read" was stuck at
+the catalogue's twenty minutes however long anyone actually read for. The only
+escape was to delete the catalogue step and retype it as a custom one, which
+loses its place in the order and its tick for the day.
+
+**The edit is an overlay, not a rewrite.** Copying the catalogue step into
+`routineCustom` and dropping the original needs no new state at all, and it was
+rejected because it changes the step's ID — and the id is what carries a tick
+across a rebuild, so renaming something you had already done this morning would
+hand it back undone. `routineEdits` is keyed by step id, applied in
+`routineCatalogue`, and leaves identity alone.
+
+Applying it in the catalogue rather than in the screen is what makes one edit
+show up in the three places it has to: the row, the collapsed slot summary
+(whose duration is the sum of its steps), and the activity on today. Applied in
+the screen, the first would update and the routine on the day would quietly keep
+the old wording.
+
+**Fields are optional and absent means unchanged**, so editing only the length
+leaves the title following the app's language instead of freezing it at whatever
+it read when the duration was changed. Reset drops the whole overlay, and its
+label says so.
+
+**The editor opens inline, under its own row, and does not take the keyboard.**
+A sheet would cover the four steps around it at exactly the moment the user is
+deciding whether "Shower and shave" still belongs before "Get dressed" — the
+order is the product, and the order is only legible in place. Autofocusing was
+worse than it sounds: it made the first tap on the duration chips a keyboard
+dismissal rather than a press, so the more common of the two edits appeared to
+ignore you.
+
+## Work that did not happen
+
+An activity is filed under one date and Today renders exactly that date, so
+anything left unticked at midnight fell out of the app: still stored, still
+counted in "Activities", and reachable only by someone who thought to page
+backwards through the week looking for it. For an app aimed at people who lose
+track of things, quietly losing track of things is the worst available failure.
+
+Today now carries a collapsed group above the plan — the count, and one button
+that moves the lot forward. The register is Tiimo's end-of-day review ("These
+are the remaining tasks. Anything you want to move to another day?") rather than
+a score: it says what is outstanding and offers the obvious action, and it never
+says how many days you have missed. The shape is Todoist's Overdue group — a
+header with a reschedule action, not a modal between someone and their day.
+
+Routines are excluded, because today already has its own copy: yesterday's
+half-finished morning is yesterday's record, not outstanding work.
+
+## An activity can be changed
+
+Title, duration, time of day, start time, tag and day were chosen once, in the
+add sheet, in the first ten seconds of an activity's life, and were plain text
+forever after. A fifteen-minute guess stayed fifteen minutes; something filed
+under Morning could not move to Evening; an activity put on the wrong day was
+stuck there. The only edits on offer were ticking it, adding steps, and deleting
+it to start again.
+
+No app in the reference class works that way. Tiimo's "Edit task" opens on
+exactly these fields; Structured, Todoist, Evernote and ClickUp all put them on
+tappable rows in the detail view. So the meta pills became controls: same pill
+shape, because the information is still the point, plus a chevron and an
+accessibility label that names the field as well as its value. Each opens an
+action sheet, which is what those detail screens do — the value stays visible
+behind the sheet and there is no save step to forget. The title edits in place,
+because `Alert.prompt` is iOS-only.
+
+**A routine's fields are read-only here, and say where they live.** Every one of
+them is regenerated each morning from `profile`, so an editor for them would be
+a control that works, persists, and silently forgets overnight. The steps stay
+tappable — ticking them is the point, and today's ticks are carried across a
+rebuild — and a link points at the screen that does own the rest.
+
 ## Completion
 
 The most-repeated satisfying moment in the app, built from five beats that each

@@ -3,11 +3,12 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import { mmkvStorage } from './storage';
 import type {
   Task, FocusSession, Profile, Priority, AppearancePref, CustomRoutineStep,
+  RoutineStepEdit,
 } from './types';
 import { seedTasks } from '../data/seed';
 import {
   ROUTINES, ROUTINE_PARENT, ROUTINE_SLOTS, routineTitle, routineParentTitle,
-  type RoutineSlot,
+  routineTaskId, isRoutineTask, type RoutineSlot,
 } from '../data/routines';
 import { dateKey, slotForMinutes, type Slot } from '../lib/time';
 
@@ -35,6 +36,20 @@ interface PlanState {
    */
   remindersRevokedAt: number | null;
 
+  /**
+   * The last date each slot's routine activity was materialised for.
+   *
+   * This is what makes a routine REPEAT without also making it un-deletable.
+   * `ensureToday` builds a slot's activity only when this does not already say
+   * today, so a routine someone deliberately deleted this morning stays
+   * deleted until tomorrow instead of reappearing on the next foreground.
+   *
+   * Top-level rather than in `profile` for the same reason as
+   * `remindersRevokedAt`: it is a record of what the app has DONE, not a
+   * preference the user set.
+   */
+  routinesBuiltFor: Record<RoutineSlot, string | null>;
+
   addTask: (t: NewTask) => string;
   updateTask: (id: string, patch: Partial<Task>) => void;
   removeTask: (id: string) => void;
@@ -59,19 +74,52 @@ interface PlanState {
   moveRoutineStep: (slot: RoutineSlot, stepId: string, delta: number) => void;
   /** Writes a user-authored step into the catalogue for `slot` and selects it. */
   addRoutineStep: (slot: RoutineSlot, step: Omit<CustomRoutineStep, 'id'>) => void;
+  /** Changes one step's title and/or length, for catalogue and custom alike. */
+  editRoutineStep: (slot: RoutineSlot, stepId: string, patch: RoutineStepEdit) => void;
+  /** Drops the user's edit, returning the step to the catalogue's wording. */
+  resetRoutineStep: (slot: RoutineSlot, stepId: string) => void;
   setRoutineTime: (slot: RoutineSlot, startMinutes: number) => void;
   /** Rebuilds ONE slot's routine activity on today from the stored config. */
   syncRoutines: (slot: RoutineSlot) => void;
+  /**
+   * Materialises today's routine activities. Idempotent — call it freely on
+   * launch, on foreground, and when the clock crosses midnight.
+   */
+  ensureToday: () => void;
+  /** Moves every unfinished, non-routine activity from a past day onto `date`. */
+  carryOver: (date: string) => void;
 
   startFocus: (totalSeconds: number, taskId?: string | null) => void;
   pauseFocus: () => void;
   resumeFocus: () => void;
   extendFocus: (seconds: number) => void;
   endFocus: () => void;
+  /** Drops a running session whose deadline passed long before this launch. */
+  reconcileFocus: () => void;
 }
 
+/**
+ * How long after a session's deadline the app will still celebrate it.
+ *
+ * A focus session is persisted with an ABSOLUTE deadline, which is what keeps
+ * the countdown honest across a background — and what made a force-quit
+ * resurface days later as a party. Reopening the app on Thursday to confetti, a
+ * success haptic and "Time's up" for a Tuesday session the user abandoned is
+ * the app congratulating them for something that did not happen.
+ *
+ * The window exists because the opposite mistake is just as real: someone who
+ * backgrounds the app for the last two minutes of a session and comes back HAS
+ * finished it, and deserves the ending. Ten minutes is long enough to cover
+ * that and short enough that nothing stale gets through.
+ */
+const FOCUS_STALE_MS = 10 * 60 * 1000;
+
 const emptyRoutines = (): Profile['routines'] => ({ morning: [], afternoon: [], evening: [] });
+const emptyBuilt = (): Record<RoutineSlot, string | null> => ({
+  morning: null, afternoon: null, evening: null,
+});
 const emptyCustom = (): Profile['routineCustom'] => ({ morning: [], afternoon: [], evening: [] });
+const emptyEdits = (): Profile['routineEdits'] => ({ morning: {}, afternoon: {}, evening: {} });
 const defaultTimes = (): Profile['routineTimes'] => ({
   morning: ROUTINE_PARENT.morning.startMinutes,
   afternoon: ROUTINE_PARENT.afternoon.startMinutes,
@@ -96,6 +144,7 @@ const emptyProfile: Profile = {
   routines: emptyRoutines(),
   routineTimes: defaultTimes(),
   routineCustom: emptyCustom(),
+  routineEdits: emptyEdits(),
   appearance: 'system',
 };
 
@@ -123,7 +172,28 @@ export function routineCatalogue(
      */
     ...ROUTINES[slot].map((o) => ({ ...o, title: routineTitle(o.id) })),
     ...(profile.routineCustom?.[slot] ?? []),
-  ];
+  ].map((o) => {
+    /**
+     * THE USER'S EDIT WINS, FIELD BY FIELD.
+     *
+     * Applied here rather than at any call site because this function is
+     * already the single place an id resolves to a step — the same argument
+     * the comment above makes about custom steps. An edit applied in the
+     * routines screen but not in `buildRoutine` would show one wording on the
+     * settings screen and another on the day it produces.
+     *
+     * Spread field-by-field so an edit to the duration alone leaves the title
+     * following the app's language, instead of freezing it at whatever it read
+     * when the duration was changed.
+     */
+    const edit = profile.routineEdits?.[slot]?.[o.id];
+    if (!edit) return o;
+    return {
+      ...o,
+      title: edit.title ?? o.title,
+      minutes: edit.minutes ?? o.minutes,
+    };
+  });
 }
 
 /**
@@ -157,8 +227,9 @@ function buildRoutine(profile: Profile, slot: RoutineSlot, date: string): Task |
   const parent = ROUTINE_PARENT[slot];
   const chosen = routineSteps(profile, slot);
   if (chosen.length === 0) return null;
+  const id = routineTaskId(slot, date);
   return {
-    id: parent.id,
+    id,
     title: routineParentTitle(slot),
     emoji: parent.emoji,
     tint: parent.tint,
@@ -170,9 +241,103 @@ function buildRoutine(profile: Profile, slot: RoutineSlot, date: string): Task |
     date,
     priority: 'todo',
     done: false,
-    steps: chosen.map((o) => ({ id: `${parent.id}-${o.id}`, title: o.title, done: false })),
+    steps: chosen.map((o) => ({ id: `${id}-${o.id}`, title: o.title, done: false })),
     tag: 'selfCare',
   };
+}
+
+/**
+ * Writes one slot's routine activity onto one date, carrying completion across.
+ *
+ * Pure, and shared by `syncRoutines` (an edit), `ensureToday` (the day turning
+ * over) and the legacy cleanup in `applyRoutines`, so the three cannot drift
+ * into producing different days from the same picks.
+ *
+ * Step ids are stable within a date, so the previous activity's `done` flags
+ * are re-applied by id. A step just added arrives unticked, which is right; one
+ * just removed takes its tick with it, which is also right. Ticks are only
+ * carried from an activity on the SAME date — yesterday's are yesterday's.
+ */
+function writeRoutine(
+  profile: Profile,
+  tasks: Task[],
+  slot: RoutineSlot,
+  date: string,
+  /**
+   * `create` NEVER DELETES, and the distinction belongs here rather than in
+   * the caller.
+   *
+   * An empty slot builds nothing, and what should happen then depends entirely
+   * on who is asking. On the routines screen it is the user emptying a routine
+   * on purpose and the activity should go. On the daily pass it would be an
+   * unattended deletion of something nobody touched — the seeded "Evening
+   * routine" disappearing from the starter day of anyone who configured a
+   * morning and skipped the evening.
+   *
+   * `ensureToday` first expressed that by testing `routineSteps(...).length`
+   * itself, which put the rule for "is this buildable" in two places; the day
+   * it changes in one of them, the unattended deletion comes straight back.
+   * The mode is a parameter so the decision stays next to the build.
+   */
+  mode: 'replace' | 'create' = 'replace'
+): Task[] {
+  const id = routineTaskId(slot, date);
+  /**
+   * THE UNDATED ID IS TREATED AS THIS DATE'S ACTIVITY TOO, AND NOT ONLY
+   * BECAUSE THE MIGRATION MIGHT NOT HAVE RUN.
+   *
+   * Before routine ids were dated there was one activity per slot, under the
+   * bare id. The v5 migration renames those onto the day they were written
+   * for, which is the tidy path — and this file already argues, at length, on
+   * `merge`, that a stored version number cannot be trusted to describe the
+   * shape it labels: any install that has been on a beta, a TestFlight build
+   * or a rolled-back release can report a version ahead of its own data.
+   *
+   * If that happens here the failure is visible and bad: today's copy is
+   * appended beside an old one the lookup could not see, and the user opens
+   * the app to TWO morning routines, one of which has their morning's ticks in
+   * it. So the legacy id on this same date is matched, replaced and carried
+   * across exactly as a dated one would be, and the migration becomes a
+   * tidy-up rather than a correctness dependency.
+   */
+  const legacy = ROUTINE_PARENT[slot].id;
+  const isThisDay = (t: Task) => t.id === id || (t.id === legacy && t.date === date);
+
+  const was = tasks.find(isThisDay);
+  const kept = tasks.filter((t) => !isThisDay(t));
+  const next = buildRoutine(profile, slot, date);
+
+  // An emptied slot removes THIS date's activity and leaves every other date's
+  // alone — those are their own days' records, not stale copies of this one.
+  // In `create` mode there is nothing to build and nothing to remove, so the
+  // list is handed back untouched.
+  if (!next) return mode === 'create' ? tasks : kept;
+
+  if (was) {
+    /**
+     * Ticks are carried across by the step's OWN identity — the option id at
+     * the end — rather than by the whole step id, which contains the task id
+     * and therefore changes when the task id does. Keyed on the full id, an
+     * upgrade in the middle of a morning would hand back every already-ticked
+     * step as undone, which is the exact data loss this carry-over exists to
+     * prevent.
+     */
+    const done = new Map(was.steps.map((st) => [stepKey(was.id, st.id), st.done]));
+    next.steps = next.steps.map((st) => ({
+      ...st,
+      done: done.get(stepKey(next.id, st.id)) ?? false,
+    }));
+    // A routine is done when every step in it is, which can change just by
+    // removing the one step that was still outstanding.
+    next.done = next.steps.length > 0 && next.steps.every((st) => st.done);
+  }
+
+  return [...kept, next];
+}
+
+/** A routine step's identity independent of which day's activity carries it. */
+function stepKey(taskId: string, stepId: string): string {
+  return stepId.startsWith(`${taskId}-`) ? stepId.slice(taskId.length + 1) : stepId;
 }
 
 export const usePlanStore = create<PlanState>()(
@@ -184,6 +349,7 @@ export const usePlanStore = create<PlanState>()(
       focus: null,
       layout: 'compact',
       remindersRevokedAt: null,
+      routinesBuiltFor: emptyBuilt(),
 
       addTask: (t) => {
         const id = newId();
@@ -302,13 +468,21 @@ export const usePlanStore = create<PlanState>()(
           if (touched.length === 0) return {};
 
           const profile = { ...s.profile, routines: { ...s.profile.routines, ...picks } };
-          const replacedIds = new Set(touched.map((slot) => ROUTINE_PARENT[slot].id));
-          const kept = s.tasks.filter((t) => !replacedIds.has(t.id));
-          const built = touched
-            .map((slot) => buildRoutine(profile, slot, today))
-            .filter((t): t is Task => t != null);
+          // The SEEDED routine for each touched slot goes, by its old undated
+          // id. The seed exists only so the app is never an empty grid; leaving
+          // it would show two "Morning routine" rows, one of them unchosen.
+          const seeded = new Set(touched.map((slot) => ROUTINE_PARENT[slot].id));
+          let tasks = s.tasks.filter((t) => !seeded.has(t.id));
+          for (const slot of touched) tasks = writeRoutine(profile, tasks, slot, today);
 
-          return { tasks: [...kept, ...built], profile };
+          return {
+            tasks,
+            profile,
+            routinesBuiltFor: {
+              ...(s.routinesBuiltFor ?? emptyBuilt()),
+              ...Object.fromEntries(touched.map((slot) => [slot, today])),
+            } as Record<RoutineSlot, string | null>,
+          };
         }),
 
       setAppearance: (appearance) =>
@@ -361,6 +535,48 @@ export const usePlanStore = create<PlanState>()(
           };
         }),
 
+      /**
+       * EDITING A STEP, whichever kind of step it is.
+       *
+       * Catalogue steps and the user's own behave identically here — one
+       * overlay keyed by id covers both — which is what lets the routines
+       * screen offer a single "tap a step to change it" affordance instead of
+       * one gesture for the twelve built-in steps and another for the ones you
+       * typed. See `RoutineStepEdit` for why this is an overlay rather than a
+       * rewrite of the step itself.
+       *
+       * An empty title is dropped rather than stored: a nameless step is not a
+       * thing the rest of the app can render, and "I cleared the field" reads
+       * as a cancel, not as a request for a blank row.
+       */
+      editRoutineStep: (slot, stepId, patch) =>
+        set((s) => {
+          const edits = s.profile.routineEdits ?? emptyEdits();
+          const title = patch.title?.trim();
+          const next: RoutineStepEdit = {
+            ...(edits[slot]?.[stepId] ?? {}),
+            ...(title ? { title } : {}),
+            ...(patch.minutes != null ? { minutes: patch.minutes } : {}),
+          };
+          return {
+            profile: {
+              ...s.profile,
+              routineEdits: { ...edits, [slot]: { ...(edits[slot] ?? {}), [stepId]: next } },
+            },
+          };
+        }),
+
+      resetRoutineStep: (slot, stepId) =>
+        set((s) => {
+          const edits = s.profile.routineEdits ?? emptyEdits();
+          const forSlot = { ...(edits[slot] ?? {}) };
+          if (!(stepId in forSlot)) return {};
+          delete forSlot[stepId];
+          return {
+            profile: { ...s.profile, routineEdits: { ...edits, [slot]: forSlot } },
+          };
+        }),
+
       setRoutineTime: (slot, startMinutes) =>
         set((s) => ({
           profile: {
@@ -388,17 +604,14 @@ export const usePlanStore = create<PlanState>()(
       syncRoutines: (slot) =>
         set((s) => {
           const today = dateKey(new Date());
-          const id = ROUTINE_PARENT[slot].id;
-          const was = s.tasks.find((t) => t.id === id);
-
           /**
            * ONE SLOT, NOT ALL THREE — and this is a data-loss fix, not tidiness.
            *
-           * This rebuilt every slot on every edit, and `buildRoutine` returns
-           * null for a slot with no steps, so any slot the user had not
-           * configured had its activity DELETED. Editing only the morning
-           * therefore silently removed the seeded "Evening routine" from the
-           * day: the task count went from eight to seven and nothing said why.
+           * This rebuilt every slot on every edit, and an empty slot builds
+           * nothing, so any slot the user had not configured had its activity
+           * DELETED. Editing only the morning therefore silently removed the
+           * seeded "Evening routine" from the day: the task count went from
+           * eight to seven and nothing said why.
            *
            * The trap is that a routine activity is an ORDINARY TASK once it
            * exists. The user can rename it, add steps to it, tick it off — and
@@ -406,43 +619,92 @@ export const usePlanStore = create<PlanState>()(
            * cleaned up", it is just a task they have. Only the slot actually
            * being edited may be rebuilt, and emptying that slot on purpose is
            * still the way to remove its activity.
+           *
+           * Editing a routine also counts as having handled today, so the
+           * rebuild below is not undone by the next `ensureToday`.
            */
-          const next = buildRoutine(s.profile, slot, today);
-          const kept = s.tasks.filter((t) => t.id !== id);
+          return {
+            tasks: writeRoutine(s.profile, s.tasks, slot, today),
+            routinesBuiltFor: {
+              ...(s.routinesBuiltFor ?? emptyBuilt()),
+              [slot]: today,
+            } as Record<RoutineSlot, string | null>,
+          };
+        }),
+
+      /**
+       * TODAY'S ROUTINES, BUILT ONCE A DAY.
+       *
+       * ── THE BUG THIS FIXES ─────────────────────────────────────────────
+       * A routine used to be written onto the day it was configured and never
+       * again. `applyRoutines` stamped it at the end of onboarding and
+       * `syncRoutines` re-stamped it whenever the routines screen was edited,
+       * and nothing else ever built one — so the morning routine someone set
+       * up on Monday was on Monday's plan, and Tuesday opened to an empty day
+       * with a dozing dog on it. The whole promise of the feature ("we keep
+       * the order so you do not have to") lasted exactly one day, and the app
+       * looked broken in the most demoralising way available to a planner:
+       * blank, every morning, for someone who had already told it what their
+       * mornings look like.
+       *
+       * ── WHY IT IS GATED ON A DATE AND NOT ON "IS IT THERE?" ────────────
+       * Rebuilding whenever today's activity is missing would make a routine
+       * impossible to delete: remove it at nine in the morning because today
+       * is not a normal day, and the next foreground puts it straight back.
+       * `routinesBuiltFor` records that this slot has had its turn today, so
+       * a deliberate deletion survives until tomorrow — which is when a daily
+       * routine is supposed to come back anyway.
+       */
+      ensureToday: () =>
+        set((s) => {
+          const today = dateKey(new Date());
+          const built = s.routinesBuiltFor ?? emptyBuilt();
+          const pending = ROUTINE_SLOTS.filter((slot) => built[slot] !== today);
+          if (pending.length === 0) return {};
 
           /**
-           * EMPTYING A SLOT REMOVES TODAY'S ACTIVITY, AND ONLY TODAY'S.
-           *
-           * The delete used to filter by id alone, with no date check — the
-           * guard that protects completion state three lines down had no
-           * equivalent here. So removing the last step from the morning
-           * routine deleted the morning activity even when it was dated
-           * yesterday and carried yesterday's ticks: a record of a finished
-           * day, destroyed by an edit to a future one.
-           *
-           * A routine activity on another date is that date's record, not a
-           * stale copy of this one. It is left alone, and the slot simply has
-           * nothing on today.
+           * `'create'` — IT BUILDS, IT NEVER DELETES. A slot with nothing in
+           * it has nothing to contribute, and an unattended daily pass must
+           * not read that as permission to remove the activity sitting there;
+           * see the note on `writeRoutine`'s `mode`. Every pending slot is
+           * still marked as handled for today, because there is nothing more
+           * this pass can do for it either way.
            */
-          if (!next) return was && was.date !== today ? {} : { tasks: kept };
-
-          // Yesterday's ticks are yesterday's. Progress is only carried across
-          // when the activity being replaced is the one on screen.
-          if (was && was.date === today) {
-            const doneById = new Map(was.steps.map((st) => [st.id, st.done]));
-            next.steps = next.steps.map((st) => ({ ...st, done: doneById.get(st.id) ?? false }));
-            // A routine is done when every step in it is, which can change just
-            // by removing the one step that was still outstanding.
-            next.done = next.steps.length > 0 && next.steps.every((st) => st.done);
+          let tasks = s.tasks;
+          for (const slot of pending) {
+            tasks = writeRoutine(s.profile, tasks, slot, today, 'create');
           }
 
-          /**
-           * Replaced BY ID. A routine's id is fixed per slot (`seed-morning`),
-           * so keeping an existing one dated yesterday while appending today's
-           * would put two tasks with the same id in the list — a duplicate
-           * React key, and a selector that returns whichever it reaches first.
-           */
-          return { tasks: [...kept, next] };
+          return {
+            tasks,
+            routinesBuiltFor: {
+              ...built,
+              ...Object.fromEntries(pending.map((slot) => [slot, today])),
+            } as Record<RoutineSlot, string | null>,
+          };
+        }),
+
+      /**
+       * Brings yesterday's unfinished work forward.
+       *
+       * ── ROUTINES ARE EXCLUDED, AND THAT IS NOT AN OVERSIGHT ────────────
+       * A routine belongs to its own day and today already has its own copy,
+       * so moving yesterday's half-finished morning onto today would put two
+       * morning routines on one day. An ordinary activity has no such copy —
+       * it exists once, and if it did not happen yesterday it is still
+       * outstanding, which is exactly what carrying it over says.
+       */
+      carryOver: (date) =>
+        set((s) => {
+          const moving = new Set(
+            s.tasks
+              .filter((t) => t.date != null && t.date < date && !t.done && !isRoutineTask(t.id))
+              .map((t) => t.id)
+          );
+          if (moving.size === 0) return {};
+          return {
+            tasks: s.tasks.map((t) => (moving.has(t.id) ? { ...t, date } : t)),
+          };
         }),
 
       startFocus: (totalSeconds, taskId = null) =>
@@ -487,6 +749,15 @@ export const usePlanStore = create<PlanState>()(
       },
 
       endFocus: () => set({ focus: null }),
+
+      reconcileFocus: () => {
+        const f = get().focus;
+        // A PAUSED session is not stale, however old: pausing is a deliberate
+        // "hold this for me", and its remaining time does not decay.
+        if (!f || f.startedAt == null) return;
+        const deadline = f.startedAt + f.remainingSeconds * 1000;
+        if (Date.now() - deadline > FOCUS_STALE_MS) set({ focus: null });
+      },
     }),
     {
       name: 'oneplan-v1',
@@ -497,13 +768,31 @@ export const usePlanStore = create<PlanState>()(
        * the point of encoding category as colour. Tasks saved under the retired
        * names are remapped here; without this they render an undefined swatch.
        */
-      version: 4,
+      version: 5,
       migrate: (persisted: unknown, from: number) => {
         const state = persisted as
-          | { tasks?: Array<{ tint?: string }>; profile?: Partial<Profile> }
+          | {
+              tasks?: Array<{
+                tint?: string;
+                id?: string;
+                date?: string | null;
+                steps?: Array<{ id?: string }>;
+              }>;
+              profile?: Partial<Profile>;
+            }
           | undefined;
         if (!state) return state as never;
-        if (from < 2 && Array.isArray(state.tasks)) {
+        /**
+         * A MISSING OR MALFORMED VERSION MEANS "OLDEST", NOT "NEWEST".
+         *
+         * `from` arrives as whatever was stored beside the state, and a blob
+         * written without one hands this `undefined` — at which point every
+         * `from < n` below is false and the whole migration is skipped
+         * silently, on exactly the damaged store that most needs it. Comparing
+         * from 0 instead makes the untrustworthy case the conservative one.
+         */
+        const fromVersion = typeof from === 'number' && Number.isFinite(from) ? from : 0;
+        if (fromVersion < 2 && Array.isArray(state.tasks)) {
           const RETIRED: Record<string, string> = { sage: 'sky', clay: 'rose', teal: 'mint' };
           state.tasks = state.tasks.map((t) =>
             t && typeof t.tint === 'string' && RETIRED[t.tint]
@@ -518,6 +807,43 @@ export const usePlanStore = create<PlanState>()(
          * version happens to change — see the note there for why that
          * distinction turned out to matter.
          */
+        /**
+         * v5 DATES a routine activity's id, which is what lets a routine
+         * repeat — see `routineTaskId`. An existing install holds exactly one
+         * activity per slot under the bare id, so it is renamed onto the day
+         * it was actually written for. Without this the old row would keep the
+         * undated id forever: `writeRoutine` would never find it, so today's
+         * copy would be appended beside it and the user would see two morning
+         * routines on the day they upgraded.
+         *
+         * Step ids are prefixed with the task id, so they move with it. Ones
+         * that are not (the seeded `s1`…`s4`) are left exactly as they are —
+         * they are already unique within their task, which is the only place
+         * a step id has to be unique.
+         */
+        if (fromVersion < 5 && Array.isArray(state.tasks)) {
+          const LEGACY = new Set(['seed-morning', 'seed-afternoon', 'seed-evening']);
+          state.tasks = state.tasks.map((t) => {
+            if (!t || typeof t.id !== 'string' || !LEGACY.has(t.id)) return t;
+            // An undated routine activity has no day to belong to, so there is
+            // nothing to rename it to. Left alone, it is simply an ordinary
+            // task, which is what an activity with no date already is here.
+            if (typeof t.date !== 'string') return t;
+            const was = t.id;
+            const id = `${was}:${t.date}`;
+            return {
+              ...t,
+              id,
+              steps: Array.isArray(t.steps)
+                ? t.steps.map((st) =>
+                    typeof st?.id === 'string' && st.id.startsWith(`${was}-`)
+                      ? { ...st, id: `${id}-${st.id.slice(was.length + 1)}` }
+                      : st
+                  )
+                : t.steps,
+            };
+          });
+        }
         return state as never;
       },
 
@@ -565,6 +891,7 @@ export const usePlanStore = create<PlanState>()(
         focus: s.focus,
         layout: s.layout,
         remindersRevokedAt: s.remindersRevokedAt,
+        routinesBuiltFor: s.routinesBuiltFor,
       }),
     }
   )

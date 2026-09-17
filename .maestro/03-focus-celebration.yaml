@@ -13,6 +13,13 @@ name: Focus — completion celebration
 ---
 - launchApp
 
+# ASSERT BEFORE THE FIRST TAP — rule 4 in the README, which this flow was the
+# one to ignore. `launchApp` returns before React has mounted, so a tap issued
+# immediately can land on a blank window and silently do nothing; the flow then
+# fails here rather than at the real cause. Waiting for the tab bar is waiting
+# for the app.
+- assertVisible: "Today"
+
 - tapOn: "Focus"
 - assertVisible: "Pick how long you want to disappear for"
 

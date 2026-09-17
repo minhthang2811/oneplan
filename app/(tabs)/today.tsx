@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useState, useCallback } from 'react';
-import { View, ActionSheetIOS, Alert } from 'react-native';
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import { View, Pressable, ActionSheetIOS, Alert } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Txt } from '../../src/components/Txt';
+import { Icon } from '../../src/components/Icon';
+import { PressScale } from '../../src/components/Press';
 import { TaskRow } from '../../src/components/TaskRow';
 import { SlotChip, SlotEmpty } from '../../src/components/SlotChip';
 import { DayHeader } from '../../src/components/DayHeader';
@@ -15,18 +17,22 @@ import { ScrollEdge } from '../../src/components/ScrollEdge';
 import { useChromeScroll, useChromeReset } from '../../src/components/Chrome';
 import { SlotCelebration, useSlotCompletion } from '../../src/components/SlotCelebration';
 import { useTheme } from '../../src/theme/useTheme';
-import { space } from '../../src/theme/tokens';
+import { radius, space } from '../../src/theme/tokens';
 import { useT } from '../../src/i18n';
 import { usePlanStore, tasksForDate, bySlot } from '../../src/store/usePlanStore';
-import { dateKey, isToday, weekdayLong, longDate, SLOT_ORDER, slotLabel, type Slot } from '../../src/lib/time';
+import { dateKey, parseKey, isToday, weekdayLong, longDate, SLOT_ORDER, slotLabel, type Slot } from '../../src/lib/time';
 import { useNowMinutes } from '../../src/lib/useNowMinutes';
+import { useToday } from '../../src/lib/useTodayKey';
+import { isRoutineTask } from '../../src/data/routines';
 import { haptic } from '../../src/lib/haptics';
 import type { Task } from '../../src/store/types';
 
 type Row =
   | { kind: 'section'; slot: Slot; count: number }
   | { kind: 'task'; task: Task; isNow: boolean }
-  | { kind: 'empty'; slot: Slot };
+  | { kind: 'empty'; slot: Slot }
+  | { kind: 'overdue'; count: number }
+  | { kind: 'overdueTask'; task: Task };
 
 export default function Today() {
   const [date, setDate] = useState(() => new Date());
@@ -42,10 +48,34 @@ export default function Today() {
   const toggleTask = usePlanStore((s) => s.toggleTask);
   const toggleStep = usePlanStore((s) => s.toggleStep);
   const setLayout = usePlanStore((s) => s.setLayout);
+  const carryOver = usePlanStore((s) => s.carryOver);
 
   const key = dateKey(date);
   // Live clock: "now" depends on time passing, not on the task list changing.
   const now = useNowMinutes();
+
+  /**
+   * THE DAY TURNING OVER MOVES THE SCREEN WITH IT.
+   *
+   * `date` was seeded from `new Date()` once and then only ever changed by the
+   * user, so an app left open (or merely backgrounded) past midnight kept
+   * showing yesterday — the old weekday in the header, the old ring on the
+   * week strip, and no "now" badge anywhere, because `isToday` was false for
+   * the day being displayed.
+   *
+   * It only follows when the user was actually ON today. Someone who has paged
+   * forward to plan Thursday should stay on Thursday, not be yanked back at
+   * midnight — moving the ground under a deliberate navigation is worse than
+   * the staleness this fixes.
+   */
+  const todayKey = useToday();
+  const wasToday = useRef(todayKey);
+  useEffect(() => {
+    const previous = wasToday.current;
+    wasToday.current = todayKey;
+    if (previous === todayKey) return;
+    setDate((d) => (dateKey(d) === previous ? parseKey(todayKey) : d));
+  }, [todayKey]);
   const dayTasks = useMemo(() => tasksForDate(tasks, key), [tasks, key]);
   const doneCount = dayTasks.filter((t) => t.done).length;
 
@@ -58,8 +88,36 @@ export default function Today() {
     return hit?.id ?? null;
   }, [dayTasks, key, now]);
 
+  /**
+   * WORK THAT DID NOT HAPPEN, WHICH USED TO JUST VANISH.
+   *
+   * An activity is filed under one date and Today renders exactly that date, so
+   * anything left unticked when the clock passed midnight fell out of the app
+   * entirely: still stored, still counted in "Activities", and reachable only
+   * by someone who thought to page backwards through the week looking for it.
+   * For a planner aimed at people who lose track of things, quietly losing
+   * track of things is the worst available failure.
+   *
+   * Only on today, because "overdue" is meaningless while you are looking at a
+   * past day (everything there is) or a future one (nothing is yet). Routines
+   * are excluded: today already has its own copy, so yesterday's leftover
+   * morning is not outstanding work, it is yesterday's record.
+   */
+  const overdue = useMemo(() => {
+    if (!isToday(key)) return [];
+    return tasks
+      .filter((t) => t.date != null && t.date < key && !t.done && !isRoutineTask(t.id))
+      .sort((a, b) => (a.date! < b.date! ? -1 : a.date! > b.date! ? 1 : 0));
+  }, [tasks, key]);
+
+  const [overdueOpen, setOverdueOpen] = useState(false);
+
   const rows = useMemo<Row[]>(() => {
     const out: Row[] = [];
+    if (overdue.length > 0) {
+      out.push({ kind: 'overdue', count: overdue.length });
+      if (overdueOpen) for (const t of overdue) out.push({ kind: 'overdueTask', task: t });
+    }
     for (const slot of SLOT_ORDER) {
       const inSlot = bySlot(dayTasks, slot);
       // An empty Anytime bucket is still shown — it is the drop target that
@@ -71,7 +129,7 @@ export default function Today() {
       else for (const t of inSlot) out.push({ kind: 'task', task: t, isNow: t.id === nowTaskId });
     }
     return out;
-  }, [dayTasks, collapsed, nowTaskId]);
+  }, [dayTasks, collapsed, nowTaskId, overdue, overdueOpen]);
 
   /**
    * Which time-of-day blocks are finished.
@@ -98,8 +156,52 @@ export default function Today() {
    * with no way to restore it, because a date change is not a navigation
    * focus change and nothing else fires.
    */
-  const empty = dayTasks.length === 0;
+  /**
+   * OUTSTANDING WORK MEANS THE DAY IS NOT EMPTY.
+   *
+   * The empty branch renders no list, which left the overdue group unable to
+   * expand on exactly the day its contents matter most: the banner could say
+   * "6 unfinished from earlier days" and offer to move all six, with no way to
+   * see what they were. Falling through to the list gives the group its
+   * chevron, its rows and the Anytime drop target — and the sleeping dog is
+   * the right picture for a day with nothing on it, not for a day with six
+   * things waiting.
+   */
+  const empty = dayTasks.length === 0 && overdue.length === 0;
   useEffect(() => { if (empty) resetChrome(); }, [empty, resetChrome]);
+
+  /**
+   * MOVING EVERYTHING FORWARD ASKS FIRST.
+   *
+   * The button relocates an unbounded set — someone three months in can be
+   * carrying forty abandoned activities — and there is no undo short of
+   * opening forty detail screens. Naming the count before doing it is the
+   * difference between an action and an accident, and Tiimo's own review puts
+   * the number on the button for the same reason.
+   */
+  const confirmCarryOver = useCallback((count: number) => {
+    haptic.warn();
+    const go = () => { haptic.success(); carryOver(key); setOverdueOpen(false); };
+    const title = t('today.moveAllTitle', { count });
+    const body = t('today.moveAllBody');
+    if (process.env.EXPO_OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: [t('today.moveToToday'), t('common.cancel')],
+          cancelButtonIndex: 1,
+          title,
+          message: body,
+          userInterfaceStyle: isDark ? 'dark' : 'light',
+        },
+        (i) => { if (i === 0) go(); }
+      );
+    } else {
+      Alert.alert(title, body, [
+        { text: t('common.cancel'), style: 'cancel' },
+        { text: t('today.moveToToday'), onPress: go },
+      ]);
+    }
+  }, [carryOver, key, t, isDark]);
 
   const openMenu = useCallback(() => {
     const options = [t('today.compactLayout'), t('today.timelineLayout'), t('common.cancel')];
@@ -174,7 +276,11 @@ export default function Today() {
       <FlashList
         data={rows}
         keyExtractor={(r) =>
-          r.kind === 'task' ? r.task.id : `${r.kind}-${r.slot}`
+          r.kind === 'task' || r.kind === 'overdueTask'
+            ? r.task.id
+            : r.kind === 'overdue'
+              ? 'overdue'
+              : `${r.kind}-${r.slot}`
         }
         getItemType={(r) => r.kind}
         ListHeaderComponent={<View style={{ paddingTop: insets.top + space.sm }}>{header}</View>}
@@ -185,6 +291,28 @@ export default function Today() {
         showsVerticalScrollIndicator={false}
         {...scroll}
         renderItem={({ item }) => {
+          if (item.kind === 'overdue') {
+            return (
+              <OverdueBanner
+                count={item.count}
+                open={overdueOpen}
+                onToggle={() => { haptic.tick(); setOverdueOpen((o) => !o); }}
+                onMoveAll={() => confirmCarryOver(item.count)}
+              />
+            );
+          }
+          if (item.kind === 'overdueTask') {
+            return (
+              <View style={{ paddingBottom: space.sm }}>
+                <TaskRow
+                  task={item.task}
+                  onToggle={() => toggleTask(item.task.id)}
+                  onToggleStep={(sid) => toggleStep(item.task.id, sid)}
+                  onPress={() => router.push(`/task/${item.task.id}`)}
+                />
+              </View>
+            );
+          }
           if (item.kind === 'section') {
             return (
               <View style={{ paddingTop: space.lg, paddingBottom: space.sm }}>
@@ -236,6 +364,111 @@ export default function Today() {
       {celebrating ? (
         <SlotCelebration key={celebrating} slot={celebrating} onDone={dismiss} />
       ) : null}
+    </View>
+  );
+}
+
+/**
+ * The overdue group, and the one gesture that clears it.
+ *
+ * ── IT STATES A FACT AND OFFERS ONE ACTION ─────────────────────────────────
+ * Not a nag and not a score. The copy counts what is outstanding and the button
+ * moves it to today; there is no "you missed 4 activities", because the reader
+ * of this line is the person least helped by being told that. Tiimo's own
+ * end-of-day review ("These are the remaining tasks. Anything you want to move
+ * to another day?") sets the register, and Todoist's Overdue group sets the
+ * shape: a collapsed header with a reschedule action, not a modal.
+ *
+ * COLLAPSED BY DEFAULT, because it sits above today's plan and the plan is what
+ * the user came for. Opening it lists the activities as ordinary rows, so each
+ * one can still be ticked, opened or deleted individually.
+ */
+function OverdueBanner({
+  count, open, onToggle, onMoveAll,
+}: {
+  count: number;
+  open: boolean;
+  /** Absent on the empty-day branch, which has no list to expand INTO. */
+  onToggle?: () => void;
+  onMoveAll: () => void;
+}) {
+  const { c } = useTheme();
+  const { t } = useT();
+
+  /**
+   * TWO LINES, NOT ONE ROW.
+   *
+   * The first arrangement put the count and the button side by side, which fits
+   * in English ("2 unfinished from earlier days" · "Move to today") and does not
+   * fit in Vietnamese, where the same two strings are half again as long. A
+   * count that truncates is a count nobody can read, and this line exists to be
+   * read. Stacking costs one row of height on a banner that is usually absent.
+   *
+   * ── AND `PressScale` CANNOT CARRY THE LAYOUT ──────────────────────────────
+   * It puts the style it is given on its INNER animated view, not on the
+   * `Pressable` wrapping it, so a `flex: 1` handed to it lands a level too deep
+   * and does nothing: the row collapsed to its icon and chevron with the label
+   * squeezed to zero width. The summary is a plain `Pressable` for that reason.
+   */
+  const summary = (
+    <>
+      <Icon name="arrow.uturn.left" size={13} color={c.inkMuted} weight="semibold" />
+      <Txt variant="captionStrong" tone="muted" style={{ flex: 1 }} numberOfLines={2}>
+        {t('today.overdueCount', { count })}
+      </Txt>
+      {onToggle ? (
+        <Icon
+          name={open ? 'chevron.up' : 'chevron.down'}
+          size={11}
+          color={c.inkFaint}
+          weight="bold"
+        />
+      ) : null}
+    </>
+  );
+
+  const summaryStyle = {
+    flexDirection: 'row' as const, alignItems: 'center' as const, gap: space.sm,
+  };
+
+  return (
+    <View style={{ paddingTop: space.lg, paddingBottom: space.sm }}>
+      <View
+        style={{
+          gap: space.md, padding: space.md,
+          borderRadius: radius.card, borderCurve: 'continuous',
+          backgroundColor: c.surfaceSunken,
+        }}
+      >
+        {onToggle ? (
+          <Pressable
+            onPress={onToggle}
+            accessibilityRole="button"
+            accessibilityState={{ expanded: open }}
+            accessibilityLabel={t('today.overdueCount', { count })}
+            style={summaryStyle}
+          >
+            {summary}
+          </Pressable>
+        ) : (
+          <View accessible accessibilityLabel={t('today.overdueCount', { count })} style={summaryStyle}>
+            {summary}
+          </View>
+        )}
+
+        <PressScale
+          onPress={onMoveAll}
+          accessibilityRole="button"
+          accessibilityLabel={t('today.moveToToday')}
+          style={{
+            alignSelf: 'flex-start',
+            paddingVertical: 8, paddingHorizontal: space.base,
+            borderRadius: radius.pill, backgroundColor: c.solid,
+          }}
+        >
+          <Txt variant="micro" color={c.onSolid}>{t('today.moveToToday')}</Txt>
+        </PressScale>
+      </View>
     </View>
   );
 }

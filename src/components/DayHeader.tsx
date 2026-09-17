@@ -6,7 +6,7 @@ import { PressScale } from './Press';
 import { useTheme } from '../theme/useTheme';
 import { useT } from '../i18n';
 import { radius, space } from '../theme/tokens';
-import { weekdayLong, longDate, weekAround, dateKey, isToday } from '../lib/time';
+import { weekdayLong, longDate, weekAround, dateKey, isToday, addDays } from '../lib/time';
 import { haptic } from '../lib/haptics';
 
 export function DayHeader({
@@ -53,8 +53,18 @@ export function DayHeader({
 
       {/* Date nav. The weekday is the one display-size element on this screen. */}
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+        {/*
+          `addDays`, NOT `date.getTime() ± 86400000`.
+
+          A local day is not always 24 hours. On the day a clock goes back it is
+          25, so adding a fixed 86400000ms to a morning timestamp lands later
+          the SAME day — `dateKey` returns the day it started on and the Next
+          button silently does nothing. `addDays` goes through `setDate`, which
+          is calendar arithmetic and lands on the next date whatever its length.
+          `weekAround` already used it; these two were the holdouts.
+        */}
         <Pressable
-          onPress={() => { haptic.tick(); onChangeDate(new Date(date.getTime() - 86400000)); }}
+          onPress={() => { haptic.tick(); onChangeDate(addDays(date, -1)); }}
           hitSlop={16} accessibilityRole="button" accessibilityLabel={t('today.prevDay')}
         >
           <Icon name="chevron.left" size={17} color={c.inkFaint} weight="semibold" />
@@ -81,7 +91,7 @@ export function DayHeader({
         </Pressable>
 
         <Pressable
-          onPress={() => { haptic.tick(); onChangeDate(new Date(date.getTime() + 86400000)); }}
+          onPress={() => { haptic.tick(); onChangeDate(addDays(date, 1)); }}
           hitSlop={16} accessibilityRole="button" accessibilityLabel={t('today.nextDay')}
         >
           <Icon name="chevron.right" size={17} color={c.inkFaint} weight="semibold" />

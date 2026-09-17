@@ -91,6 +91,16 @@ export const en = {
     emptyBody: 'Add one thing you want to get done. One is enough to start a day.',
     anytimeHint: 'Anything that works today',
     slotCount: { one: '{label}, {count} activity', other: '{label}, {count} activities' },
+    overdueCount: {
+      one: '{count} unfinished from an earlier day',
+      other: '{count} unfinished from earlier days',
+    },
+    moveToToday: 'Move to today',
+    moveAllTitle: {
+      one: 'Move {count} activity to today?',
+      other: 'Move all {count} to today?',
+    },
+    moveAllBody: 'They keep their time of day. You can move any of them back.',
   },
 
   todo: {
@@ -118,6 +128,9 @@ export const en = {
 
   focus: {
     title: 'Focus',
+    /** The banner for a session that ends while the app is not in front. */
+    alarmTitle: 'Time is up',
+    alarmBody: 'Your focus session has finished.',
     pickLength: 'Pick how long you want to disappear for',
     range: '{from} → {to}',
     endsAtLong: 'Ends at {to}',
@@ -202,6 +215,13 @@ export const en = {
     a11ySummary: { one: '{count} step, about {duration}, starts at {time}', other: '{count} steps, about {duration}, starts at {time}' },
     a11yRow: '{slot} routine, {summary}',
     startPrompt: 'When does your {slot} routine start?',
+    addSomething: 'Add something',
+    /** Editing one step of a routine — its wording and its length. */
+    editStepA11y: '{title}, {duration}. Tap to change.',
+    stepName: 'Step name',
+    stepPlaceholder: 'What is this step?',
+    stepLength: 'How long',
+    resetStep: 'Reset this step',
     inThisRoutine: 'In this routine',
     orderFooter: 'Tap the arrows to change the order things happen in.',
     emptyList: 'Nothing here yet. Pick from the list below.',
@@ -253,6 +273,12 @@ export const en = {
     tenHint: 'Enough time to finish what you are doing',
     asItStarts: 'As it starts',
     before: '{duration} before',
+    scheduledCount: {
+      one: '{count} reminder is scheduled.',
+      other: '{count} reminders are scheduled.',
+    },
+    preview: 'What you will see',
+    previewA11y: 'Example notification. {title}. {body}',
     switchedOffBody:
       'Notifications for Oneplan were turned off in iOS Settings, so the app stopped promising nudges it could not deliver. Allow them again to turn this back on.',
     privacyNote:
@@ -308,6 +334,28 @@ export const en = {
     markDone: 'Mark as done',
     markNotDone: 'Mark as not done',
     focus: 'Focus',
+
+    /** Editing. Every one of these is a field the activity always had and
+     *  could never be changed after it was created. */
+    edit: 'Edit',
+    editA11y: '{field}: {value}. Tap to change.',
+    renameTitle: 'Rename activity',
+    renamePlaceholder: 'What are you doing?',
+    duration: 'How long',
+    whenSlot: 'Time of day',
+    startsAt: 'Starts at',
+    noSetTime: 'No set time',
+    tagField: 'Tag',
+    noTag: 'No tag',
+    moveTitle: 'Move to',
+    moveToday: 'Today',
+    moveTomorrow: 'Tomorrow',
+    moveInbox: 'To-do list',
+    dateField: 'Day',
+    inboxValue: 'To-do list',
+    priority: 'Priority',
+    /** A routine's fields are regenerated daily, so they are edited at source. */
+    editInRoutines: 'Edit in Routines',
   },
 
   onboarding: {

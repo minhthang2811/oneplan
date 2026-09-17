@@ -1,0 +1,98 @@
+# THE STRINGS THE COMPILER CANNOT CHECK.
+#
+# Translations in this app are compiler-checked: `en.ts` is the schema, every
+# other catalogue is typed against it, and a missing key is a build error. That
+# guarantee covers every string that goes THROUGH the catalogue and says nothing
+# at all about one that does not — a bare `<Txt>ADD SOMETHING</Txt>` typechecks
+# perfectly and ships English into a Vietnamese app.
+#
+# Four had slipped in: a section heading on Routines, a section heading and an
+# accessibility label on Reminders, and the scheduled-reminder count, which was
+# not only untranslated but pluralised by hand ("reminder is" / "reminders are")
+# in a file where a `{one, other}` mechanism already existed.
+#
+# `08-language.yaml` covers the switch itself — the picker, the screen behind it
+# and the tab bar. This one goes to the two screens where the literals were, and
+# asserts the ENGLISH IS ABSENT as well as that the Vietnamese is present:
+# asserting only the translation would pass on a screen showing both.
+#
+# ── IT CLEARS STATE, AND THAT IS ABOUT FAILURE RATHER THAN SETUP ───────────
+# A language flow is the one kind that can poison its successors: it changes a
+# persisted, app-wide setting, so a run that dies in the middle leaves every
+# later flow reading a Vietnamese app while asserting English strings — and
+# those flows then fail for a reason that has nothing to do with what they
+# test. Starting from a cleared install makes this one indifferent to what ran
+# before it, and the restore at the end keeps it polite to what runs after.
+appId: com.oneplan.app
+name: Language — no English left on the settings screens
+---
+- launchApp:
+    clearState: true
+
+- assertVisible: "Oneplan"
+- tapOn: "Get started"
+- tapOn: "Organise my day and time"
+- tapOn: "Continue.*"
+- tapOn: "Loose — morning, afternoon, evening"
+- tapOn: "Continue.*"
+# Pick a morning step, so the Routines screen below has a routine to open.
+- assertVisible: "Wake up"
+- tapOn: "Wake up"
+- tapOn: "Continue.*"
+- tapOn: "Continue.*"
+- tapOn: "Continue.*"
+- tapOn: "Not right now"
+- tapOn: "Start planning"
+
+- tapOn: "Me"
+- tapOn: "Language"
+- tapOn: "Tiếng Việt"
+# THE WAY OUT HAS ALREADY BEEN RELABELLED. The picker applies the language on
+# tap, with no confirm step, so the back button behind this very tap is now
+# "Quay lại" — tapping "Back" here fails, and it failing is the app working.
+- tapOn: "Quay lại"
+
+# The Me screen is the first proof the switch took.
+- assertVisible: "Thói quen"
+- tapOn: "Thói quen"
+
+# Opening a slot reveals the heading that used to read "ADD SOMETHING".
+- assertVisible: "Thói quen buổi sáng.*"
+- tapOn: "Thói quen buổi sáng.*"
+- assertVisible: "THÊM MỘT VIỆC"
+- assertNotVisible: "ADD SOMETHING"
+- takeScreenshot: artifacts/18-routines-vietnamese
+
+- tapOn: "Quay lại"
+
+# Reminders carried two of the four literals.
+#
+# ── WHAT THIS CAN AND CANNOT REACH, STATED HONESTLY ────────────────────────
+# Both of those strings live behind `enabled && permitted` — the preview
+# heading and the scheduled count only render once reminders are switched on
+# AND the OS has granted permission, and this flow can do neither: tapping the
+# switch raises a system prompt that Maestro cannot answer. Asserting their
+# ABSENCE here would therefore be vacuous, passing against a screen where they
+# could not appear under any circumstances, and it would keep passing if the
+# English literals were put straight back.
+#
+# So this asserts what is actually reachable: the screen renders in Vietnamese
+# down to the row that governs the rest. The two gated strings are covered by
+# the type system instead — they are catalogue keys now, and `vi.ts` is typed
+# against `en.ts`, so neither can go missing without a build error.
+- tapOn: "Nhắc nhở"
+- assertVisible: "Nhắc nhở hoạt động"
+- assertVisible: "Quyền hệ thống"
+- takeScreenshot: artifacts/19-reminders-vietnamese
+
+# Put it back to following the device, so the suite's other flows — which are
+# all written in English — are not left running against a Vietnamese app.
+- tapOn: "Quay lại"
+- tapOn: "Ngôn ngữ"
+# `.*` because the System row's accessibility label is its title AND its hint
+# ("Hệ thống. Theo thiết bị · English"), and a Maestro selector is a FULL-string
+# regex rather than a substring.
+- tapOn: "Hệ thống.*"
+- assertVisible: "Language"
+- tapOn: "Back"
+- assertVisible: "Routines"

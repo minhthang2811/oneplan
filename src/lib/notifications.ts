@@ -24,6 +24,20 @@ import { formatDuration, parseKey } from './time';
 const ID_PREFIX = 'oneplan:';
 
 /**
+ * The focus-session alarm's identifier, DELIBERATELY OUTSIDE `ID_PREFIX`.
+ *
+ * The reconcile below owns everything under `oneplan:` — it walks the OS's
+ * pending list and cancels every id with that prefix which is not in the plan
+ * it just computed. A focus alarm is not an activity reminder and never
+ * appears in that plan, so putting it under the same prefix would mean the
+ * next reconcile silently deleted it, and a reconcile runs on every task edit.
+ * The separate namespace is what keeps the two schedulers from fighting; it
+ * lives here rather than in `focusAlarm.ts` so the rule is visible from the
+ * loop that would otherwise break it.
+ */
+export const FOCUS_ID = 'oneplan-focus:session';
+
+/**
  * iOS keeps only the soonest 64 pending local notifications and silently drops
  * the rest. A planner accumulates future-dated activities, so the horizon is
  * trimmed here on purpose rather than discovered later as "reminders stop
@@ -31,7 +45,15 @@ const ID_PREFIX = 'oneplan:';
  */
 const MAX_PENDING = 64;
 
-const ANDROID_CHANNEL_ID = 'reminders';
+/**
+ * Exported because the focus alarm schedules onto the SAME channel.
+ *
+ * Two channels would mean two rows in Android's notification settings for what
+ * a user experiences as one app talking to them, and the second one would have
+ * to be created and named separately — which is exactly the step the focus
+ * alarm originally forgot, leaving it channel-less and therefore undelivered.
+ */
+export const ANDROID_CHANNEL_ID = 'reminders';
 
 /**
  * Registered at import time rather than inside a component: iOS asks the
@@ -41,14 +63,30 @@ const ANDROID_CHANNEL_ID = 'reminders';
  * certainly watching.
  */
 Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: true,
-    shouldShowList: true,
-    // Android suppresses the heads-up banner entirely when this is false,
-    // whatever the priority says, so it is not merely a taste setting.
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
+  handleNotification: async (notification) => {
+    /**
+     * A FOCUS ALARM IS SUPPRESSED WHILE THE APP IS IN FRONT.
+     *
+     * It exists for the case where the phone is face down. If the user is
+     * looking at the Focus screen when the timer ends, they get the ring
+     * finishing, a success haptic, Pip and the confetti — a banner on top of
+     * that is the same news delivered twice, and it covers the celebration it
+     * is announcing. Activity reminders are NOT suppressed: those are about
+     * something the user is not currently doing, which is worth saying even
+     * when the app is open.
+     */
+    const focusAlarm = notification.request.content.data?.kind === 'focus';
+    const foreground = AppState.currentState === 'active';
+    const show = !(focusAlarm && foreground);
+    return {
+      shouldShowBanner: show,
+      shouldShowList: show,
+      // Android suppresses the heads-up banner entirely when this is false,
+      // whatever the priority says, so it is not merely a taste setting.
+      shouldPlaySound: show,
+      shouldSetBadge: false,
+    };
+  },
 });
 
 // ---- permission ------------------------------------------------------------
@@ -249,7 +287,7 @@ let androidChannelLocale: Locale | null = null;
  * one explicitly also means the row in Android's own settings reads "Activity
  * reminders" instead of the generic fallback.
  */
-function ensureAndroidChannel(): Promise<unknown> {
+export function ensureAndroidChannel(): Promise<unknown> {
   if (process.env.EXPO_OS !== 'android') return Promise.resolve();
   const locale = currentLocale();
   if (androidChannel && androidChannelLocale === locale) return androidChannel;

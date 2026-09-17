@@ -89,6 +89,16 @@ export const vi: Dict = {
     emptyBody: 'Thêm một việc bạn muốn hoàn thành. Một việc là đủ để bắt đầu một ngày.',
     anytimeHint: 'Bất cứ việc gì hợp với hôm nay',
     slotCount: { one: '{label}, {count} hoạt động', other: '{label}, {count} hoạt động' },
+    overdueCount: {
+      one: '{count} việc chưa xong từ hôm trước',
+      other: '{count} việc chưa xong từ những hôm trước',
+    },
+    moveToToday: 'Chuyển sang hôm nay',
+    moveAllTitle: {
+      one: 'Chuyển {count} việc sang hôm nay?',
+      other: 'Chuyển cả {count} việc sang hôm nay?',
+    },
+    moveAllBody: 'Chúng vẫn giữ buổi trong ngày. Bạn có thể chuyển lại bất cứ việc nào.',
   },
 
   todo: {
@@ -116,6 +126,8 @@ export const vi: Dict = {
 
   focus: {
     title: 'Tập trung',
+    alarmTitle: 'Hết giờ rồi',
+    alarmBody: 'Phiên tập trung của bạn đã kết thúc.',
     pickLength: 'Chọn khoảng thời gian bạn muốn biến mất',
     range: '{from} → {to}',
     endsAtLong: 'Kết thúc lúc {to}',
@@ -196,6 +208,12 @@ export const vi: Dict = {
     a11ySummary: { one: '{count} bước, khoảng {duration}, bắt đầu lúc {time}', other: '{count} bước, khoảng {duration}, bắt đầu lúc {time}' },
     a11yRow: 'Thói quen {slot}, {summary}',
     startPrompt: 'Thói quen {slot} của bạn bắt đầu lúc nào?',
+    addSomething: 'Thêm một việc',
+    editStepA11y: '{title}, {duration}. Chạm để đổi.',
+    stepName: 'Tên bước',
+    stepPlaceholder: 'Bước này là gì?',
+    stepLength: 'Bao lâu',
+    resetStep: 'Đặt lại bước này',
     inThisRoutine: 'Trong thói quen này',
     orderFooter: 'Chạm vào mũi tên để đổi thứ tự các việc.',
     emptyList: 'Chưa có gì ở đây. Chọn từ danh sách bên dưới.',
@@ -247,6 +265,12 @@ export const vi: Dict = {
     tenHint: 'Đủ thời gian để làm nốt việc đang dở',
     asItStarts: 'Ngay khi bắt đầu',
     before: 'Trước {duration}',
+    scheduledCount: {
+      one: 'Đã lên lịch {count} lời nhắc.',
+      other: 'Đã lên lịch {count} lời nhắc.',
+    },
+    preview: 'Bạn sẽ thấy gì',
+    previewA11y: 'Thông báo mẫu. {title}. {body}',
     switchedOffBody:
       'Thông báo cho Oneplan đã bị tắt trong Cài đặt iOS, nên ứng dụng ngừng hứa những lời nhắc mà nó không gửi được. Cho phép lại để bật tính năng này.',
     privacyNote:
@@ -301,6 +325,25 @@ export const vi: Dict = {
     markDone: 'Đánh dấu đã xong',
     markNotDone: 'Đánh dấu chưa xong',
     focus: 'Tập trung',
+
+    edit: 'Sửa',
+    editA11y: '{field}: {value}. Chạm để đổi.',
+    renameTitle: 'Đổi tên hoạt động',
+    renamePlaceholder: 'Bạn đang làm gì?',
+    duration: 'Bao lâu',
+    whenSlot: 'Buổi trong ngày',
+    startsAt: 'Bắt đầu lúc',
+    noSetTime: 'Không đặt giờ',
+    tagField: 'Nhãn',
+    noTag: 'Không có nhãn',
+    moveTitle: 'Chuyển sang',
+    moveToday: 'Hôm nay',
+    moveTomorrow: 'Ngày mai',
+    moveInbox: 'Danh sách việc cần làm',
+    dateField: 'Ngày',
+    inboxValue: 'Danh sách việc cần làm',
+    priority: 'Mức ưu tiên',
+    editInRoutines: 'Sửa trong Thói quen',
   },
 
   onboarding: {

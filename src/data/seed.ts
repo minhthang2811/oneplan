@@ -1,6 +1,6 @@
 import type { Task } from '../store/types';
 import type { TintName } from '../theme/tokens';
-import { dateKey } from '../lib/time';
+import { dateKey, type Slot } from '../lib/time';
 import { translate, type TKey } from '../i18n';
 import { en } from '../i18n/en';
 
@@ -100,6 +100,31 @@ export const SUGGESTIONS: Array<{
   { key: 'suggestion.call', emoji: '📞', tint: 'peach', minutes: 15 },
   { key: 'suggestion.water', emoji: '💧', tint: 'mint', minutes: 5 },
 ];
+
+/**
+ * The durations and start times the forms offer.
+ *
+ * Shared by the add sheet and the task detail's editors, because they are two
+ * views of the same field: a duration you can pick when creating an activity
+ * and not when changing it is the kind of asymmetry nobody designs on purpose,
+ * and two copies of the list is how it happens.
+ */
+export const DURATIONS = [5, 15, 30, 45, 60, 90];
+
+/**
+ * Start times offered per slot, as minutes from midnight.
+ *
+ * Presets rather than a wheel: the whole point of the loose morning/afternoon/
+ * evening model is that most activities do not need a precise clock time. The
+ * few that do are nearly always on the hour, and a chip is one tap where a
+ * picker is four.
+ */
+export const START_TIMES: Record<Slot, number[]> = {
+  anytime: [],
+  morning: [6, 7, 8, 9, 10, 11].map((h) => h * 60),
+  afternoon: [12, 13, 14, 15, 16].map((h) => h * 60),
+  evening: [17, 18, 19, 20, 21, 22].map((h) => h * 60),
+};
 
 export const EMOJI_CHOICES = [
   '📝','🌅','🧹','💻','💧','🥪','🍝','🌙','📚','🏃','🧘','🎧',

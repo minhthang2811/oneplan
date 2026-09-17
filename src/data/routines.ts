@@ -101,6 +101,39 @@ export function routineParentTitle(slot: RoutineSlot): string {
   return translate(`routineParent.${slot}` as TKey);
 }
 
+/**
+ * A routine activity's id, WHICH IS PER-DATE.
+ *
+ * It used to be the bare slot id (`seed-morning`), one task for all time. That
+ * is what made the routine impossible to repeat: a routine activity is an
+ * ordinary, editable, tickable task once it exists, so a second day's copy
+ * would need a second id — and with only one available, building today's
+ * morning necessarily destroyed yesterday's, ticks and all. The app avoided
+ * the data loss by never building a second day at all, which is why a routine
+ * appeared on the day it was configured and never again.
+ *
+ * Dating the id gives every day its own record. Yesterday's finished morning
+ * stays finished, today's arrives fresh, and paging back through the week
+ * shows what actually happened rather than one row that moves.
+ */
+export function routineTaskId(slot: RoutineSlot, date: string): string {
+  return `${ROUTINE_PARENT[slot].id}:${date}`;
+}
+
+/** The ids routine activities were written under before they were dated. */
+const LEGACY_IDS = new Set(ROUTINE_SLOTS.map((slot) => ROUTINE_PARENT[slot].id));
+
+/**
+ * Whether a task is one of the generated routine activities.
+ *
+ * Carry-over asks this: a routine belongs to its own day and today already has
+ * its own copy, so dragging yesterday's unfinished morning onto today would put
+ * two morning routines on one day.
+ */
+export function isRoutineTask(id: string): boolean {
+  return LEGACY_IDS.has(id) || LEGACY_IDS.has(id.split(':')[0]);
+}
+
 /** Copy for the picker, per slot. One question at a time. */
 export const ROUTINE_COPY: Record<RoutineSlot, { title: TKey; subtitle: TKey }> = {
   morning: {
