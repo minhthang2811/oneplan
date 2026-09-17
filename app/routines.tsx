@@ -288,7 +288,7 @@ function SlotEditor({
           </Section>
 
           <View style={{ gap: space.sm }}>
-            <Txt variant="micro" tone="faint">ADD SOMETHING</Txt>
+            <Txt variant="micro" tone="faint">{translate('routines.addSomething').toUpperCase()}</Txt>
             {/* The same chips as onboarding, so the two surfaces teach the same
                 gesture. Selection is fill plus a redundant tick — never colour
                 alone. */}

@@ -182,6 +182,17 @@ as much the point as the assertions.
 | `06-tab-drag` | Dragging the indicator commits where it *ended*, and tapping still works |
 | `07-launch-handoff` | The launch overlay appears **and then goes away** |
 | `08-language` | Switching to Vietnamese relabels the picker, the screen behind it, and the tab bar |
+| `09-routine-recurrence` | A routine survives a relaunch, and arrives exactly **once** |
+| `10-task-editing` | Renaming, retiming and moving an activity, read back off the list |
+| `11-focus-dial` | The dial follows the activity it was opened for, and forgets it after |
+| `12-translated-chrome` | No English literals left on Routines or Reminders |
+
+`09` is the one that guards the worst bug the app has had: a routine used to be
+written onto the plan only on the day it was configured, so day two opened to an
+empty grid for someone who had already described their mornings. Maestro cannot
+move the device clock, so it cannot prove the routine returns *tomorrow* — what
+it proves is the half that regressed twice, that the routine exists at all and
+exists once. The date gating itself lives in `routinesBuiltFor`.
 
 `07` is the important one. The launch overlay is `pointerEvents="none"` and
 entirely hidden from assistive technology, so if it ever failed to unmount, the
@@ -253,6 +264,14 @@ Rules learned the hard way, documented in the flows themselves:
    was a real defect rather than a test problem: it meant a VoiceOver user could
    not complete an activity from the list. The row now exposes a custom
    `toggle` action for it.
+9. **A virtualized row that is off-screen is not in the hierarchy at all**, so
+   `assertVisible` fails on content that exists and is perfectly correct. This
+   is rule 5's twin and it is nastier, because the failure is plausible: an
+   assertion about an activity you have just moved to the Evening block fails
+   with "not visible", which reads exactly like the move having deleted it.
+   `scrollUntilVisible` is the fix, and the day header is worth remembering
+   too — it is the list's `ListHeaderComponent`, so scrolling down takes the
+   Next/Previous day chevrons with it and they have to be scrolled back to.
 
 ## Publishing to the App Store
 

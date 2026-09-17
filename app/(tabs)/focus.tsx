@@ -8,7 +8,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useLocalSearchParams } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Txt } from '../../src/components/Txt';
 import { Icon } from '../../src/components/Icon';
 import { Ring } from '../../src/components/Ring';
@@ -46,9 +46,39 @@ export default function Focus() {
   const focus = usePlanStore((s) => s.focus);
   const tasks = usePlanStore((s) => s.tasks);
 
+  /**
+   * ── THE INCOMING REQUEST, WHICH USED TO OUTLIVE ITSELF ────────────────────
+   * `taskId` arrives when someone taps "focus on this" from a row or a detail
+   * screen. It is a one-shot instruction, but it is a TAB route's param, and a
+   * tab route is never popped — so it stayed set for the rest of the session.
+   * Finish a session on Lunch, come back to Focus tomorrow, and the picker was
+   * still pinned to Lunch, still tinted for it, and Start would have attached a
+   * fresh session to an activity that was ticked off yesterday.
+   *
+   * Clearing it on blur is what makes it one-shot: by the time the screen is
+   * left, the request has either been started (and `focus.taskId` owns it from
+   * then on) or abandoned.
+   */
+  const paramTaskId = params.taskId || undefined;
+  /**
+   * The cleanup reads a REF and the callback has no dependencies, so it fires
+   * on blur and on nothing else. Closing over `paramTaskId` directly would make
+   * the callback's identity change whenever the param does, and `useFocusEffect`
+   * runs the previous cleanup on an identity change as well as on a blur — so
+   * a screen that was already focused when a new taskId arrived would clear the
+   * param it had just been handed.
+   */
+  const paramRef = useRef(paramTaskId);
+  paramRef.current = paramTaskId;
+  useFocusEffect(
+    useCallback(() => () => {
+      if (paramRef.current) router.setParams({ taskId: '' });
+    }, [])
+  );
+
   const paramTask = useMemo(
-    () => tasks.find((t) => t.id === params.taskId) ?? null,
-    [tasks, params.taskId]
+    () => tasks.find((t) => t.id === paramTaskId) ?? null,
+    [tasks, paramTaskId]
   );
   const activeTask = useMemo(
     () => tasks.find((t) => t.id === focus?.taskId) ?? null,
@@ -142,7 +172,20 @@ export default function Focus() {
         <View style={pad}>
           {header}
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-            <DialPicker task={paramTask} />
+            {/*
+              KEYED ON THE ACTIVITY.
+
+              `DialPicker` seeds the dial from `task.minutes` in a
+              `useSharedValue`/`useState` initialiser, which only runs on mount
+              — and a tab screen never unmounts (`detachInactiveScreens` is off
+              for the fade transition). So opening Focus from a 10-minute
+              activity and then from a 45-minute one left the dial reading 10
+              while the chip underneath it named the 45-minute activity: two
+              parts of one screen disagreeing about what was about to start.
+              Keying on the id remounts the picker, which is what re-runs those
+              initialisers.
+            */}
+            <DialPicker key={paramTask?.id ?? 'none'} task={paramTask} />
           </View>
         </View>
       )}
@@ -190,7 +233,7 @@ function DialPicker({ task }: { task: Task | null }) {
     .onBegin((e) => {
       'worklet';
       dragging.set(true);
-      applyAngle(e.x, e.y, minutes);
+      applyAngle(e.x, e.y, minutes, true);
     })
     .onUpdate((e) => {
       'worklet';
@@ -329,17 +372,32 @@ function PresetChip({ minutes, active, onPress }: { minutes: number; active: boo
   );
 }
 
-/** Touch point -> dial minutes. Runs on the UI thread; never touches JS. */
-function applyAngle(x: number, y: number, minutes: SharedValue<number>) {
+/**
+ * Touch point -> dial minutes. Runs on the UI thread; never touches JS.
+ *
+ * ── `jump` IS WHY THE DIAL USED TO IGNORE HALF OF ITSELF ───────────────────
+ * The wrap guard below rejects a change of more than half the dial, so that
+ * dragging past twelve o'clock does not snap from 59 to 1 under the finger.
+ * That is right DURING a drag and wrong at the start of one: it ran on
+ * `onBegin` too, so putting a finger down more than thirty minutes away from
+ * the current value was rejected — and because the value then never moved,
+ * every subsequent `onUpdate` was measured against the same unchanged number
+ * and rejected as well. The entire gesture was dead. With the dial on 15,
+ * touching anywhere from roughly 45 to 60 did nothing at all, which reads as
+ * the control being broken rather than as a guard doing its job.
+ *
+ * A touch-down is an absolute placement — there is no previous position within
+ * the gesture to wrap around yet — so it sets the value outright and only the
+ * updates that follow are guarded.
+ */
+function applyAngle(x: number, y: number, minutes: SharedValue<number>, jump = false) {
   'worklet';
   const cx = DIAL / 2;
   const cy = DIAL / 2;
   let deg = (Math.atan2(y - cy, x - cx) * 180) / Math.PI + 90;
   if (deg < 0) deg += 360;
   const next = (deg / 360) * MAX_MIN;
-  // Reject the wrap-around jump so dragging past the top does not snap the
-  // dial from 59 to 1 under the finger.
-  if (Math.abs(next - minutes.get()) > MAX_MIN / 2) return;
+  if (!jump && Math.abs(next - minutes.get()) > MAX_MIN / 2) return;
   minutes.set(Math.max(1, next));
 }
 

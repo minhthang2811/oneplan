@@ -1,0 +1,101 @@
+# A ROUTINE HAS TO SURVIVE A RELAUNCH — AND ARRIVE EXACTLY ONCE.
+#
+# This guards the worst bug the app had. A routine was written onto the plan by
+# `applyRoutines` at the end of onboarding and by `syncRoutines` when the
+# Routines screen was edited, and by nothing else — so the morning routine
+# someone configured on Monday was on Monday's plan and never appeared again.
+# Day two opened to an empty grid and a dozing dog, for a user who had already
+# told the app what their mornings look like. Nothing in the suite could see it,
+# because every flow either cleared state and walked onboarding (which builds
+# the routine) or ran on the same day the previous one had.
+#
+# `ensureToday` now materialises today's routines on launch, on foreground and
+# at midnight. That introduces the opposite hazard, which is what the second
+# half of this flow is for: a rebuild that is not gated correctly appends a
+# SECOND copy of the routine on every launch, and two "Morning routine" rows
+# look enough like one that a screenshot will not catch it.
+#
+# WHAT THIS CANNOT TEST, STATED PLAINLY. Maestro cannot move the device clock,
+# so it cannot prove the routine reappears TOMORROW — only that relaunching
+# within a day neither loses it nor duplicates it. The date gating itself is
+# `routinesBuiltFor`, and the honest place to exercise that is a unit test over
+# the store. What is asserted here is the half that actually regressed twice:
+# the routine existing at all, and existing once.
+appId: com.oneplan.app
+name: Routines — survive a relaunch, exactly once
+---
+- launchApp:
+    clearState: true
+
+# Walk onboarding and actually PICK two morning steps, unlike the other flows
+# which continue straight past this screen. A routine with nothing in it builds
+# no activity, so picking is the whole setup.
+- assertVisible: "Oneplan"
+- tapOn: "Get started"
+- tapOn: "Organise my day and time"
+- tapOn: "Continue.*"
+- tapOn: "Loose — morning, afternoon, evening"
+- tapOn: "Continue.*"
+
+- assertVisible: "Wake up"
+- tapOn: "Wake up"
+- tapOn: "Brush teeth"
+- tapOn: "Continue.*"
+- tapOn: "Continue.*"
+- tapOn: "Continue.*"
+- tapOn: "Not right now"
+- tapOn: "Start planning"
+
+# The routine is on today, built out of the two steps chosen above. The label
+# carries its summed duration (5m + 3m), which is how we know it was built from
+# the picks rather than from the seeded placeholder of the same name.
+- assertVisible: "Morning routine, 8m"
+
+- takeScreenshot: artifacts/09-routine-on-first-day
+
+# THE SLOTS NOBODY CONFIGURED KEEP WHAT THEY HAD.
+#
+# Only the morning was picked above. The starter day also seeds an "Evening
+# routine" as an ordinary task, and the daily rebuild must not treat an
+# unconfigured slot as an empty routine to be tidied away — it is just a task
+# the user has. Getting this wrong deletes a row from the plan minutes after
+# setup, with nothing saying why, so it is asserted rather than assumed.
+#
+# SCROLLED TO, not merely asserted: the day is a virtualized FlashList and the
+# evening block is below the fold on a fresh install, so a plain `assertVisible`
+# fails on a row that is present and simply not on screen — which looks exactly
+# like the deletion this is guarding against.
+- scrollUntilVisible:
+    element: "Evening routine.*"
+    direction: DOWN
+
+# --- relaunch -------------------------------------------------------------
+# NO `clearState` — that is the entire point. This is the same install coming
+# back, which is the path `ensureToday` runs on.
+- launchApp
+- assertVisible: "Next day"
+- assertVisible: "Morning routine, 8m"
+
+# EXACTLY ONE. `assertVisible` is satisfied by the first match, so it cannot
+# tell one routine from two — the count is what catches a rebuild that appends
+# instead of replacing.
+- assertVisible:
+    text: "Morning routine, 8m"
+    index: 0
+- assertNotVisible:
+    text: "Morning routine, 8m"
+    index: 1
+- takeScreenshot: artifacts/10-routine-after-relaunch
+
+# Still there after the rebuild a relaunch triggers, which is the pass that
+# would actually do the deleting.
+- scrollUntilVisible:
+    element: "Evening routine.*"
+    direction: DOWN
+
+# The Routines screen agrees with the day. A summary that says "2 steps" over a
+# day that shows none is the shape the original bug had.
+- tapOn: "Me"
+- tapOn: "Routines"
+- assertVisible: "Morning routine.*2 steps.*"
+- takeScreenshot: artifacts/11-routines-screen

@@ -225,7 +225,15 @@ function Stat({ label, value, sub }: { label: string; value: string; sub: string
         borderRadius: radius.card, borderCurve: 'continuous', backgroundColor: c.surface, boxShadow: shadow[1],
       }}
     >
-      <Txt variant="micro" tone="faint" numberOfLines={1}>{label.toUpperCase()}</Txt>
+      {/*
+        TWO LINES, because one truncates in the language the app also ships in.
+        Three tiles share the width, so a label has roughly a third of the
+        screen: "PLANNED" fits and "ĐÃ LÊN KẾ HOẠCH" does not, and it rendered
+        as "ĐÃ LÊN KẾ HO…" — a heading with its own noun cut off. Wrapping is
+        free here because the tiles stretch to the tallest of the three, so the
+        row stays aligned either way.
+      */}
+      <Txt variant="micro" tone="faint" numberOfLines={2}>{label.toUpperCase()}</Txt>
       <Txt variant="displaySm" tabular>{value}</Txt>
       <Txt variant="caption" tone="muted">{sub}</Txt>
     </View>

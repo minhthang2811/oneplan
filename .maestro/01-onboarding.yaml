@@ -69,7 +69,13 @@ name: Onboarding — Pip's first-run moments
 - tapOn: "Continue.*"
 
 # --- Reminders: Pip holding his phone, notification lines pulsing beside ---
-- assertVisible: "Oneplan can tell you when an activity begins.*"
+# THE COPY MOVED WHEN THE BEHAVIOUR DID. This used to assert "…when an activity
+# begins", which is exactly the thing the lead-time work removed: the screen now
+# promises a nudge a few minutes AHEAD, because a reminder that arrives as you
+# should already have started is a notification about being late. The assertion
+# is pinned to the loose half of the sentence so a future wording tweak does not
+# break it again, while still failing if the screen stops making the promise.
+- assertVisible: "Oneplan can tell you a few minutes ahead.*"
 - assertVisible: "Turn on reminders"
 - takeScreenshot: artifacts/02-reminders-pip-phone
 # "Not right now" avoids the native permission dialog, which is not what this

@@ -196,7 +196,7 @@ export default function Reminders() {
         footer={
           enabled && permitted
             ? scheduled > 0
-              ? `${scheduled} ${scheduled === 1 ? 'reminder is' : 'reminders are'} scheduled.`
+              ? t('reminderSettings.scheduledCount', { count: scheduled })
               : timedTotal === 0
                 ? t('reminderSettings.nothingWithTimes')
                 : t('reminderSettings.nothingToday')
@@ -238,7 +238,7 @@ export default function Reminders() {
           </Section>
 
           <View style={{ gap: space.sm }}>
-            <Txt variant="micro" tone="faint">WHAT YOU WILL SEE</Txt>
+            <Txt variant="micro" tone="faint">{t('reminderSettings.preview').toUpperCase()}</Txt>
             {/* Built from `reminderBody`, the same function that writes the
                 real notification — so this preview cannot drift from it. */}
             <View
@@ -248,11 +248,18 @@ export default function Reminders() {
                 backgroundColor: c.surface, boxShadow: shadow[1],
               }}
               accessible
-              accessibilityLabel={`Example notification. ${preview.title}. ${preview.body}`}
+              accessibilityLabel={t('reminderSettings.previewA11y', {
+                title: preview.title,
+                body: preview.body,
+              })}
             >
               <EmojiAvatar emoji={preview.emoji} tint="peach" size={38} />
               <View style={{ flex: 1, gap: 1 }}>
-                <Txt variant="micro" tone="faint">ONEPLAN</Txt>
+                {/* The brand mark in the notification preview. It is not translated —
+                    it is a name — but it goes through the catalogue anyway, so
+                    that this screen and the onboarding preview beside it cannot
+                    disagree about how the app writes its own name. */}
+                <Txt variant="micro" tone="faint">{t('onboarding.remindersBrand')}</Txt>
                 <Txt variant="bodyStrong">{preview.title}</Txt>
                 <Txt variant="caption" tone="muted">{preview.body}</Txt>
               </View>

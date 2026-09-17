@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useFonts } from 'expo-font';
@@ -16,6 +16,8 @@ import { View, Pressable, Text, useColorScheme } from 'react-native';
 import type { ErrorBoundaryProps } from 'expo-router';
 import { usePlanStore } from '../src/store/usePlanStore';
 import { useTaskNotifications } from '../src/lib/notifications';
+import { useFocusAlarm } from '../src/lib/focusAlarm';
+import { useTodayKey } from '../src/lib/useTodayKey';
 import { useDeviceLocaleSync, translate, type TKey } from '../src/i18n';
 import { LaunchScreen } from '../src/components/LaunchScreen';
 import { ChromeProvider } from '../src/components/Chrome';
@@ -128,6 +130,34 @@ export default function RootLayout() {
   const onboarded = usePlanStore((s) => s.onboarded);
   const { c } = useTheme();
 
+  /**
+   * TODAY'S ROUTINES ARE BUILT HERE, ONCE A DAY.
+   *
+   * A routine used to be written onto the plan only when it was configured, so
+   * it appeared on that day and never again — see the note on `ensureToday`.
+   * This is the call that makes it recur, and it is at the ROOT rather than in
+   * the Today screen for two reasons: the plan has to be right before the
+   * notification scheduler below reads it, and the day can turn over while the
+   * user is sitting on Focus or Me.
+   *
+   * Keyed on the live date, so it runs on launch, on the first foreground
+   * after midnight, and at midnight itself if the app is open. `ensureToday`
+   * is idempotent, so a spurious run costs nothing.
+   */
+  const todayKey = useTodayKey();
+  const ensureToday = usePlanStore((s) => s.ensureToday);
+  useEffect(() => {
+    if (onboarded) ensureToday();
+  }, [todayKey, onboarded, ensureToday]);
+
+  /**
+   * A focus session that expired while the app was closed does not get a
+   * celebration on the next launch — see `FOCUS_STALE_MS`. Once, on mount,
+   * because this is about the gap between runs rather than about the clock.
+   */
+  const reconcileFocus = usePlanStore((s) => s.reconcileFocus);
+  useEffect(() => { reconcileFocus(); }, [reconcileFocus]);
+
   // Pushes the stored light/dark preference down to the platform, so
   // ActionSheetIOS, Alert, Switch and the keyboard agree with the palette.
   // Mounted once, here, for the reason given on the hook.
@@ -137,6 +167,11 @@ export default function RootLayout() {
   // from whichever screen edits it, and so importing the module — which is what
   // registers the foreground notification handler — happens on the first frame.
   useTaskNotifications();
+
+  // The focus timer's own alarm, so a session that ends with the phone face
+  // down still says so. Mounted beside the reminder scheduler, above the
+  // router, because a session outlives the Focus screen.
+  useFocusAlarm();
 
   /**
    * Keeps the detected device language current. Android can change it while the

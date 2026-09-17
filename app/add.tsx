@@ -13,26 +13,11 @@ import { useTheme } from '../src/theme/useTheme';
 import { radius, space, TINT_NAMES, type TintName } from '../src/theme/tokens';
 import { useT } from '../src/i18n';
 import { usePlanStore } from '../src/store/usePlanStore';
-import { EMOJI_CHOICES, TAGS, SUGGESTIONS, tagLabel } from '../src/data/seed';
+import {
+  EMOJI_CHOICES, TAGS, SUGGESTIONS, tagLabel, DURATIONS, START_TIMES,
+} from '../src/data/seed';
 import { SLOT_ORDER, slotLabel, formatDurationShort, formatClock, type Slot } from '../src/lib/time';
 import { haptic } from '../src/lib/haptics';
-
-const DURATIONS = [5, 15, 30, 45, 60, 90];
-
-/**
- * Start times offered per slot, as minutes from midnight.
- *
- * Presets rather than a wheel: the whole point of the loose morning/afternoon/
- * evening model is that most activities do not need a precise clock time. The
- * few that do are nearly always on the hour, and a chip is one tap where a
- * picker is four.
- */
-const START_TIMES: Record<Slot, number[]> = {
-  anytime: [],
-  morning: [6, 7, 8, 9, 10, 11].map((h) => h * 60),
-  afternoon: [12, 13, 14, 15, 16].map((h) => h * 60),
-  evening: [17, 18, 19, 20, 21, 22].map((h) => h * 60),
-};
 
 export default function Add() {
   const params = useLocalSearchParams<{ date?: string; slot?: Slot; inbox?: string }>();

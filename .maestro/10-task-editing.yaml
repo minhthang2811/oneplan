@@ -1,0 +1,116 @@
+# AN ACTIVITY CAN BE CHANGED AFTER IT IS CREATED.
+#
+# Until now it could not. Title, duration, time of day, start time, tag and day
+# were all chosen once in the add sheet, in the first ten seconds of an
+# activity's life, and were plain text on the detail screen thereafter — a
+# fifteen-minute guess stayed fifteen minutes forever, and something filed on
+# the wrong day was stuck there. The only edits available were ticking it,
+# adding steps, and deleting it to start again.
+#
+# WHY THE WITNESS IS THE ROW AND NOT THE DETAIL SCREEN. Each assertion below
+# goes back to Today and reads the LIST, whose label is built independently
+# (`row.a11y` = "{title}, {duration}"). A detail screen that renders the new
+# value out of local component state would pass an in-place assertion and still
+# never have touched the store; the row can only change if `updateTask` ran and
+# the plan re-rendered.
+#
+# The action sheets are iOS-native, so their buttons are matched by their plain
+# labels — those are real UIKit elements in the hierarchy, unlike the in-app
+# controls the other flows have to tap by point.
+appId: com.oneplan.app
+name: Task editing — rename, retime, and move
+---
+- launchApp:
+    clearState: true
+
+- assertVisible: "Oneplan"
+- tapOn: "Get started"
+- tapOn: "Organise my day and time"
+- tapOn: "Continue.*"
+- tapOn: "Loose — morning, afternoon, evening"
+- tapOn: "Continue.*"
+- tapOn: "Continue.*"
+- tapOn: "Continue.*"
+- tapOn: "Continue.*"
+- tapOn: "Not right now"
+- tapOn: "Start planning"
+
+# "Quick tidy" is the seeded 5-minute morning activity. Opening the row pushes
+# the detail screen.
+- assertVisible: "Quick tidy, 5m"
+- tapOn: "Quick tidy, 5m"
+- assertVisible: "Steps"
+
+# --- duration --------------------------------------------------------------
+# The pill names its field as well as its value, so the selector is the
+# accessibility label `task.editA11y` builds: "How long: 5m. Tap to change."
+- tapOn: "How long: 5m.*"
+- tapOn: "30m"
+- assertVisible: "How long: 30m.*"
+
+# --- time of day -----------------------------------------------------------
+- tapOn: "Time of day: Morning.*"
+- tapOn: "Evening"
+- assertVisible: "Time of day: Evening.*"
+- takeScreenshot: artifacts/12-task-edited
+
+# --- rename ----------------------------------------------------------------
+# The title is edited in place: tapping it swaps the text for a TextInput.
+# `Alert.prompt` would have been the shorter route and is iOS-only, which is
+# why this is an input rather than a dialog.
+- tapOn: "Rename activity"
+# ERASE FIRST. The field is seeded with the current title via `defaultValue`,
+# and `inputText` types at the caret rather than replacing — so without this the
+# activity ends up called "Quick tidyTidy the kitchen", which is a green test
+# asserting the wrong thing rather than a red one.
+- eraseText
+- inputText: "Tidy the kitchen"
+# Dismissing the keyboard blurs the field, and blur is what commits. Leaving the
+# screen commits too (see the unmount handler in `task/[id].tsx`), but asserting
+# through the blur path keeps the two independent.
+- hideKeyboard
+
+- tapOn: "Back"
+
+# The row is the witness. All three edits have to show at once: the new name,
+# the new duration, and the move into the Evening block.
+#
+# SCROLLED TO, because the third edit is what puts it out of reach. The activity
+# started in Morning, at the top of the day, and the whole point of the edit was
+# to move it to Evening — which on the seeded starter day is below the fold in a
+# virtualized list. `assertVisible` reads the view hierarchy, and a FlashList row
+# that has not been rendered is not in it, so a plain assertion here fails on an
+# edit that worked perfectly. The failure even looks like the right one, since
+# the old name really is gone from the top of the list.
+- scrollUntilVisible:
+    element: "Tidy the kitchen, 30m"
+    direction: DOWN
+- assertNotVisible: "Quick tidy.*"
+- takeScreenshot: artifacts/13-row-reflects-edits
+
+# --- move to another day ---------------------------------------------------
+# The edit whose absence stranded work: an activity had no way off the day it
+# was filed on. Moving it to tomorrow must remove it from today AND put it on
+# tomorrow — asserting only the first would pass if the move simply deleted it.
+- tapOn: "Tidy the kitchen, 30m"
+- tapOn: "Day: Today.*"
+- tapOn: "Tomorrow"
+- tapOn: "Back"
+- assertNotVisible: "Tidy the kitchen.*"
+
+# BACK TO THE TOP FIRST. The day header — and with it the Next/Previous
+# chevrons — is the list's `ListHeaderComponent`, so it scrolls away with the
+# content. The scroll above left it off-screen, and a day-navigation control
+# that is not on screen cannot be tapped.
+- scrollUntilVisible:
+    element: "Next day"
+    direction: UP
+
+- tapOn: "Next day"
+# Tomorrow holds this one activity, so it is at the top — but it is still in the
+# Evening block, so this scrolls for the same reason as above rather than
+# relying on the day being short.
+- scrollUntilVisible:
+    element: "Tidy the kitchen, 30m"
+    direction: DOWN
+- takeScreenshot: artifacts/14-moved-to-tomorrow
