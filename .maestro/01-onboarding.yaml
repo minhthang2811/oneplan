@@ -1,11 +1,11 @@
 # Onboarding, end to end.
 #
-# Asserts the flow still completes AND that Pip is on the two steps that carry
+# Asserts the flow still completes AND that Pupu is on the two steps that carry
 # him — reminders (phone) and ready (cheer + speech bubble). The screenshots are
 # the point as much as the assertions: a mascot can pass every assertVisible
 # while rendering as a blank box, so each mascot moment is captured for review.
 #
-# Text selectors rather than testIDs: Oneplan ships in one language, and the
+# Text selectors rather than testIDs: Pupu ships in one language, and the
 # maestro-mobile-testing skill calls text the better choice there — the flow
 # doubles as a readable description of the journey.
 #
@@ -24,16 +24,16 @@
 # Also avoid the display headlines: they are hand-wrapped with a literal "\n"
 # so the serif breaks where the designer wanted, which regex `.` will not cross
 # without DOTALL. The subtitles are single-line, so assert on those.
-appId: com.oneplan.app
-name: Onboarding — Pip's first-run moments
+appId: com.pupu.app
+name: Onboarding — Pupu's first-run moments
 ---
 - launchApp:
     clearState: true
 
-# --- Welcome: Pip sits in front of the Bloom brand mark -------------------
-- assertVisible: "Oneplan"
+# --- Welcome: Pupu sits in front of the Bloom brand mark -------------------
+- assertVisible: "Pupu"
 - assertVisible: "No account needed. Everything stays on your phone."
-- takeScreenshot: artifacts/01-welcome-pip-sit
+- takeScreenshot: artifacts/01-welcome-pupu-sit
 - tapOn: "Get started"
 
 # --- Need ------------------------------------------------------------------
@@ -68,24 +68,24 @@ name: Onboarding — Pip's first-run moments
 - tapOn: "Continue.*"
 - tapOn: "Continue.*"
 
-# --- Reminders: Pip holding his phone, notification lines pulsing beside ---
+# --- Reminders: Pupu holding his phone, notification lines pulsing beside ---
 # THE COPY MOVED WHEN THE BEHAVIOUR DID. This used to assert "…when an activity
 # begins", which is exactly the thing the lead-time work removed: the screen now
 # promises a nudge a few minutes AHEAD, because a reminder that arrives as you
 # should already have started is a notification about being late. The assertion
 # is pinned to the loose half of the sentence so a future wording tweak does not
 # break it again, while still failing if the screen stops making the promise.
-- assertVisible: "Oneplan can tell you a few minutes ahead.*"
+- assertVisible: "Pupu can tell you a few minutes ahead.*"
 - assertVisible: "Turn on reminders"
-- takeScreenshot: artifacts/02-reminders-pip-phone
+- takeScreenshot: artifacts/02-reminders-pupu-phone
 # "Not right now" avoids the native permission dialog, which is not what this
 # flow is testing.
 - tapOn: "Not right now"
 
-# --- Ready: Pip cheers, and speaks. Deliberately NO confetti here ----------
+# --- Ready: Pupu cheers, and speaks. Deliberately NO confetti here ----------
 - assertVisible: "We have put a starter day in for you.*"
 - assertVisible: "Right then. Let's have a look at it."
-- takeScreenshot: artifacts/03-ready-pip-cheer
+- takeScreenshot: artifacts/03-ready-pupu-cheer
 - tapOn: "Start planning"
 
 # --- Lands in the app, past the one-way door -------------------------------

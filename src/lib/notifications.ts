@@ -21,12 +21,24 @@ import { formatDuration, parseKey } from './time';
  * recognise its own pending notifications and never cancels one that some
  * other part of the app scheduled.
  */
-const ID_PREFIX = 'oneplan:';
+const ID_PREFIX = 'pupu:';
+
+/**
+ * The prefix this module used when the app was called Oneplan.
+ *
+ * Reminders already sitting in the OS's pending list were named under it, and
+ * the reconcile only ever touches ids it recognises — so without this the old
+ * ones would be unownable: never refreshed, never cancelled, still firing days
+ * after the activity they name was edited or deleted. They are swept rather
+ * than re-adopted, because the same reconcile re-schedules everything still
+ * wanted under the new prefix on the very same pass.
+ */
+const LEGACY_PREFIXES = ['oneplan:', 'oneplan-focus:'];
 
 /**
  * The focus-session alarm's identifier, DELIBERATELY OUTSIDE `ID_PREFIX`.
  *
- * The reconcile below owns everything under `oneplan:` — it walks the OS's
+ * The reconcile below owns everything under `pupu:` — it walks the OS's
  * pending list and cancels every id with that prefix which is not in the plan
  * it just computed. A focus alarm is not an activity reminder and never
  * appears in that plan, so putting it under the same prefix would mean the
@@ -35,7 +47,7 @@ const ID_PREFIX = 'oneplan:';
  * lives here rather than in `focusAlarm.ts` so the rule is visible from the
  * loop that would otherwise break it.
  */
-export const FOCUS_ID = 'oneplan-focus:session';
+export const FOCUS_ID = 'pupu-focus:session';
 
 /**
  * iOS keeps only the soonest 64 pending local notifications and silently drops
@@ -69,7 +81,7 @@ Notifications.setNotificationHandler({
      *
      * It exists for the case where the phone is face down. If the user is
      * looking at the Focus screen when the timer ends, they get the ring
-     * finishing, a success haptic, Pip and the confetti — a banner on top of
+     * finishing, a success haptic, Pupu and the confetti — a banner on top of
      * that is the same news delivered twice, and it covers the celebration it
      * is announcing. Activity reminders are NOT suppressed: those are about
      * something the user is not currently doing, which is worth saying even
@@ -311,6 +323,10 @@ async function reconcile(tasks: Task[], enabled: boolean, lead: number): Promise
 
   for (const pending of await Notifications.getAllScheduledNotificationsAsync()) {
     const { identifier } = pending;
+    if (LEGACY_PREFIXES.some((p) => identifier.startsWith(p))) {
+      await Notifications.cancelScheduledNotificationAsync(identifier);
+      continue;
+    }
     if (!identifier.startsWith(ID_PREFIX)) continue;
     // Deleting doubles as the test: a hit means this one is already scheduled
     // exactly as wanted and must be left alone, so what survives the loop is

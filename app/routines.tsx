@@ -7,7 +7,7 @@ import { RoutineChip } from '../src/components/RoutineChip';
 import { SLOT_TINT, SLOT_ICON } from '../src/components/SlotChip';
 import { SettingsScreen, Section } from '../src/components/Settings';
 import { PressScale } from '../src/components/Press';
-import { PipScene } from '../src/components/mascot/PipScene';
+import { PupuScene } from '../src/components/mascot/PupuScene';
 import { useTheme } from '../src/theme/useTheme';
 import { radius, space } from '../src/theme/tokens';
 import {
@@ -138,9 +138,9 @@ function EmptyRoutines() {
         borderWidth: 1.5, borderStyle: 'dashed', borderColor: c.hairline,
       }}
     >
-      {/* Pip cheering is right here and a dozing Pip would not be: an empty
+      {/* Pupu cheering is right here and a dozing Pupu would not be: an empty
           routines screen is an invitation, not a day with nothing in it. */}
-      <PipScene pose="cheer" size={112} idle="bob" delay={120} />
+      <PupuScene pose="cheer" size={112} idle="bob" delay={120} />
       <View style={{ alignItems: 'center', gap: space.xs, paddingHorizontal: space.lg }}>
         <Txt variant="bodyStrong">{t('routines.none')}</Txt>
         <Txt variant="caption" tone="muted" style={{ textAlign: 'center' }}>

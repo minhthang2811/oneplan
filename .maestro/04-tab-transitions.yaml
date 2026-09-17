@@ -17,7 +17,7 @@
 #
 # Percentages must be WHOLE NUMBERS. "16.4%,93%" throws
 # NumberFormatException at runtime, after the flow has already started.
-appId: com.oneplan.app
+appId: com.pupu.app
 name: Tab transitions — every pair
 ---
 - launchApp

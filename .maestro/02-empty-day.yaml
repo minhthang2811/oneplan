@@ -1,9 +1,9 @@
-# The empty day — the one high-traffic screen Pip is allowed to appear on.
+# The empty day — the one high-traffic screen Pupu is allowed to appear on.
 #
 # Steps forward to a date with nothing on it rather than deleting the seeded
 # day, so the flow leaves the user's data alone and can be run repeatedly.
-appId: com.oneplan.app
-name: Empty day — Pip asleep
+appId: com.pupu.app
+name: Empty day — Pupu asleep
 ---
 - launchApp
 
@@ -18,10 +18,10 @@ name: Empty day — Pip asleep
 - assertVisible: "Nothing here yet"
 # Selectors are FULL regex matches — a bare prefix would fail here.
 - assertVisible: "Add one thing you want to get done.*"
-- takeScreenshot: artifacts/04-empty-day-pip-rest
+- takeScreenshot: artifacts/04-empty-day-pupu-rest
 
-# Me carries Pip too — the closest thing the app has to a profile picture.
+# Me carries Pupu too — the closest thing the app has to a profile picture.
 - tapOn: "Me"
 - assertVisible: "Me"
 - assertVisible: "Run onboarding again"
-- takeScreenshot: artifacts/05-me-pip-sit
+- takeScreenshot: artifacts/05-me-pupu-sit

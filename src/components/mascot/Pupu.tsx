@@ -1,7 +1,7 @@
 import { Image, type ImageSourcePropType } from 'react-native';
 
 /**
- * Pip — the Oneplan mascot.
+ * Pupu — the mascot the app is named after.
  *
  * This renders the ORIGINAL artwork. An earlier version of this file redrew the
  * character as react-native-svg paths, which bought arbitrary poses and
@@ -25,22 +25,22 @@ import { Image, type ImageSourcePropType } from 'react-native';
  * squash-and-stretch on a calm sitting dog supplies either.
  *
  * Everything the app still cannot draw — dozing, arriving — remains carried by
- * motion in `PipScene`. That is a real constraint, and it is why the mascot's
+ * motion in `PupuScene`. That is a real constraint, and it is why the mascot's
  * vocabulary is deliberately small.
  */
 
-export type PipImage = 'sit' | 'phone' | 'cheer';
+export type PupuImage = 'sit' | 'phone' | 'cheer';
 
-const SOURCES: Record<PipImage, ImageSourcePropType> = {
+const SOURCES: Record<PupuImage, ImageSourcePropType> = {
   /** Sitting, looking at you. The default, and the basis of every pose. */
-  sit: require('../../../assets/mascot/pip-sit.webp'),
+  sit: require('../../../assets/mascot/pupu-sit.webp'),
   /** Holding a phone, with the notification marks already drawn in. */
-  phone: require('../../../assets/mascot/pip-phone.webp'),
+  phone: require('../../../assets/mascot/pupu-phone.webp'),
   /** Both paws up, eyes shut, excitement marks drawn in. The celebration. */
-  cheer: require('../../../assets/mascot/pip-cheer.webp'),
+  cheer: require('../../../assets/mascot/pupu-cheer.webp'),
 };
 
-export function Pip({ size = 200, image = 'sit' }: { size?: number; image?: PipImage }) {
+export function Pupu({ size = 200, image = 'sit' }: { size?: number; image?: PupuImage }) {
   return (
     <Image
       source={SOURCES[image]}
@@ -49,7 +49,7 @@ export function Pip({ size = 200, image = 'sit' }: { size?: number; image?: PipI
       // square would quietly squash two of the three.
       resizeMode="contain"
       style={{ width: size, height: size }}
-      // Decorative: every screen Pip appears on states its meaning in adjacent
+      // Decorative: every screen Pupu appears on states its meaning in adjacent
       // text, so an illustration that announced itself would read the same beat
       // twice. An illustration is either meaningful and labelled or decorative
       // and hidden — never unlabelled and focusable.

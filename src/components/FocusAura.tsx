@@ -88,7 +88,7 @@ export function FocusAura({
    * Expo Router keeps every tab screen mounted, so a `withRepeat(-1)` started
    * here runs for the life of the app unless something stops it — three of
    * them, driving transforms on the UI thread behind whatever the user is
-   * actually looking at. `PipScene` gates its idle loop on navigation focus and
+   * actually looking at. `PupuScene` gates its idle loop on navigation focus and
    * `Halo` on its `active` prop; this is the same rule.
    *
    * Starts FALSE: Today is the launch tab, so this screen mounts unfocused, and

@@ -131,9 +131,8 @@ export const en = {
     /** The banner for a session that ends while the app is not in front. */
     alarmTitle: 'Time is up',
     alarmBody: 'Your focus session has finished.',
+    setLength: 'Set a length',
     pickLength: 'Pick how long you want to disappear for',
-    range: '{from} → {to}',
-    endsAtLong: 'Ends at {to}',
     endsAt: 'Ends at {time}',
     minutes: { one: 'MINUTE', other: 'MINUTES' },
     dialLabel: 'Focus length',
@@ -183,10 +182,10 @@ export const en = {
     yourData: 'Your data',
     onThisDevice: 'On this device',
     runOnboarding: 'Run onboarding again',
-    version: 'Oneplan 1.0',
+    version: 'Pupu 1.0',
     notifOffTitle: 'Notifications are off',
     notifOffBody:
-      'Allow notifications for Oneplan in Settings to get a nudge when an activity starts.',
+      'Allow notifications for Pupu in Settings to get a nudge when an activity starts.',
     startOverTitle: 'Run onboarding again?',
     startOverBody: 'Your activities, appearance and reminder settings are kept.',
     startOver: 'Start over',
@@ -200,7 +199,7 @@ export const en = {
     systemSub: 'Match my phone',
     /** Shown under the list, explaining what "System" actually does. */
     footnote:
-      'Oneplan opens in your phone’s language when it can. Pick a language here to override that.',
+      'Pupu opens in your phone’s language when it can. Pick a language here to override that.',
   },
 
   routines: {
@@ -243,7 +242,7 @@ export const en = {
   appearance: {
     title: 'Appearance',
     subtitle:
-      'Oneplan follows your device by default. Pick a side if you would rather it did not change on you.',
+      'Pupu follows your device by default. Pick a side if you would rather it did not change on you.',
     theme: 'Theme',
     system: 'System',
     systemHint: 'Follows your device',
@@ -280,7 +279,7 @@ export const en = {
     preview: 'What you will see',
     previewA11y: 'Example notification. {title}. {body}',
     switchedOffBody:
-      'Notifications for Oneplan were turned off in iOS Settings, so the app stopped promising nudges it could not deliver. Allow them again to turn this back on.',
+      'Notifications for Pupu were turned off in iOS Settings, so the app stopped promising nudges it could not deliver. Allow them again to turn this back on.',
     privacyNote:
       'Reminders are scheduled on this device. Nothing about your plan is sent anywhere.',
   },
@@ -396,10 +395,10 @@ export const en = {
 
     remindersTitle: 'A nudge just\nbefore you start',
     remindersSubtitle:
-      'Oneplan can tell you a few minutes ahead of an activity, so the plan does the remembering instead of you.',
+      'Pupu can tell you a few minutes ahead of an activity, so the plan does the remembering instead of you.',
     remindersCta: 'Turn on reminders',
     remindersSkip: 'Not right now',
-    remindersBrand: 'ONEPLAN',
+    remindersBrand: 'PUPU',
     remindersPreview1Title: 'Morning routine',
     remindersPreview1Title2: 'Lunch',
     remindersPreview2Title: 'Lunch',

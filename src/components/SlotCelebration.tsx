@@ -9,7 +9,7 @@ import { Txt } from './Txt';
 import { Icon } from './Icon';
 import { EASE } from './Press';
 import { SLOT_TINT, SLOT_ICON } from './SlotChip';
-import { PipScene, Confetti } from './mascot/PipScene';
+import { PupuScene, Confetti } from './mascot/PupuScene';
 import { useTheme } from '../theme/useTheme';
 import { radius, space, motion } from '../theme/tokens';
 import { slotLabel, type Slot } from '../lib/time';
@@ -37,7 +37,7 @@ const BURST_HEIGHT = 460;
  * here to do, and is rare enough to afford the mascot and the confetti — the
  * same tier as the focus-session finish.
  *
- * It is also the tier that makes the mascot worth having at all: Pip is absent
+ * It is also the tier that makes the mascot worth having at all: Pupu is absent
  * from every screen you look at repeatedly, precisely so that the few places he
  * does appear still mean something.
  *
@@ -128,7 +128,7 @@ export function SlotCelebration({
       /*
        * Announced, not hidden.
        *
-       * Pip and the confetti are decoration and stay hidden, but the FACT that
+       * Pupu and the confetti are decoration and stay hidden, but the FACT that
        * a whole time of day is finished is information — it is the single
        * biggest thing that has happened on this screen, and a VoiceOver user
        * who has just ticked the last box otherwise gets no more feedback than
@@ -168,7 +168,7 @@ export function SlotCelebration({
           importantForAccessibility="no-hide-descendants"
         >
           <View style={{ height: 150, alignItems: 'center', justifyContent: 'center' }}>
-            <PipScene pose="cheer" size={136} idle="bob" delay={60} />
+            <PupuScene pose="cheer" size={136} idle="bob" delay={60} />
           </View>
 
           <View
@@ -193,7 +193,7 @@ export function SlotCelebration({
       {/*
         THE BURST GOES OVER THE CARD, NOT INSIDE IT.
 
-        It started inside, above Pip, and was almost invisible: the pieces are
+        It started inside, above Pupu, and was almost invisible: the pieces are
         painted from `TINTS`, which in light mode are pastels, and a pastel on a
         white `surface` has nothing to read against. Narrowing the burst to keep
         the pieces from leaving the card only made it worse — it concentrated
@@ -203,7 +203,7 @@ export function SlotCelebration({
         which is dark in both themes and is what the palette actually has
         contrast against. It is also simply what a burst is: confetti goes over
         the room, not inside a box in it. Rendered after the card so the pieces
-        pass in FRONT of Pip rather than behind him.
+        pass in FRONT of Pupu rather than behind him.
       */}
       {!leaving ? (
         <View

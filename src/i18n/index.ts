@@ -98,7 +98,7 @@ export const useLanguageStore = create<LanguageState>()(
       refreshDevice: () => set({ device: detectDeviceLocale() }),
     }),
     {
-      name: 'oneplan-language',
+      name: 'pupu-language',
       storage: createJSONStorage(() => mmkvStorage),
       /**
        * Only the CHOICE survives a relaunch. `device` is re-detected every

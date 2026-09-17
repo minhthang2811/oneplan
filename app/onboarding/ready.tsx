@@ -3,7 +3,7 @@ import { router } from 'expo-router';
 import Animated, { FadeIn, useReducedMotion } from 'react-native-reanimated';
 import { OnboardingScaffold } from '../../src/components/OnboardingScaffold';
 import { Bloom } from '../../src/components/Bloom';
-import { PipScene, PipBubble } from '../../src/components/mascot/PipScene';
+import { PupuScene, PupuBubble } from '../../src/components/mascot/PupuScene';
 import { space } from '../../src/theme/tokens';
 import { useT } from '../../src/i18n';
 import { haptic } from '../../src/lib/haptics';
@@ -29,7 +29,7 @@ export default function Ready() {
         router.replace('/(tabs)/today');
       }}
     >
-      {/* Pip cheers, but there is deliberately NO confetti here. Finishing setup
+      {/* Pupu cheers, but there is deliberately NO confetti here. Finishing setup
           is not an achievement — nothing has been done yet, and a burst of
           celebration for answering five questions spends the gesture before the
           user has earned it. Confetti is kept for finishing a real focus
@@ -45,9 +45,9 @@ export default function Ready() {
               <Bloom scale={0.9} />
             </View>
           </Animated.View>
-          <PipScene pose="cheer" size={182} delay={120} idle="bob" />
+          <PupuScene pose="cheer" size={182} delay={120} idle="bob" />
         </View>
-        <PipBubble text={t('onboarding.readyBubble')} delay={520} />
+        <PupuBubble text={t('onboarding.readyBubble')} delay={520} />
       </View>
       <View style={{ height: space.base }} />
     </OnboardingScaffold>

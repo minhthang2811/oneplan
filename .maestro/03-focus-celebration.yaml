@@ -4,11 +4,19 @@
 # the dial maps angle to minutes clockwise from the top, so a point just past
 # 12 o'clock is ~1 minute. That is the whole reason this flow can run at all.
 #
+# THE POINT IS TIED TO WHERE THE DIAL SITS, so it moved when the controls moved
+# into the bottom tray and the dial re-centred in the space above it. What the
+# percentages have to buy is an angle: a little to the RIGHT of the dial's
+# centre (anti-clockwise of top would read ~60 minutes, not ~1) and well above
+# it. Anything inside a couple of degrees of the top clamps to one minute, so
+# the tap has margin in both directions — but if this flow ever starts waiting
+# out a two-minute session, this is the line that drifted.
+#
 # `extendedWaitUntil` is what makes the wait honest — it polls for the finished
 # state rather than sleeping a fixed 60s and hoping, so the flow fails loudly if
 # the timer stalls instead of passing on a lucky screenshot. Verifying this by
 # hand cost three attempts to land a capture inside the 2.2s confetti window.
-appId: com.oneplan.app
+appId: com.pupu.app
 name: Focus — completion celebration
 ---
 - launchApp
@@ -25,7 +33,7 @@ name: Focus — completion celebration
 
 # Just clockwise of the top of the dial ≈ 1 minute.
 - tapOn:
-    point: "53%,30%"
+    point: "51%,30%"
 # "MINUTE" or "MINUTES" depending on the value.
 - assertVisible: "MINUTE.*"
 
@@ -40,9 +48,9 @@ name: Focus — completion celebration
 # Wait for the timer rather than sleeping through it.
 - extendedWaitUntil:
     visible: "Time is up. That counted."
-    timeout: 75000
+    timeout: 150000
 
-# Pip cheers and the confetti flies. Grab the frame immediately — the burst
+# Pupu cheers and the confetti flies. Grab the frame immediately — the burst
 # lasts 2.2s and then it is gone.
 - takeScreenshot: artifacts/06-focus-confetti
 - assertVisible: "Done"
