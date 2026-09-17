@@ -31,6 +31,9 @@ import type { Priority } from '../../src/store/types';
 const AVATAR_IN_ROW = 40;
 const AVATAR_IN_HERO = 84;
 
+/** The inbox buckets, in the order the To-do screen lists them. */
+const PRIORITIES: Priority[] = ['high', 'medium', 'low', 'todo'];
+
 export default function TaskDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
@@ -172,8 +175,21 @@ export default function TaskDetail() {
    * they were when the screen went away. It calls `saveTitle` rather than
    * `commitTitle` because there is no longer any component to set state on.
    */
-  editingRef.current = editingTitle;
-  saveRef.current = saveTitle;
+  /**
+   * WRITTEN IN AN EFFECT, NOT DURING RENDER.
+   *
+   * These were assigned in the component body, which mutates a ref during the
+   * render phase. React is allowed to render a component and throw the result
+   * away — concurrent rendering, a Suspense retry, StrictMode's double
+   * invocation — and an abandoned render still runs a body-level assignment.
+   * The unmount handler below would then commit a title taken from a render
+   * that never happened. An effect only runs for renders that commit, which is
+   * exactly the set these refs are supposed to describe.
+   */
+  useEffect(() => {
+    editingRef.current = editingTitle;
+    saveRef.current = saveTitle;
+  });
 
 
   const editDuration = () =>
@@ -231,13 +247,14 @@ export default function TaskDetail() {
     });
   };
 
-  const PRIORITIES: Priority[] = ['high', 'medium', 'low', 'todo'];
-  const PRIORITY_LABEL = {
+  // `PRIORITIES` is a module constant (see the top of the file); only the
+  // labels depend on the language, so only they are built here.
+  const priorityLabel: Record<Priority, string> = {
     high: t('todo.high'), medium: t('todo.medium'), low: t('todo.low'), todo: t('todo.plain'),
-  } as const;
+  };
 
   const editPriority = () =>
-    choose(t('task.priority'), PRIORITIES.map((p) => PRIORITY_LABEL[p]), (i) =>
+    choose(t('task.priority'), PRIORITIES.map((p) => priorityLabel[p]), (i) =>
       updateTask(task.id, { priority: PRIORITIES[i] })
     );
 
@@ -412,7 +429,7 @@ export default function TaskDetail() {
               {task.date == null ? (
                 <Field
                   icon="flag"
-                  label={PRIORITY_LABEL[task.priority]}
+                  label={priorityLabel[task.priority]}
                   field={t('task.priority')}
                   onPress={editPriority}
                 />

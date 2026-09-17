@@ -32,7 +32,7 @@ import { useChrome, useChromeReset } from './Chrome';
 import { useTheme } from '../theme/useTheme';
 import { motion, radius, space } from '../theme/tokens';
 import { haptic } from '../lib/haptics';
-import { useTodayKey } from '../lib/useTodayKey';
+import { useToday } from '../lib/useTodayKey';
 import { parseKey } from '../lib/time';
 
 export const TAB_BAR_HEIGHT = 64;
@@ -131,7 +131,7 @@ export function TabBar({ state, navigation }: TabBarProps) {
   // Live, not read once at mount: the tab bar is the one piece of chrome that
   // is on screen all day, so a calendar glyph frozen at the date the app
   // happened to launch on is wrong for exactly as long as the app stays open.
-  const today = parseKey(useTodayKey()).getDate();
+  const today = parseKey(useToday()).getDate();
   const chrome = useChrome();
   const resetChrome = useChromeReset();
 

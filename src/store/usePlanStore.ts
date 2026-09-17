@@ -3,6 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import { mmkvStorage } from './storage';
 import type {
   Task, FocusSession, Profile, Priority, AppearancePref, CustomRoutineStep,
+  RoutineStepEdit,
 } from './types';
 import { seedTasks } from '../data/seed';
 import {
@@ -73,6 +74,10 @@ interface PlanState {
   moveRoutineStep: (slot: RoutineSlot, stepId: string, delta: number) => void;
   /** Writes a user-authored step into the catalogue for `slot` and selects it. */
   addRoutineStep: (slot: RoutineSlot, step: Omit<CustomRoutineStep, 'id'>) => void;
+  /** Changes one step's title and/or length, for catalogue and custom alike. */
+  editRoutineStep: (slot: RoutineSlot, stepId: string, patch: RoutineStepEdit) => void;
+  /** Drops the user's edit, returning the step to the catalogue's wording. */
+  resetRoutineStep: (slot: RoutineSlot, stepId: string) => void;
   setRoutineTime: (slot: RoutineSlot, startMinutes: number) => void;
   /** Rebuilds ONE slot's routine activity on today from the stored config. */
   syncRoutines: (slot: RoutineSlot) => void;
@@ -114,6 +119,7 @@ const emptyBuilt = (): Record<RoutineSlot, string | null> => ({
   morning: null, afternoon: null, evening: null,
 });
 const emptyCustom = (): Profile['routineCustom'] => ({ morning: [], afternoon: [], evening: [] });
+const emptyEdits = (): Profile['routineEdits'] => ({ morning: {}, afternoon: {}, evening: {} });
 const defaultTimes = (): Profile['routineTimes'] => ({
   morning: ROUTINE_PARENT.morning.startMinutes,
   afternoon: ROUTINE_PARENT.afternoon.startMinutes,
@@ -138,6 +144,7 @@ const emptyProfile: Profile = {
   routines: emptyRoutines(),
   routineTimes: defaultTimes(),
   routineCustom: emptyCustom(),
+  routineEdits: emptyEdits(),
   appearance: 'system',
 };
 
@@ -165,7 +172,28 @@ export function routineCatalogue(
      */
     ...ROUTINES[slot].map((o) => ({ ...o, title: routineTitle(o.id) })),
     ...(profile.routineCustom?.[slot] ?? []),
-  ];
+  ].map((o) => {
+    /**
+     * THE USER'S EDIT WINS, FIELD BY FIELD.
+     *
+     * Applied here rather than at any call site because this function is
+     * already the single place an id resolves to a step — the same argument
+     * the comment above makes about custom steps. An edit applied in the
+     * routines screen but not in `buildRoutine` would show one wording on the
+     * settings screen and another on the day it produces.
+     *
+     * Spread field-by-field so an edit to the duration alone leaves the title
+     * following the app's language, instead of freezing it at whatever it read
+     * when the duration was changed.
+     */
+    const edit = profile.routineEdits?.[slot]?.[o.id];
+    if (!edit) return o;
+    return {
+      ...o,
+      title: edit.title ?? o.title,
+      minutes: edit.minutes ?? o.minutes,
+    };
+  });
 }
 
 /**
@@ -234,7 +262,24 @@ function writeRoutine(
   profile: Profile,
   tasks: Task[],
   slot: RoutineSlot,
-  date: string
+  date: string,
+  /**
+   * `create` NEVER DELETES, and the distinction belongs here rather than in
+   * the caller.
+   *
+   * An empty slot builds nothing, and what should happen then depends entirely
+   * on who is asking. On the routines screen it is the user emptying a routine
+   * on purpose and the activity should go. On the daily pass it would be an
+   * unattended deletion of something nobody touched — the seeded "Evening
+   * routine" disappearing from the starter day of anyone who configured a
+   * morning and skipped the evening.
+   *
+   * `ensureToday` first expressed that by testing `routineSteps(...).length`
+   * itself, which put the rule for "is this buildable" in two places; the day
+   * it changes in one of them, the unattended deletion comes straight back.
+   * The mode is a parameter so the decision stays next to the build.
+   */
+  mode: 'replace' | 'create' = 'replace'
 ): Task[] {
   const id = routineTaskId(slot, date);
   /**
@@ -264,7 +309,9 @@ function writeRoutine(
 
   // An emptied slot removes THIS date's activity and leaves every other date's
   // alone — those are their own days' records, not stale copies of this one.
-  if (!next) return kept;
+  // In `create` mode there is nothing to build and nothing to remove, so the
+  // list is handed back untouched.
+  if (!next) return mode === 'create' ? tasks : kept;
 
   if (was) {
     /**
@@ -488,6 +535,48 @@ export const usePlanStore = create<PlanState>()(
           };
         }),
 
+      /**
+       * EDITING A STEP, whichever kind of step it is.
+       *
+       * Catalogue steps and the user's own behave identically here — one
+       * overlay keyed by id covers both — which is what lets the routines
+       * screen offer a single "tap a step to change it" affordance instead of
+       * one gesture for the twelve built-in steps and another for the ones you
+       * typed. See `RoutineStepEdit` for why this is an overlay rather than a
+       * rewrite of the step itself.
+       *
+       * An empty title is dropped rather than stored: a nameless step is not a
+       * thing the rest of the app can render, and "I cleared the field" reads
+       * as a cancel, not as a request for a blank row.
+       */
+      editRoutineStep: (slot, stepId, patch) =>
+        set((s) => {
+          const edits = s.profile.routineEdits ?? emptyEdits();
+          const title = patch.title?.trim();
+          const next: RoutineStepEdit = {
+            ...(edits[slot]?.[stepId] ?? {}),
+            ...(title ? { title } : {}),
+            ...(patch.minutes != null ? { minutes: patch.minutes } : {}),
+          };
+          return {
+            profile: {
+              ...s.profile,
+              routineEdits: { ...edits, [slot]: { ...(edits[slot] ?? {}), [stepId]: next } },
+            },
+          };
+        }),
+
+      resetRoutineStep: (slot, stepId) =>
+        set((s) => {
+          const edits = s.profile.routineEdits ?? emptyEdits();
+          const forSlot = { ...(edits[slot] ?? {}) };
+          if (!(stepId in forSlot)) return {};
+          delete forSlot[stepId];
+          return {
+            profile: { ...s.profile, routineEdits: { ...edits, [slot]: forSlot } },
+          };
+        }),
+
       setRoutineTime: (slot, startMinutes) =>
         set((s) => ({
           profile: {
@@ -573,31 +662,17 @@ export const usePlanStore = create<PlanState>()(
           const pending = ROUTINE_SLOTS.filter((slot) => built[slot] !== today);
           if (pending.length === 0) return {};
 
+          /**
+           * `'create'` — IT BUILDS, IT NEVER DELETES. A slot with nothing in
+           * it has nothing to contribute, and an unattended daily pass must
+           * not read that as permission to remove the activity sitting there;
+           * see the note on `writeRoutine`'s `mode`. Every pending slot is
+           * still marked as handled for today, because there is nothing more
+           * this pass can do for it either way.
+           */
           let tasks = s.tasks;
           for (const slot of pending) {
-            /**
-             * ── IT BUILDS, IT NEVER DELETES ──────────────────────────────
-             * `writeRoutine` removes the date's activity when the slot has no
-             * steps, which is correct for `syncRoutines` — there it is the
-             * user emptying a routine on purpose, and removing the activity is
-             * what they asked for. Here it would be a daily, unattended
-             * deletion of something nobody touched.
-             *
-             * The seeded starter day is what makes that concrete. A new
-             * install gets a "Morning routine" and an "Evening routine"
-             * written as ordinary tasks, and onboarding only asks about the
-             * slots the user actually picks in. Configure a morning, skip the
-             * evening, and the first `ensureToday` would find the evening slot
-             * unconfigured, build nothing for it, and take the seeded Evening
-             * routine off the day — a task disappearing from the plan minutes
-             * after setup, with nothing anywhere saying why.
-             *
-             * A slot with nothing in it simply has nothing to contribute. It
-             * is still marked as handled for today, because there is nothing
-             * more this pass can do for it.
-             */
-            if (routineSteps(s.profile, slot).length === 0) continue;
-            tasks = writeRoutine(s.profile, tasks, slot, today);
+            tasks = writeRoutine(s.profile, tasks, slot, today, 'create');
           }
 
           return {

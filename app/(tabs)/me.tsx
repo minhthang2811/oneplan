@@ -14,7 +14,8 @@ import { radius, space } from '../../src/theme/tokens';
 import { useT, useLanguageStore, hasKey, LOCALE_NAME, type TKey } from '../../src/i18n';
 import { usePlanStore, routineSteps } from '../../src/store/usePlanStore';
 import { ROUTINE_SLOTS } from '../../src/data/routines';
-import { dateKey, formatDuration, formatDurationShort } from '../../src/lib/time';
+import { formatDuration, formatDurationShort } from '../../src/lib/time';
+import { useToday } from '../../src/lib/useTodayKey';
 import { haptic } from '../../src/lib/haptics';
 
 const APPEARANCE_LABEL: Record<string, TKey> = {
@@ -64,13 +65,23 @@ export default function Me() {
    */
   const needText = profile.need ? (hasKey(profile.need) ? t(profile.need) : profile.need) : null;
 
+  /**
+   * `today` COMES FROM THE LIVE CLOCK, NOT FROM `new Date()` INSIDE THE MEMO.
+   *
+   * Read inside a memo keyed on `[tasks]`, the date is captured once and only
+   * refreshed when the task list happens to change — so an app left open past
+   * midnight kept reporting yesterday here: "Done today" counting yesterday's
+   * completions and "Planned" summing yesterday's minutes, while the Today tab
+   * one swipe away had already rolled over. This was the one screen the
+   * rollover fix missed.
+   */
+  const today = useToday();
   const stats = useMemo(() => {
-    const today = dateKey(new Date());
     const todays = tasks.filter((t) => t.date === today);
     const done = todays.filter((t) => t.done);
     const planned = todays.reduce((n, t) => n + t.minutes, 0);
     return { done: done.length, total: todays.length, planned };
-  }, [tasks]);
+  }, [tasks, today]);
 
   const pickLayout = () => {
     haptic.tap();

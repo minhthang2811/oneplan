@@ -186,6 +186,7 @@ as much the point as the assertions.
 | `10-task-editing` | Renaming, retiming and moving an activity, read back off the list |
 | `11-focus-dial` | The dial follows the activity it was opened for, and forgets it after |
 | `12-translated-chrome` | No English literals left on Routines or Reminders |
+| `13-routine-step-editing` | A step's wording and length change in the settings, the summary **and** the day |
 
 `09` is the one that guards the worst bug the app has had: a routine used to be
 written onto the plan only on the day it was configured, so day two opened to an

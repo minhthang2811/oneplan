@@ -45,7 +45,15 @@ export const FOCUS_ID = 'oneplan-focus:session';
  */
 const MAX_PENDING = 64;
 
-const ANDROID_CHANNEL_ID = 'reminders';
+/**
+ * Exported because the focus alarm schedules onto the SAME channel.
+ *
+ * Two channels would mean two rows in Android's notification settings for what
+ * a user experiences as one app talking to them, and the second one would have
+ * to be created and named separately — which is exactly the step the focus
+ * alarm originally forgot, leaving it channel-less and therefore undelivered.
+ */
+export const ANDROID_CHANNEL_ID = 'reminders';
 
 /**
  * Registered at import time rather than inside a component: iOS asks the
@@ -279,7 +287,7 @@ let androidChannelLocale: Locale | null = null;
  * one explicitly also means the row in Android's own settings reads "Activity
  * reminders" instead of the generic fallback.
  */
-function ensureAndroidChannel(): Promise<unknown> {
+export function ensureAndroidChannel(): Promise<unknown> {
   if (process.env.EXPO_OS !== 'android') return Promise.resolve();
   const locale = currentLocale();
   if (androidChannel && androidChannelLocale === locale) return androidChannel;

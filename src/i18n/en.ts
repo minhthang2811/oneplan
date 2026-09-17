@@ -96,6 +96,11 @@ export const en = {
       other: '{count} unfinished from earlier days',
     },
     moveToToday: 'Move to today',
+    moveAllTitle: {
+      one: 'Move {count} activity to today?',
+      other: 'Move all {count} to today?',
+    },
+    moveAllBody: 'They keep their time of day. You can move any of them back.',
   },
 
   todo: {
@@ -211,6 +216,12 @@ export const en = {
     a11yRow: '{slot} routine, {summary}',
     startPrompt: 'When does your {slot} routine start?',
     addSomething: 'Add something',
+    /** Editing one step of a routine — its wording and its length. */
+    editStepA11y: '{title}, {duration}. Tap to change.',
+    stepName: 'Step name',
+    stepPlaceholder: 'What is this step?',
+    stepLength: 'How long',
+    resetStep: 'Reset this step',
     inThisRoutine: 'In this routine',
     orderFooter: 'Tap the arrows to change the order things happen in.',
     emptyList: 'Nothing here yet. Pick from the list below.',

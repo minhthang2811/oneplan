@@ -65,14 +65,24 @@ name: Language — no English left on the settings screens
 
 - tapOn: "Quay lại"
 
-# Reminders carried two of the four. The preview heading appears only once the
-# feature is switched on — which needs a system permission this flow cannot
-# grant — so what is asserted is the absence of both English literals on the
-# screen that used to show them.
+# Reminders carried two of the four literals.
+#
+# ── WHAT THIS CAN AND CANNOT REACH, STATED HONESTLY ────────────────────────
+# Both of those strings live behind `enabled && permitted` — the preview
+# heading and the scheduled count only render once reminders are switched on
+# AND the OS has granted permission, and this flow can do neither: tapping the
+# switch raises a system prompt that Maestro cannot answer. Asserting their
+# ABSENCE here would therefore be vacuous, passing against a screen where they
+# could not appear under any circumstances, and it would keep passing if the
+# English literals were put straight back.
+#
+# So this asserts what is actually reachable: the screen renders in Vietnamese
+# down to the row that governs the rest. The two gated strings are covered by
+# the type system instead — they are catalogue keys now, and `vi.ts` is typed
+# against `en.ts`, so neither can go missing without a build error.
 - tapOn: "Nhắc nhở"
 - assertVisible: "Nhắc nhở hoạt động"
-- assertNotVisible: "WHAT YOU WILL SEE"
-- assertNotVisible: ".*reminders are scheduled.*"
+- assertVisible: "Quyền hệ thống"
 - takeScreenshot: artifacts/19-reminders-vietnamese
 
 # Put it back to following the device, so the suite's other flows — which are

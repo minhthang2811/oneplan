@@ -14,12 +14,33 @@ import {
   usePlanStore, routineCatalogue, routineSteps,
 } from '../src/store/usePlanStore';
 import { ROUTINE_SLOTS, ROUTINE_PARENT, type RoutineSlot } from '../src/data/routines';
-import { slotLabel, formatDuration, formatClock } from '../src/lib/time';
-import { translate } from '../src/i18n';
+import type { CustomRoutineStep } from '../src/store/types';
+import { slotLabel, formatDuration, formatDurationShort, formatClock } from '../src/lib/time';
+/**
+ * `useT`, NOT the module-level `translate`.
+ *
+ * This screen resolved every string through `t()`, which reads the
+ * current locale at call time but registers no subscription — so the component
+ * had no reason to re-render when the language changed and would keep showing
+ * the previous one for as long as it stayed mounted. Every sibling settings
+ * screen uses the hook for exactly this reason; `translate` is for callers
+ * outside React, like the notification scheduler.
+ */
+import { useT } from '../src/i18n';
 import { haptic } from '../src/lib/haptics';
 
 /** The start times worth offering per slot. A full clock picker is a lot of
  *  machinery for a decision that is really "early, usual, or late". */
+/**
+ * The lengths a routine STEP can be.
+ *
+ * Shorter and finer than the activity durations in the add sheet, because a
+ * routine step is a single action — brushing teeth, drinking a glass of water —
+ * and the catalogue's own entries are all twenty minutes or under. Offering
+ * "1h 30m" here would be offering a length no step in the catalogue has.
+ */
+const STEP_MINUTES = [2, 3, 5, 10, 15, 20, 30];
+
 const TIME_CHOICES: Record<RoutineSlot, number[]> = {
   morning: [6 * 60, 7 * 60, 8 * 60, 9 * 60, 10 * 60],
   afternoon: [12 * 60, 13 * 60, 14 * 60, 15 * 60, 16 * 60],
@@ -53,6 +74,7 @@ const TIME_CHOICES: Record<RoutineSlot, number[]> = {
  * this screen lets you touch.
  */
 export default function Routines() {
+  const { t } = useT();
   const profile = usePlanStore((s) => s.profile);
   const syncRoutines = usePlanStore((s) => s.syncRoutines);
   const [open, setOpen] = useState<RoutineSlot | null>(null);
@@ -80,8 +102,8 @@ export default function Routines() {
 
   return (
     <SettingsScreen
-      title={translate('routines.title')}
-      subtitle={translate('routines.subtitle')}
+      title={t('routines.title')}
+      subtitle={t('routines.subtitle')}
     >
       {total === 0 ? <EmptyRoutines /> : null}
 
@@ -99,7 +121,7 @@ export default function Routines() {
       ))}
 
       <Txt variant="caption" tone="faint" style={{ textAlign: 'center' }}>
-        {translate('routines.applyNote')}
+        {t('routines.applyNote')}
       </Txt>
     </SettingsScreen>
   );
@@ -107,6 +129,7 @@ export default function Routines() {
 
 function EmptyRoutines() {
   const { c } = useTheme();
+  const { t } = useT();
   return (
     <View
       style={{
@@ -119,9 +142,9 @@ function EmptyRoutines() {
           routines screen is an invitation, not a day with nothing in it. */}
       <PipScene pose="cheer" size={112} idle="bob" delay={120} />
       <View style={{ alignItems: 'center', gap: space.xs, paddingHorizontal: space.lg }}>
-        <Txt variant="bodyStrong">{translate('routines.none')}</Txt>
+        <Txt variant="bodyStrong">{t('routines.none')}</Txt>
         <Txt variant="caption" tone="muted" style={{ textAlign: 'center' }}>
-          {translate('routines.emptyHint')}
+          {t('routines.emptyHint')}
         </Txt>
       </View>
     </View>
@@ -138,6 +161,7 @@ function SlotEditor({
 }) {
   const theme = useTheme();
   const { c } = theme;
+  const { t } = useT();
   const reduced = useReducedMotion();
 
   const profile = usePlanStore((s) => s.profile);
@@ -145,13 +169,18 @@ function SlotEditor({
   const moveStep = usePlanStore((s) => s.moveRoutineStep);
   const addStep = usePlanStore((s) => s.addRoutineStep);
   const setTime = usePlanStore((s) => s.setRoutineTime);
+  const editStep = usePlanStore((s) => s.editRoutineStep);
+  const resetStep = usePlanStore((s) => s.resetRoutineStep);
+
+  /** Which step's editor is open. One at a time — see `StepEditor`. */
+  const [editing, setEditing] = useState<string | null>(null);
 
   const chosen = routineSteps(profile, slot);
   const catalogue = routineCatalogue(profile, slot);
   const chosenIds = new Set(chosen.map((o) => o.id));
   const minutes = chosen.reduce((n, o) => n + o.minutes, 0);
   const startsAt = profile.routineTimes?.[slot] ?? ROUTINE_PARENT[slot].startMinutes;
-  const t = theme.tint(SLOT_TINT[slot]);
+  const slotTint = theme.tint(SLOT_TINT[slot]);
 
   const pickTime = () => {
     haptic.tap();
@@ -160,20 +189,20 @@ function SlotEditor({
     if (process.env.EXPO_OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions(
         {
-          options: [...labels, translate('common.cancel')],
+          options: [...labels, t('common.cancel')],
           cancelButtonIndex: labels.length,
-          title: translate('routines.startPrompt', { slot: slotLabel(slot).toLowerCase() }),
+          title: t('routines.startPrompt', { slot: slotLabel(slot).toLowerCase() }),
           userInterfaceStyle: theme.isDark ? 'dark' : 'light',
         },
         (i) => { if (i < choices.length) commit(() => setTime(slot, choices[i])); }
       );
     } else {
       Alert.alert(
-        translate('routines.startPrompt', { slot: slotLabel(slot).toLowerCase() }),
+        t('routines.startPrompt', { slot: slotLabel(slot).toLowerCase() }),
         undefined,
         [
           ...choices.map((m) => ({ text: formatClock(m), onPress: () => commit(() => setTime(slot, m)) })),
-          { text: translate('common.cancel'), style: 'cancel' as const },
+          { text: t('common.cancel'), style: 'cancel' as const },
         ]
       );
     }
@@ -186,11 +215,11 @@ function SlotEditor({
         accessibilityRole="button"
         accessibilityState={{ expanded: open }}
         accessibilityLabel={
-          translate('routines.a11yRow', {
+          t('routines.a11yRow', {
             slot: slotLabel(slot),
             summary: chosen.length === 0
-              ? translate('routines.nothingPickedLower')
-              : translate('routines.a11ySummary', {
+              ? t('routines.nothingPickedLower')
+              : t('routines.a11ySummary', {
                   count: chosen.length,
                   duration: formatDuration(minutes),
                   time: formatClock(startsAt),
@@ -206,18 +235,18 @@ function SlotEditor({
       >
         <View
           style={{
-            width: 38, height: 38, borderRadius: 19, backgroundColor: t.bg,
+            width: 38, height: 38, borderRadius: 19, backgroundColor: slotTint.bg,
             alignItems: 'center', justifyContent: 'center',
           }}
         >
-          <Icon name={SLOT_ICON[slot]} size={17} color={t.fg} weight="semibold" />
+          <Icon name={SLOT_ICON[slot]} size={17} color={slotTint.fg} weight="semibold" />
         </View>
         <View style={{ flex: 1, gap: 1 }}>
           <Txt variant="bodyStrong">{slotLabel(slot)}</Txt>
           <Txt variant="caption" tone="muted">
             {chosen.length === 0
-              ? translate('routines.nothingPicked')
-              : translate('routines.summary', {
+              ? t('routines.nothingPicked')
+              : t('routines.summary', {
                   count: chosen.length,
                   duration: formatDuration(minutes),
                   time: formatClock(startsAt),
@@ -234,13 +263,13 @@ function SlotEditor({
           style={{ gap: space.base }}
         >
           <Section
-            title={translate('routines.inThisRoutine')}
-            footer={translate('routines.orderFooter')}
+            title={t('routines.inThisRoutine')}
+            footer={t('routines.orderFooter')}
           >
             {chosen.length === 0 ? (
               <View style={{ padding: space.base }}>
                 <Txt variant="caption" tone="faint">
-                  {translate('routines.emptyList')}
+                  {t('routines.emptyList')}
                 </Txt>
               </View>
             ) : (
@@ -251,44 +280,83 @@ function SlotEditor({
                   // positions rather than jumping. Without this a move reads as
                   // two rows blinking rather than as one row travelling, and
                   // the user cannot tell which one they actually moved.
+                  //
+                  // The editor lives INSIDE this wrapper rather than beside it,
+                  // so an open editor travels with the step it belongs to when
+                  // that step is moved up or down.
                   layout={reduced ? undefined : LinearTransition.duration(220)}
+                  style={{ borderTopWidth: i === 0 ? 0 : 1, borderTopColor: c.hairline }}
+                >
+                <View
                   style={{
                     flexDirection: 'row', alignItems: 'center', gap: space.sm,
                     paddingHorizontal: space.base, paddingVertical: 10,
-                    borderTopWidth: i === 0 ? 0 : 1, borderTopColor: c.hairline,
                   }}
                 >
                   <Txt variant="micro" tone="faint" tabular style={{ width: 16 }}>{i + 1}</Txt>
                   <Txt variant="body" style={{ fontSize: 17 }}>{o.emoji}</Txt>
-                  <View style={{ flex: 1 }}>
+                  {/*
+                    TAP THE STEP TO CHANGE IT.
+                    
+                    The row already carried three controls for where a step sits
+                    and whether it is in at all, and none for what it actually
+                    says — so "Shower" could be moved, removed and re-added, but
+                    never become "Shower and shave", and "Read" was stuck at the
+                    catalogue's twenty minutes however long you actually read
+                    for. The body of the row is the natural target: it is the
+                    part that displays the two things being edited, and the
+                    arrows and the minus keep their own hit areas beside it.
+                  */}
+                  <Pressable
+                    onPress={() => { haptic.tap(); setEditing((e) => (e === o.id ? null : o.id)); }}
+                    accessibilityRole="button"
+                    accessibilityState={{ expanded: editing === o.id }}
+                    accessibilityLabel={t('routines.editStepA11y', {
+                      title: o.title,
+                      duration: formatDuration(o.minutes),
+                    })}
+                    style={{ flex: 1 }}
+                  >
                     <Txt variant="body" numberOfLines={1}>{o.title}</Txt>
                     <Txt variant="caption" tone="faint" tabular>{formatDuration(o.minutes)}</Txt>
-                  </View>
+                  </Pressable>
 
                   <StepButton
                     icon="chevron.up"
-                    label={translate('routines.moveEarlier', { title: o.title })}
+                    label={t('routines.moveEarlier', { title: o.title })}
                     disabled={i === 0}
                     onPress={() => commit(() => moveStep(slot, o.id, -1))}
                   />
                   <StepButton
                     icon="chevron.down"
-                    label={translate('routines.moveLater', { title: o.title })}
+                    label={t('routines.moveLater', { title: o.title })}
                     disabled={i === chosen.length - 1}
                     onPress={() => commit(() => moveStep(slot, o.id, 1))}
                   />
                   <StepButton
                     icon="minus"
-                    label={translate('routines.remove', { title: o.title })}
+                    label={t('routines.remove', { title: o.title })}
                     onPress={() => commit(() => toggleStep(slot, o.id))}
                   />
+                </View>
+
+                {editing === o.id ? (
+                  <StepEditor
+                    step={o}
+                    edited={(profile.routineEdits?.[slot]?.[o.id]) != null}
+                    onRename={(title) => commit(() => editStep(slot, o.id, { title }))}
+                    onMinutes={(minutes) => commit(() => editStep(slot, o.id, { minutes }))}
+                    onReset={() => commit(() => resetStep(slot, o.id))}
+                    onClose={() => setEditing(null)}
+                  />
+                ) : null}
                 </Animated.View>
               ))
             )}
           </Section>
 
           <View style={{ gap: space.sm }}>
-            <Txt variant="micro" tone="faint">{translate('routines.addSomething').toUpperCase()}</Txt>
+            <Txt variant="micro" tone="faint">{t('routines.addSomething').toUpperCase()}</Txt>
             {/* The same chips as onboarding, so the two surfaces teach the same
                 gesture. Selection is fill plus a redundant tick — never colour
                 alone. */}
@@ -307,18 +375,18 @@ function SlotEditor({
 
           <CustomStep onAdd={(title) => commit(() => addStep(slot, { title, emoji: '✨', minutes: 10 }))} />
 
-          <Section title={translate('routines.startsAt')}>
+          <Section title={t('routines.startsAt')}>
             <Pressable
               onPress={pickTime}
               accessibilityRole="button"
-              accessibilityLabel={translate('routines.a11yStartTime', { time: formatClock(startsAt) })}
+              accessibilityLabel={t('routines.a11yStartTime', { time: formatClock(startsAt) })}
               style={{
                 flexDirection: 'row', alignItems: 'center', gap: space.md,
                 paddingHorizontal: space.base, paddingVertical: 14, minHeight: 54,
               }}
             >
               <Icon name="clock" size={17} color={c.inkMuted} />
-              <Txt variant="body" style={{ flex: 1 }}>{translate('routines.startTime')}</Txt>
+              <Txt variant="body" style={{ flex: 1 }}>{t('routines.startTime')}</Txt>
               <Txt variant="body" tone="muted" tabular>{formatClock(startsAt)}</Txt>
               <Icon name="chevron.right" size={12} color={c.inkFaint} weight="semibold" />
             </Pressable>
@@ -326,6 +394,156 @@ function SlotEditor({
         </Animated.View>
       ) : null}
     </View>
+  );
+}
+
+/**
+ * THE STEP EDITOR — what a routine step says, and how long it takes.
+ *
+ * ── WHY IT IS INLINE AND NOT A SHEET ───────────────────────────────────────
+ * The thing being edited is one line of a list whose ORDER is the product, and
+ * the order is only legible in place. A modal would cover the four steps around
+ * it at exactly the moment the user is deciding whether "Shower and shave"
+ * still belongs before "Get dressed". It opens under its own row and pushes the
+ * rest down, so the sequence stays on screen throughout.
+ *
+ * ── ONE AT A TIME ──────────────────────────────────────────────────────────
+ * Only one editor is open at once, because two open text fields in a list is a
+ * keyboard fighting over which one it belongs to, and because closing is then
+ * something the user gets for free by opening the next one.
+ *
+ * ── THE DURATION IS CHIPS, NOT A PICKER ────────────────────────────────────
+ * Same argument the add sheet makes: these are five-to-twenty-minute actions
+ * and the decision is coarse. A wheel is four gestures for a choice that is
+ * really "about five minutes" or "about twenty".
+ */
+function StepEditor({
+  step, edited, onRename, onMinutes, onReset, onClose,
+}: {
+  step: CustomRoutineStep;
+  /** Whether the user has already overridden this step — gates the reset. */
+  edited: boolean;
+  onRename: (title: string) => void;
+  onMinutes: (minutes: number) => void;
+  onReset: () => void;
+  onClose: () => void;
+}) {
+  const { c } = useTheme();
+  const { t } = useT();
+  const reduced = useReducedMotion();
+  /**
+   * The live title lives in a REF, for the third time in this codebase and for
+   * the same reason each time: React state lags the native input by a render,
+   * so committing from state truncates what a fast typist just wrote.
+   */
+  const valueRef = useRef(step.title);
+
+  const commitTitle = (text?: string) => {
+    const v = (text ?? valueRef.current).trim();
+    // An empty field is a cancel, not a request for a nameless step.
+    if (!v || v === step.title) return;
+    onRename(v);
+  };
+
+  return (
+    <Animated.View
+      entering={reduced ? undefined : FadeIn.duration(180)}
+      exiting={reduced ? undefined : FadeOut.duration(120)}
+      style={{
+        gap: space.md,
+        paddingHorizontal: space.base,
+        paddingBottom: space.base,
+        paddingTop: space.xs,
+      }}
+    >
+      {/*
+        NO `autoFocus`, and that is a correctness fix as much as a taste one.
+        
+        Opening the editor with the keyboard already up made the first tap on
+        anything else a keyboard dismissal rather than a press — so changing
+        only a step's LENGTH, which is the more common of the two edits, cost
+        two taps on the chip and looked like the first one had been ignored.
+        The field shows the current wording and is one tap from editable, which
+        is exactly how the task detail's title behaves.
+      */}
+      <TextInput
+        defaultValue={step.title}
+        onChangeText={(v) => { valueRef.current = v; }}
+        onBlur={() => commitTitle()}
+        onSubmitEditing={(e) => { commitTitle(e.nativeEvent.text); onClose(); }}
+        returnKeyType="done"
+        submitBehavior="blurAndSubmit"
+        placeholder={t('routines.stepPlaceholder')}
+        placeholderTextColor={c.inkFaint}
+        accessibilityLabel={t('routines.stepName')}
+        style={{
+          color: c.ink, fontFamily: 'Inter_500Medium', fontSize: 15,
+          paddingVertical: space.sm, paddingHorizontal: space.md,
+          borderRadius: radius.input, borderCurve: 'continuous',
+          backgroundColor: c.surfaceSunken,
+        }}
+      />
+
+      <View style={{ gap: space.sm }}>
+        <Txt variant="micro" tone="faint">{t('routines.stepLength').toUpperCase()}</Txt>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
+          {STEP_MINUTES.map((m) => {
+            const active = step.minutes === m;
+            return (
+              <PressScale
+                key={m}
+                onPress={() => { haptic.tick(); onMinutes(m); }}
+                scaleTo={0.94}
+                accessibilityRole="button"
+                accessibilityState={{ selected: active }}
+                accessibilityLabel={formatDuration(m)}
+                style={{
+                  minWidth: 48, paddingVertical: 7, paddingHorizontal: space.md,
+                  alignItems: 'center',
+                  borderRadius: radius.pill,
+                  backgroundColor: active ? c.accentSoft : c.surfaceSunken,
+                  borderWidth: 1.5, borderColor: active ? c.accent : 'transparent',
+                }}
+              >
+                <Txt variant="caption" color={active ? c.accentInk : c.inkMuted} tabular>
+                  {formatDurationShort(m)}
+                </Txt>
+              </PressScale>
+            );
+          })}
+        </View>
+      </View>
+
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.base }}>
+        {/* Reset appears only once there is something to reset — offering it on
+            an untouched step would promise an action that does nothing. */}
+        {edited ? (
+          <PressScale
+            onPress={() => { haptic.tap(); onReset(); onClose(); }}
+            accessibilityRole="button"
+            accessibilityLabel={t('routines.resetStep')}
+            hitSlop={8}
+            style={{ paddingVertical: 4 }}
+          >
+            <Txt variant="caption" tone="muted" style={{ textDecorationLine: 'underline' }}>
+              {t('routines.resetStep')}
+            </Txt>
+          </PressScale>
+        ) : null}
+        <View style={{ flex: 1 }} />
+        <PressScale
+          onPress={() => { haptic.tap(); commitTitle(); onClose(); }}
+          accessibilityRole="button"
+          accessibilityLabel={t('common.done')}
+          style={{
+            paddingVertical: 7, paddingHorizontal: space.base,
+            borderRadius: radius.pill, backgroundColor: c.solid,
+          }}
+        >
+          <Txt variant="micro" color={c.onSolid}>{t('common.done')}</Txt>
+        </PressScale>
+      </View>
+    </Animated.View>
   );
 }
 
@@ -368,6 +586,7 @@ function StepButton({
  */
 function CustomStep({ onAdd }: { onAdd: (title: string) => void }) {
   const { c } = useTheme();
+  const { t } = useT();
   const valueRef = useRef('');
   const [resetKey, setResetKey] = useState(0);
 
@@ -393,11 +612,11 @@ function CustomStep({ onAdd }: { onAdd: (title: string) => void }) {
         key={resetKey}
         onChangeText={(t) => { valueRef.current = t; }}
         onSubmitEditing={(e) => commit(e.nativeEvent.text)}
-        placeholder={translate('routines.ownPlaceholder')}
+        placeholder={t('routines.ownPlaceholder')}
         placeholderTextColor={c.inkFaint}
         returnKeyType="done"
         submitBehavior="submit"
-        accessibilityLabel={translate('routines.addOwn')}
+        accessibilityLabel={t('routines.addOwn')}
         style={{
           flex: 1, color: c.ink, paddingVertical: space.md,
           fontFamily: 'Inter_400Regular', fontSize: 15,
@@ -407,7 +626,7 @@ function CustomStep({ onAdd }: { onAdd: (title: string) => void }) {
         onPress={() => commit()}
         hitSlop={8}
         accessibilityRole="button"
-        accessibilityLabel={translate('routines.addStep')}
+        accessibilityLabel={t('routines.addStep')}
         style={{ padding: 6 }}
       >
         <Icon name="plus" size={15} color={c.inkFaint} weight="semibold" />

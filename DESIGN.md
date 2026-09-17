@@ -745,6 +745,41 @@ today is not a normal day, and the next foreground puts it back.
 deletion survives until tomorrow — which is when a daily routine is supposed to
 return anyway.
 
+### A step of a routine can be changed
+
+The screen shipped with three controls per step — up, down, and take it out —
+and none for what the step actually *says*. "Shower" could be reordered and
+re-added endlessly but never become "Shower and shave", and "Read" was stuck at
+the catalogue's twenty minutes however long anyone actually read for. The only
+escape was to delete the catalogue step and retype it as a custom one, which
+loses its place in the order and its tick for the day.
+
+**The edit is an overlay, not a rewrite.** Copying the catalogue step into
+`routineCustom` and dropping the original needs no new state at all, and it was
+rejected because it changes the step's ID — and the id is what carries a tick
+across a rebuild, so renaming something you had already done this morning would
+hand it back undone. `routineEdits` is keyed by step id, applied in
+`routineCatalogue`, and leaves identity alone.
+
+Applying it in the catalogue rather than in the screen is what makes one edit
+show up in the three places it has to: the row, the collapsed slot summary
+(whose duration is the sum of its steps), and the activity on today. Applied in
+the screen, the first would update and the routine on the day would quietly keep
+the old wording.
+
+**Fields are optional and absent means unchanged**, so editing only the length
+leaves the title following the app's language instead of freezing it at whatever
+it read when the duration was changed. Reset drops the whole overlay, and its
+label says so.
+
+**The editor opens inline, under its own row, and does not take the keyboard.**
+A sheet would cover the four steps around it at exactly the moment the user is
+deciding whether "Shower and shave" still belongs before "Get dressed" — the
+order is the product, and the order is only legible in place. Autofocusing was
+worse than it sounds: it made the first tap on the duration chips a keyboard
+dismissal rather than a press, so the more common of the two edits appeared to
+ignore you.
+
 ## Work that did not happen
 
 An activity is filed under one date and Today renders exactly that date, so

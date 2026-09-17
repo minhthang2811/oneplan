@@ -1,0 +1,112 @@
+# A STEP OF A ROUTINE CAN BE CHANGED, NOT ONLY MOVED OR REMOVED.
+#
+# The routines screen shipped with three controls per step — up, down, and take
+# it out — and none for what the step actually says. "Shower" could be reordered
+# and re-added endlessly but never become "Shower and shave", and "Read" was
+# stuck at the catalogue's twenty minutes however long anyone actually read for.
+# The only escape was to remove the catalogue step and type a replacement as a
+# custom one, which loses its place in the order and its tick for the day.
+#
+# ── WHAT THIS FLOW IS REALLY GUARDING ──────────────────────────────────────
+# Not the text field — the PLUMBING behind it. An edit is stored as an overlay
+# keyed by step id (`profile.routineEdits`) rather than by rewriting the step,
+# and `routineCatalogue` applies it. That means one edit has to show up in three
+# places at once, and the assertions below check all three:
+#
+#   1. the step's own row,
+#   2. the collapsed slot summary, whose duration is the SUM of its steps,
+#   3. the activity on today, which `syncRoutines` rebuilds on every edit.
+#
+# If the overlay were applied in the screen instead of in the catalogue, 1 would
+# pass and 3 would silently keep the old wording — the routine on the day saying
+# something different from the routine in settings.
+#
+# The id staying put is the reason for the overlay, and it is what keeps a step
+# you have already ticked this morning from coming back unticked when you rename
+# it. That part is not observable from here; it lives in `writeRoutine`.
+appId: com.oneplan.app
+name: Routine steps — rename one, and relength it
+---
+- launchApp:
+    clearState: true
+
+- assertVisible: "Oneplan"
+- tapOn: "Get started"
+- tapOn: "Organise my day and time"
+- tapOn: "Continue.*"
+- tapOn: "Loose — morning, afternoon, evening"
+- tapOn: "Continue.*"
+
+# Two morning steps with known lengths: Wake up (5m) and Shower (10m). The sum
+# is what the slot summary asserts against.
+- assertVisible: "Wake up"
+- tapOn: "Wake up"
+- tapOn: "Shower"
+- tapOn: "Continue.*"
+- tapOn: "Continue.*"
+- tapOn: "Continue.*"
+- tapOn: "Not right now"
+- tapOn: "Start planning"
+
+- tapOn: "Me"
+- tapOn: "Routines"
+- tapOn: "Morning routine.*"
+- assertVisible: "Morning routine.*2 steps.*15m.*"
+
+# --- open the editor -------------------------------------------------------
+# The row's own body is the target; the arrows and the minus keep their own hit
+# areas beside it. Its label carries both fields being edited, which is what
+# makes it selectable without a testID.
+- tapOn: "Shower, 10m.*"
+
+# --- relength it -----------------------------------------------------------
+- tapOn: "20m"
+- assertVisible: "Shower, 20m.*"
+# THE SUMMARY IS THE SECOND WITNESS. It is the sum of the steps, so it can only
+# change if the edit reached the catalogue rather than just the row's own state.
+- assertVisible: "Morning routine.*2 steps.*25m.*"
+
+# --- rename it -------------------------------------------------------------
+# `eraseText` first: the field is seeded with the current title via
+# `defaultValue`, and `inputText` types at the caret rather than replacing.
+- tapOn: "Step name"
+- eraseText
+- inputText: "Shower and shave"
+- hideKeyboard
+- tapOn: "Done"
+- assertVisible: "Shower and shave.*"
+- assertNotVisible: "Shower, 20m.*"
+- takeScreenshot: artifacts/20-routine-step-edited
+
+# --- the day agrees with the setting ---------------------------------------
+# THE THIRD WITNESS, and the one that would catch an overlay applied in the
+# screen rather than in the catalogue. Opening the routine activity on today
+# shows the steps `buildRoutine` actually wrote.
+- tapOn: "Back"
+# BY POINT, because "Today" is ambiguous ON THIS SCREEN. Back lands on Me,
+# whose "Planned" tile carries the sub-label "today" — and a Maestro selector
+# is a case-insensitive full-string regex, so `tapOn: "Today"` matches that
+# static text before it reaches the tab and the tap lands on nothing.
+# Percentages must be whole numbers.
+- tapOn:
+    point: "38%,93%"
+- assertVisible: "Next day"
+- tapOn: "Morning routine.*"
+- assertVisible: "Shower and shave"
+- takeScreenshot: artifacts/21-edit-reaches-the-day
+
+# --- and it can be put back ------------------------------------------------
+# Reset appears only once there is something to reset, and it drops the WHOLE
+# overlay — the wording and the length together — returning the step to the
+# catalogue's own 10m "Shower". Being able to get back at all is the reason the
+# edit is an overlay rather than a rewrite of the step.
+- tapOn: "Back"
+- tapOn: "Me"
+- tapOn: "Routines"
+- tapOn: "Morning routine.*"
+- tapOn: "Shower and shave.*"
+- tapOn: "Reset this step"
+# 10m, not 20m: the reset clears the length as well as the wording.
+- assertVisible: "Shower, 10m.*"
+- assertNotVisible: "Shower and shave.*"
+- assertVisible: "Morning routine.*2 steps.*15m.*"

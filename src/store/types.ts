@@ -51,6 +51,27 @@ export type CustomRoutineStep = {
   minutes: number;
 };
 
+/**
+ * A change the user made to one step of a routine.
+ *
+ * ── AN OVERLAY, NOT A REWRITE ─────────────────────────────────────────────
+ * Renaming "Shower" to "Shower and shave" could have been done by copying the
+ * catalogue step into `routineCustom` and dropping the original, which needs no
+ * new state at all. It was rejected because it changes the step's ID, and the
+ * id is what carries a tick across a rebuild — so renaming a step you had
+ * already done this morning would hand it back to you undone. Storing the edit
+ * beside the id instead leaves the identity alone, which means today's progress
+ * survives the edit and the step can still be reset to the catalogue's wording
+ * later.
+ *
+ * Fields are optional and absent means "unchanged", so an edit to the duration
+ * does not freeze the title in whatever language it happened to be in.
+ */
+export type RoutineStepEdit = {
+  title?: string;
+  minutes?: number;
+};
+
 export type Profile = {
   name: string;
   need: string | null;
@@ -83,5 +104,13 @@ export type Profile = {
   routineTimes: Record<RoutineSlotKey, number>;
   /** Steps the user added themselves. Their ids appear in `routines` too. */
   routineCustom: Record<RoutineSlotKey, CustomRoutineStep[]>;
+  /**
+   * Per-step edits, keyed by step id — see `RoutineStepEdit`.
+   *
+   * Applies to catalogue steps and the user's own alike, so the routines
+   * screen has one way to change a step rather than two that behave
+   * differently depending on where the step came from.
+   */
+  routineEdits: Record<RoutineSlotKey, Record<string, RoutineStepEdit>>;
   appearance: AppearancePref;
 };

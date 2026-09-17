@@ -22,7 +22,7 @@ import { useT } from '../../src/i18n';
 import { usePlanStore, tasksForDate, bySlot } from '../../src/store/usePlanStore';
 import { dateKey, parseKey, isToday, weekdayLong, longDate, SLOT_ORDER, slotLabel, type Slot } from '../../src/lib/time';
 import { useNowMinutes } from '../../src/lib/useNowMinutes';
-import { useTodayKey } from '../../src/lib/useTodayKey';
+import { useToday } from '../../src/lib/useTodayKey';
 import { isRoutineTask } from '../../src/data/routines';
 import { haptic } from '../../src/lib/haptics';
 import type { Task } from '../../src/store/types';
@@ -68,7 +68,7 @@ export default function Today() {
    * midnight — moving the ground under a deliberate navigation is worse than
    * the staleness this fixes.
    */
-  const todayKey = useTodayKey();
+  const todayKey = useToday();
   const wasToday = useRef(todayKey);
   useEffect(() => {
     const previous = wasToday.current;
@@ -156,8 +156,52 @@ export default function Today() {
    * with no way to restore it, because a date change is not a navigation
    * focus change and nothing else fires.
    */
-  const empty = dayTasks.length === 0;
+  /**
+   * OUTSTANDING WORK MEANS THE DAY IS NOT EMPTY.
+   *
+   * The empty branch renders no list, which left the overdue group unable to
+   * expand on exactly the day its contents matter most: the banner could say
+   * "6 unfinished from earlier days" and offer to move all six, with no way to
+   * see what they were. Falling through to the list gives the group its
+   * chevron, its rows and the Anytime drop target — and the sleeping dog is
+   * the right picture for a day with nothing on it, not for a day with six
+   * things waiting.
+   */
+  const empty = dayTasks.length === 0 && overdue.length === 0;
   useEffect(() => { if (empty) resetChrome(); }, [empty, resetChrome]);
+
+  /**
+   * MOVING EVERYTHING FORWARD ASKS FIRST.
+   *
+   * The button relocates an unbounded set — someone three months in can be
+   * carrying forty abandoned activities — and there is no undo short of
+   * opening forty detail screens. Naming the count before doing it is the
+   * difference between an action and an accident, and Tiimo's own review puts
+   * the number on the button for the same reason.
+   */
+  const confirmCarryOver = useCallback((count: number) => {
+    haptic.warn();
+    const go = () => { haptic.success(); carryOver(key); setOverdueOpen(false); };
+    const title = t('today.moveAllTitle', { count });
+    const body = t('today.moveAllBody');
+    if (process.env.EXPO_OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: [t('today.moveToToday'), t('common.cancel')],
+          cancelButtonIndex: 1,
+          title,
+          message: body,
+          userInterfaceStyle: isDark ? 'dark' : 'light',
+        },
+        (i) => { if (i === 0) go(); }
+      );
+    } else {
+      Alert.alert(title, body, [
+        { text: t('common.cancel'), style: 'cancel' },
+        { text: t('today.moveToToday'), onPress: go },
+      ]);
+    }
+  }, [carryOver, key, t, isDark]);
 
   const openMenu = useCallback(() => {
     const options = [t('today.compactLayout'), t('today.timelineLayout'), t('common.cancel')];
@@ -198,17 +242,6 @@ export default function Today() {
     return (
       <View style={{ flex: 1, backgroundColor: c.canvas, paddingHorizontal: space.lg, paddingTop: insets.top + space.sm }}>
         {header}
-        {/* An empty day with outstanding work behind it is precisely when the
-            carry-over matters most, so the banner survives the empty branch —
-            otherwise the affordance would be missing on the one day it is the
-            answer. */}
-        {overdue.length > 0 ? (
-          <OverdueBanner
-            count={overdue.length}
-            open={false}
-            onMoveAll={() => { haptic.success(); carryOver(key); }}
-          />
-        ) : null}
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: space.xl, paddingBottom: TAB_BAR_HEIGHT }}>
           {/* An empty day is the ONE screen in the app that is both frequent
               enough to matter and blank enough to afford an illustration. Pip
@@ -264,7 +297,7 @@ export default function Today() {
                 count={item.count}
                 open={overdueOpen}
                 onToggle={() => { haptic.tick(); setOverdueOpen((o) => !o); }}
-                onMoveAll={() => { haptic.success(); carryOver(key); setOverdueOpen(false); }}
+                onMoveAll={() => confirmCarryOver(item.count)}
               />
             );
           }

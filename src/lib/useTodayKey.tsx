@@ -1,4 +1,6 @@
-import { useEffect, useState } from 'react';
+import {
+  createContext, useContext, useEffect, useState, type ReactNode,
+} from 'react';
 import { AppState } from 'react-native';
 import { dateKey } from './time';
 
@@ -64,4 +66,43 @@ export function useTodayKey(): string {
   }, []);
 
   return key;
+}
+
+/**
+ * ONE TIMER FOR THE WHOLE APP.
+ *
+ * Four components need to know what day it is — the root (to build today's
+ * routines), Today, Me and the tab bar's calendar glyph — and calling the hook
+ * in each of them armed four midnight timeouts and four `AppState` listeners
+ * for a single shared fact. They all fire within milliseconds of each other at
+ * the rollover, so the app paid for four re-render cascades where one would do.
+ *
+ * The root calls `useTodayKey()` once and publishes the result; everything else
+ * reads it. `useToday()` falls back to its own hook when no provider is above
+ * it, so a component rendered outside the tree — a test harness, a future
+ * standalone screen — still gets a live date rather than a stale one.
+ */
+const TodayContext = createContext<string | null>(null);
+
+export function TodayProvider({ value, children }: { value: string; children: ReactNode }) {
+  return <TodayContext.Provider value={value}>{children}</TodayContext.Provider>;
+}
+
+export function useToday(): string {
+  const shared = useContext(TodayContext);
+  /**
+   * THROWS RATHER THAN FALLING BACK, and the reason is that the fallback
+   * cannot be written without giving up what this exists for. Calling
+   * `useTodayKey()` here as a default would arm a timer in EVERY consumer,
+   * provider or not — hooks cannot be called conditionally — which is the cost
+   * the context was introduced to remove. The only other fallback is a date
+   * read once, which is precisely the staleness bug all of this fixes.
+   *
+   * A missing provider is a wiring mistake, not a runtime condition, and it is
+   * one the router's error boundary reports on the first render.
+   */
+  if (shared == null) {
+    throw new Error('useToday() requires a <TodayProvider> above it.');
+  }
+  return shared;
 }

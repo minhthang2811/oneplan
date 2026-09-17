@@ -17,7 +17,7 @@ import type { ErrorBoundaryProps } from 'expo-router';
 import { usePlanStore } from '../src/store/usePlanStore';
 import { useTaskNotifications } from '../src/lib/notifications';
 import { useFocusAlarm } from '../src/lib/focusAlarm';
-import { useTodayKey } from '../src/lib/useTodayKey';
+import { useTodayKey, TodayProvider } from '../src/lib/useTodayKey';
 import { useDeviceLocaleSync, translate, type TKey } from '../src/i18n';
 import { LaunchScreen } from '../src/components/LaunchScreen';
 import { ChromeProvider } from '../src/components/Chrome';
@@ -241,6 +241,7 @@ export default function RootLayout() {
     <GestureHandlerRootView onLayout={onReady} style={{ flex: 1, backgroundColor: c.canvas }}>
       <KeyboardProvider>
         <SafeAreaProvider>
+        <TodayProvider value={todayKey}>
         <ChromeProvider>
           {!fontsLoaded ? null : (
           <Stack
@@ -323,6 +324,7 @@ export default function RootLayout() {
               placeholder that then has to be swapped. */}
           {launching ? <LaunchScreen onFinish={finishLaunch} fontsReady={fontsLoaded} /> : null}
         </ChromeProvider>
+        </TodayProvider>
         </SafeAreaProvider>
       </KeyboardProvider>
     </GestureHandlerRootView>

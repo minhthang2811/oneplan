@@ -94,6 +94,11 @@ export const vi: Dict = {
       other: '{count} việc chưa xong từ những hôm trước',
     },
     moveToToday: 'Chuyển sang hôm nay',
+    moveAllTitle: {
+      one: 'Chuyển {count} việc sang hôm nay?',
+      other: 'Chuyển cả {count} việc sang hôm nay?',
+    },
+    moveAllBody: 'Chúng vẫn giữ buổi trong ngày. Bạn có thể chuyển lại bất cứ việc nào.',
   },
 
   todo: {
@@ -204,6 +209,11 @@ export const vi: Dict = {
     a11yRow: 'Thói quen {slot}, {summary}',
     startPrompt: 'Thói quen {slot} của bạn bắt đầu lúc nào?',
     addSomething: 'Thêm một việc',
+    editStepA11y: '{title}, {duration}. Chạm để đổi.',
+    stepName: 'Tên bước',
+    stepPlaceholder: 'Bước này là gì?',
+    stepLength: 'Bao lâu',
+    resetStep: 'Đặt lại bước này',
     inThisRoutine: 'Trong thói quen này',
     orderFooter: 'Chạm vào mũi tên để đổi thứ tự các việc.',
     emptyList: 'Chưa có gì ở đây. Chọn từ danh sách bên dưới.',
