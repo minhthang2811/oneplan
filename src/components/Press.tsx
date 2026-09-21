@@ -2,7 +2,7 @@ import { type ReactNode } from 'react';
 import { Pressable, type StyleProp, type ViewStyle, type PressableProps } from 'react-native';
 import Animated, {
   useSharedValue, useAnimatedStyle, withTiming, withSpring, Easing,
-  interpolateColor, useReducedMotion,
+  interpolateColor, useReducedMotion, type AnimatedStyle,
 } from 'react-native-reanimated';
 import { motion } from '../theme/tokens';
 
@@ -11,7 +11,13 @@ export const EASE = Easing.bezier(0.23, 1, 0.32, 1);
 
 type Base = Omit<PressableProps, 'style'> & {
   children: ReactNode;
-  style?: StyleProp<ViewStyle>;
+  /**
+   * The paint. Typed as an ANIMATED style because the view it lands on is an
+   * `Animated.View` — a caller that wants its own fill or border to
+   * interpolate (`ChoiceRow` does) has to be able to hand one straight in,
+   * and a plain `ViewStyle` is still assignable to this.
+   */
+  style?: StyleProp<AnimatedStyle<ViewStyle>>;
 };
 
 /**
@@ -44,10 +50,16 @@ type Base = Omit<PressableProps, 'style'> & {
  * stretches the inner view inside a Pressable that has already been sized to
  * its content, so the child ends up with no room and silently collapses.
  *
- * Put the flex on a wrapper, or use a plain `Pressable`, when a press target
- * has to share a row with something else.
+ * `outerStyle` is the way out. It lands on the `Pressable` itself, so it is
+ * where sizing goes — `flex`, `maxHeight`, `alignSelf` — while `style` keeps
+ * the paint. Splitting them is the only arrangement that lets one component
+ * both animate and take part in its parent's layout; the alternative, wrapping
+ * every such call site in a spare `View`, puts the same knowledge in every
+ * caller instead of in here.
  */
-export function PressScale({ children, style, scaleTo = 0.97, ...rest }: Base & { scaleTo?: number }) {
+export function PressScale({
+  children, style, outerStyle, scaleTo = 0.97, ...rest
+}: Base & { scaleTo?: number; outerStyle?: StyleProp<ViewStyle> }) {
   /** 0 at rest, 1 fully pressed. The spring is allowed to overshoot past 0. */
   const p = useSharedValue(0);
   const reduced = useReducedMotion();
@@ -76,6 +88,7 @@ export function PressScale({ children, style, scaleTo = 0.97, ...rest }: Base & 
     <Pressable
       onPressIn={() => { if (!reduced) p.set(withTiming(1, { duration: motion.press, easing: EASE })); }}
       onPressOut={() => { if (!reduced) p.set(withSpring(0, motion.release)); }}
+      style={outerStyle}
       {...rest}
     >
       <Animated.View style={[style, anim]}>{children}</Animated.View>

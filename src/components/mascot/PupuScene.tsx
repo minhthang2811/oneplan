@@ -63,6 +63,27 @@ type Idle =
   | 'breathe'
   /** A gentle float, for a Pupu that is not sitting on anything. */
   | 'bob'
+  /**
+   * Breathing, plus a slow shift of weight from one side to the other.
+   *
+   * ── WHERE THIS IS ALLOWED, AND WHY IT IS ONLY THERE ──────────────────────
+   * The welcome screen, and nowhere else. It is the most alive Pupu ever looks
+   * while merely waiting, and by the frequency gate that is affordable exactly
+   * once: the first screen of the first run, which a user sees one time and
+   * where the whole job of the picture is to say "there is somebody here".
+   *
+   * `breathe` alone does not do that job. A 1.8% scale is a dog that is
+   * BREATHING, which is the right note for an empty day — present, not doing
+   * anything — and on a welcome screen it reads as a still image that happens
+   * to be very slightly unstable. Rotation is what adds a character: a body
+   * that leans is a body that has weight in it.
+   *
+   * It stays under three degrees and over five seconds a cycle, because the
+   * failure mode on the other side of this is a mascot that wags at you, and a
+   * mascot that performs while you read is harder to forgive than one that
+   * sits still.
+   */
+  | 'sway'
   /** Perfectly still. */
   | 'none';
 
@@ -126,8 +147,9 @@ export function PupuScene({
     if (reduced || idle === 'none') return;
     // 3.8s each way. Deliberately slower than a resting breath, for the same
     // reason the focus halo is: at anything near human tempo it stops being
-    // ambient and becomes something to watch.
-    const period = idle === 'breathe' ? 3800 : 2600;
+    // ambient and becomes something to watch. `sway` is slower still — it is
+    // the only one that moves a silhouette rather than merely its size.
+    const period = idle === 'breathe' ? 3800 : idle === 'sway' ? 2700 : 2600;
     loop.set(
       withRepeat(
         withSequence(
@@ -165,13 +187,31 @@ export function PupuScene({
 
     // Never scale from 0 — nothing in the real world appears from nothing.
     const entryScale = 0.86 + 0.14 * e;
-    const breath = idle === 'breathe' ? 1 + 0.018 * l : 1;
+    const breath = idle === 'breathe' || idle === 'sway' ? 1 + 0.018 * l : 1;
     const lift = idle === 'bob' ? -7 * l : 0;
+
+    /**
+     * The lean, and the half-beat of lift that goes with it.
+     *
+     * `l` runs 0 to 1 and back, so `l - 0.5` is what turns it into a movement
+     * that goes BOTH WAYS about the centre rather than one that only ever
+     * leaves and returns to rest — a body that tips one way and springs back
+     * reads as a flinch, one that tips either side reads as weight moving.
+     *
+     * The rise is at DOUBLE the rate, so Pupu is highest as he passes through
+     * upright and lowest at each extreme. That is what a body does when it
+     * shifts from foot to foot, and it is the whole reason this does not look
+     * like a picture being rotated.
+     */
+    const swayed = idle === 'sway' ? l - 0.5 : 0;
+    const sway = swayed * 5.2;
+    const rock = idle === 'sway' ? -2.6 * (1 - Math.abs(swayed) * 2) : 0;
 
     return {
       opacity: e,
       transform: [
-        { translateY: (1 - e) * 22 + lift + (p > 0 ? -10 * p : 0) },
+        { translateY: (1 - e) * 22 + lift + rock + (p > 0 ? -10 * p : 0) },
+        { rotate: `${sway}deg` },
         { scaleX: entryScale * breath * (1 - 0.07 * p) },
         { scaleY: entryScale * breath * (1 + 0.09 * p) },
       ],

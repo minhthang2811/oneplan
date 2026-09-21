@@ -7,6 +7,36 @@ import type { Dict } from './en';
  * misspelled. That check is the point of the whole arrangement — it is what a
  * runtime-fallback i18n library cannot give.
  *
+ * ── THIS IS NOT A TRANSLATION OF `en.ts`, AND MUST NOT BECOME ONE ─────────
+ *
+ * It was one, and that was the problem. Every sentence was grammatical and the
+ * whole file still read like a manual: it said `chúng tôi` — the corporate
+ * "we" — and it carried almost no sentence-final particles. Those particles
+ * (`nhé`, `nha`, `thôi`, `rồi`, `mà`, `đó`, `nào`) are most of what separates
+ * a Vietnamese person talking from a Vietnamese instruction sheet. Compare
+ * "Bạn có thể thử lại." with "Thử lại nhé." — same instruction, and only one
+ * of them sounds like it came from someone who likes you.
+ *
+ * The rules, in order of how much damage breaking them does:
+ *
+ * 1. **Pupu speaks; a company never does.** There is no `chúng tôi` in this
+ *    file and there must not be one. Where English says "we", name Pupu or
+ *    drop the subject — Vietnamese is happy without one.
+ * 2. **End sentences the way people end them.** A particle is not decoration;
+ *    it is the tone. Prefer one at the end of anything reassuring, inviting or
+ *    optional. Leave them off destructive confirmations, which should be flat.
+ * 3. **Do not translate the English literary lines.** Several were images that
+ *    only work in English ("plans quietly collapse", "that counted") and came
+ *    out stiff and slightly odd. Write the Vietnamese sentence a Vietnamese
+ *    writer would have written for that moment instead, even if it says
+ *    something different.
+ * 4. **Shrink the task, never the person.** "Chỉ {duration} thôi" and "nhỏ xíu
+ *    cũng được" lower the cost of starting. Nothing here scolds, and nothing
+ *    congratulates someone for a thing they did not do.
+ * 5. **Leave tomorrow's door open.** The evening celebration ends with "mai
+ *    tính tiếp nhé" on purpose: the last thing said each day should be an
+ *    invitation back, not a full stop.
+ *
  * NOTES FOR FUTURE TRANSLATORS
  *
  * - Vietnamese has NO grammatical plural. Every `{ one, other }` pair here is
@@ -72,8 +102,8 @@ export const vi: Dict = {
   },
 
   error: {
-    title: 'Màn hình đó không tải được',
-    body: 'Kế hoạch của bạn vẫn an toàn — nó được lưu trên máy này. Bạn có thể thử lại.',
+    title: 'Màn hình này hơi trục trặc',
+    body: 'Kế hoạch của bạn vẫn nguyên vẹn trong máy, không mất gì đâu. Thử lại nhé.',
   },
 
   today: {
@@ -81,24 +111,31 @@ export const vi: Dict = {
     prevDay: 'Ngày trước',
     nextDay: 'Ngày sau',
     jumpToToday: '{weekday}, {date}. Chạm để về hôm nay.',
-    dayOptions: 'Tuỳ chọn ngày',
+    dayOptions: 'Xem ngày kiểu nào?',
     addActivity: 'Thêm hoạt động',
-    compactLayout: 'Bố cục gọn',
-    timelineLayout: 'Bố cục dòng thời gian',
-    emptyTitle: 'Chưa có gì ở đây',
-    emptyBody: 'Thêm một việc bạn muốn hoàn thành. Một việc là đủ để bắt đầu một ngày.',
-    anytimeHint: 'Bất cứ việc gì hợp với hôm nay',
+    /**
+  * `Bố cục` and `dòng thời gian` are both correct and both are the register of
+  * a design tool rather than of a day. Nobody asks how their morning's LAYOUT
+  * is arranged. These name the two ways of LOOKING at a day instead, and
+  * `theo giờ` deliberately echoes `rhythmTimed` in onboarding — the user has
+  * already been asked this question once, in those words.
+  */
+    compactLayout: 'Xem kiểu gọn',
+    timelineLayout: 'Xem theo giờ',
+    emptyTitle: 'Hôm nay còn trống trơn',
+    emptyBody: 'Thêm một việc thôi, nhỏ xíu cũng được. Một việc là đủ để ngày hôm nay bắt đầu rồi.',
+    anytimeHint: 'Việc gì cũng được, miễn hợp hôm nay',
     slotCount: { one: '{label}, {count} hoạt động', other: '{label}, {count} hoạt động' },
     overdueCount: {
-      one: '{count} việc chưa xong từ hôm trước',
-      other: '{count} việc chưa xong từ những hôm trước',
+      one: '{count} việc còn dang dở từ hôm trước',
+      other: '{count} việc còn dang dở từ những hôm trước',
     },
     moveToToday: 'Chuyển sang hôm nay',
     moveAllTitle: {
       one: 'Chuyển {count} việc sang hôm nay?',
       other: 'Chuyển cả {count} việc sang hôm nay?',
     },
-    moveAllBody: 'Chúng vẫn giữ buổi trong ngày. Bạn có thể chuyển lại bất cứ việc nào.',
+    moveAllBody: 'Vẫn giữ nguyên buổi trong ngày. Đổi ý lúc nào cũng được nhé.',
   },
 
   todo: {
@@ -108,10 +145,10 @@ export const vi: Dict = {
     medium: 'Vừa',
     low: 'Thấp',
     plain: 'Cần làm',
-    hintHigh: 'Cần tập trung — thêm vào đây',
-    hintMedium: 'Không gấp — thêm vào đây',
-    hintLow: 'Không vội — thêm vào đây',
-    hintPlain: 'Thêm vào danh sách của bạn',
+    hintHigh: 'Việc cần tập trung thì thả vào đây',
+    hintMedium: 'Không gấp lắm thì để đây',
+    hintLow: 'Không vội gì cả, cứ để đây',
+    hintPlain: 'Cứ thêm vào danh sách của bạn',
   },
 
   row: {
@@ -127,9 +164,9 @@ export const vi: Dict = {
   focus: {
     title: 'Tập trung',
     alarmTitle: 'Hết giờ rồi',
-    alarmBody: 'Phiên tập trung của bạn đã kết thúc.',
+    alarmBody: 'Xong một phiên tập trung. Nghỉ một chút nhé.',
     setLength: 'Đặt độ dài',
-    pickLength: 'Chọn khoảng thời gian bạn muốn biến mất',
+    pickLength: 'Bạn muốn biến mất trong bao lâu?',
     endsAt: 'Kết thúc lúc {time}',
     minutes: { one: 'PHÚT', other: 'PHÚT' },
     dialLabel: 'Độ dài phiên tập trung',
@@ -142,29 +179,37 @@ export const vi: Dict = {
     end: 'Kết thúc',
     endSession: 'Kết thúc phiên',
     endTitle: 'Kết thúc phiên tập trung này?',
-    endMessage: 'Còn {time}.',
-    keepGoing: 'Tiếp tục làm',
-    paused: 'ĐANG TẠM DỪNG',
+    endMessage: 'Vẫn còn {time} nữa mà.',
+    keepGoing: 'Làm tiếp',
+    paused: 'TẠM DỪNG',
     steps: 'CÁC BƯỚC',
     allDone: 'Xong hết rồi 🎉',
-    timeUp: 'Hết giờ. Việc đó được tính.',
+    timeUp: 'Hết giờ rồi. Bấy nhiêu cũng là quý rồi đó.',
     markItDone: 'Đánh dấu đã xong',
     notYet: 'Chưa đâu',
   },
 
   me: {
     title: 'Tôi',
-    hereTo: 'Ở đây để {need}',
+    /**
+     * `Here to {need}` is a subjectless English frame, and copying it gives
+     * "Ở đây để … của tôi" — the app's voice and the user's own answer welded
+     * into one sentence. `Đang` takes the frame's place: the subject stays
+     * implied (it is Pupu doing the organising, the remembering), the answer's
+     * `của tôi` still belongs to the user, and the lowercased fragment the
+     * screen hands over reads correctly after it.
+     */
+    hereTo: 'Đang {need}',
     doneToday: 'Xong hôm nay',
     ofTotal: 'trên {total}',
-    planned: 'Đã lên kế hoạch',
+    planned: 'Kế hoạch',
     todaySub: 'hôm nay',
     activities: 'Hoạt động',
     totalSub: 'tổng cộng',
     planning: 'Lên kế hoạch',
-    dayLayout: 'Bố cục ngày',
-    compact: 'Gọn',
-    timeline: 'Dòng thời gian',
+    dayLayout: 'Cách xem ngày',
+    compact: 'Kiểu gọn',
+    timeline: 'Theo giờ',
     routines: 'Thói quen',
     routinesNone: 'Chưa đặt',
     routineSummary: { one: '{count} bước · {slots} trên 3', other: '{count} bước · {slots} trên 3' },
@@ -172,18 +217,27 @@ export const vi: Dict = {
     remindersOff: 'Tắt',
     remindersAsStart: 'Ngay khi bắt đầu',
     remindersBefore: 'Trước {duration}',
-    about: 'Giới thiệu',
+    /**
+  * `Ứng dụng`, NOT `Giới thiệu`, even though the English is "About".
+  *
+  * This section holds Language, Appearance, Your data and "run onboarding
+  * again" — and that last row is already called `phần giới thiệu`. A section
+  * headed `GIỚI THIỆU` containing a row that says `Làm lại phần giới thiệu`
+  * reads as though the heading and the row are about the same thing, which
+  * they are not.
+  */
+    about: 'Ứng dụng',
     appearance: 'Giao diện',
     followsSystem: 'Theo hệ thống',
     yourData: 'Dữ liệu của bạn',
     onThisDevice: 'Trên máy này',
-    runOnboarding: 'Chạy lại phần giới thiệu',
+    runOnboarding: 'Làm lại phần giới thiệu',
     version: 'Pupu 1.0',
     notifOffTitle: 'Thông báo đang tắt',
     notifOffBody:
-      'Cho phép Pupu gửi thông báo trong Cài đặt để được nhắc khi một hoạt động bắt đầu.',
-    startOverTitle: 'Chạy lại phần giới thiệu?',
-    startOverBody: 'Hoạt động, giao diện và cài đặt nhắc nhở của bạn vẫn được giữ.',
+      'Bật thông báo cho Pupu trong Cài đặt, để Pupu hích nhẹ bạn mỗi khi tới giờ nhé.',
+    startOverTitle: 'Làm lại phần giới thiệu?',
+    startOverBody: 'Hoạt động, giao diện và cài đặt nhắc nhở của bạn vẫn giữ nguyên.',
     startOver: 'Bắt đầu lại',
   },
 
@@ -193,13 +247,13 @@ export const vi: Dict = {
     system: 'Hệ thống',
     systemSub: 'Theo ngôn ngữ điện thoại',
     footnote:
-      'Pupu mở bằng ngôn ngữ của điện thoại khi có thể. Chọn một ngôn ngữ ở đây để thay thế.',
+      'Pupu mở bằng ngôn ngữ của điện thoại khi có thể. Muốn khác thì chọn ở đây nhé.',
   },
 
   routines: {
     title: 'Thói quen',
     subtitle:
-      'Những phần lặp lại trong ngày của bạn. Đổi nội dung, đổi thứ tự, và đổi giờ bắt đầu.',
+      'Những việc lặp đi lặp lại trong ngày của bạn. Đổi nội dung, đổi thứ tự, đổi cả giờ bắt đầu.',
     none: 'Chưa có thói quen nào',
     nothingPicked: 'Chưa chọn gì',
     nothingPickedLower: 'chưa chọn gì',
@@ -215,7 +269,7 @@ export const vi: Dict = {
     resetStep: 'Đặt lại bước này',
     inThisRoutine: 'Trong thói quen này',
     orderFooter: 'Chạm vào mũi tên để đổi thứ tự các việc.',
-    emptyList: 'Chưa có gì ở đây. Chọn từ danh sách bên dưới.',
+    emptyList: 'Chưa có gì ở đây cả. Chọn từ danh sách bên dưới nhé.',
     moveEarlier: 'Chuyển {title} lên trước',
     moveLater: 'Chuyển {title} xuống sau',
     remove: 'Xoá {title}',
@@ -226,15 +280,15 @@ export const vi: Dict = {
     addOwn: 'Thêm bước của riêng bạn',
     addStep: 'Thêm bước',
     applyNote:
-      'Thay đổi áp dụng cho hôm nay ngay lập tức. Những gì bạn đã đánh dấu xong vẫn giữ nguyên.',
+      'Sửa xong là hôm nay đổi theo luôn. Việc nào đã đánh dấu xong thì vẫn nguyên đó nhé.',
     emptyHint:
-      'Mở một buổi bên dưới và chọn những việc bạn vốn đã làm. Một hoặc hai là đủ.',
+      'Mở một buổi bên dưới rồi chọn vài việc bạn vốn vẫn làm. Một hai việc là đủ rồi.',
   },
 
   appearance: {
     title: 'Giao diện',
     subtitle:
-      'Pupu theo thiết bị của bạn mặc định. Chọn một bên nếu bạn không muốn nó tự đổi.',
+      'Mặc định thì Pupu đi theo máy của bạn. Muốn cố định một bên thì chọn ở đây nhé.',
     theme: 'Chủ đề',
     system: 'Hệ thống',
     systemHint: 'Theo thiết bị của bạn',
@@ -247,7 +301,7 @@ export const vi: Dict = {
   reminderSettings: {
     title: 'Nhắc nhở',
     subtitle:
-      'Một lời nhắc trước khi hoạt động bắt đầu, để kế hoạch nhớ thay cho bạn.',
+      'Một lời nhắc nhỏ trước giờ, để kế hoạch nhớ thay cho bạn.',
     switchedOff: 'Nhắc nhở đã bị tắt',
     notifications: 'Thông báo',
     systemPermission: 'Quyền hệ thống',
@@ -256,9 +310,9 @@ export const vi: Dict = {
     notAllowed: 'Chưa cho phép',
     activityReminders: 'Nhắc nhở hoạt động',
     nothingWithTimes:
-      'Chưa có gì được lên lịch — nhắc nhở gắn với hoạt động có giờ bắt đầu, và bạn chưa có hoạt động nào như vậy.',
+      'Chưa có lời nhắc nào cả — lời nhắc chỉ gắn được vào việc có giờ bắt đầu, mà giờ thì chưa việc nào của bạn có giờ.',
     nothingToday:
-      'Hiện chưa có gì được lên lịch. Mọi hoạt động có giờ bắt đầu hôm nay đều đã bắt đầu.',
+      'Không còn lời nhắc nào đang chờ. Hôm nay việc nào có giờ thì cũng qua giờ cả rồi.',
     when: 'Khi nào',
     whenFooter: 'Tính từ giờ bắt đầu của chính hoạt động đó.',
     tenHint: 'Đủ thời gian để làm nốt việc đang dở',
@@ -268,18 +322,18 @@ export const vi: Dict = {
       one: 'Đã lên lịch {count} lời nhắc.',
       other: 'Đã lên lịch {count} lời nhắc.',
     },
-    preview: 'Bạn sẽ thấy gì',
+    preview: 'Lời nhắc trông thế này',
     previewA11y: 'Thông báo mẫu. {title}. {body}',
     switchedOffBody:
-      'Thông báo cho Pupu đã bị tắt trong Cài đặt iOS, nên ứng dụng ngừng hứa những lời nhắc mà nó không gửi được. Cho phép lại để bật tính năng này.',
+      'Thông báo cho Pupu đang tắt trong Cài đặt iOS, nên Pupu không dám hứa những lời nhắc mà chính mình không gửi được. Bật lại để dùng tiếp nhé.',
     privacyNote:
-      'Nhắc nhở được lên lịch trên máy này. Không có gì về kế hoạch của bạn được gửi đi đâu cả.',
+      'Lời nhắc hẹn ngay trong máy bạn thôi. Không có gì về kế hoạch của bạn rời khỏi máy cả.',
   },
 
   celebration: {
-    morning: 'Xong buổi sáng.\nPhần còn lại đợi được.',
-    afternoon: 'Xong buổi chiều.\nLàm tốt lắm.',
-    evening: 'Xong buổi tối.\nBạn dừng được rồi.',
+    morning: 'Xong buổi sáng rồi.\nPhần còn lại đợi được mà.',
+    afternoon: 'Xong buổi chiều rồi.\nBạn làm tốt lắm đó.',
+    evening: 'Xong buổi tối rồi.\nNghỉ thôi, mai tính tiếp nhé.',
     badge: 'XONG {slot}',
     a11y: 'Đã xong {slot}. Mọi hoạt động trong {slotLower} của bạn đều hoàn tất.',
   },
@@ -287,15 +341,15 @@ export const vi: Dict = {
   add: {
     newActivity: 'Hoạt động mới',
     newTodo: 'Việc cần làm mới',
-    placeholderActivity: 'Bạn đang làm gì?',
-    placeholderTodo: 'Cần làm gì?',
+    placeholderActivity: 'Bạn định làm gì?',
+    placeholderTodo: 'Cần làm gì nào?',
     chooseIcon: 'Chọn biểu tượng',
     icon: 'Biểu tượng',
     iconA11y: 'Biểu tượng {emoji}',
     colour: 'Màu',
     colourA11y: 'Màu {name}',
     quickPick: 'Chọn nhanh',
-    howLong: 'Trong bao lâu',
+    howLong: 'Bao lâu',
     when: 'Khi nào',
     startsAt: 'Bắt đầu lúc',
     noSetTime: 'Không đặt giờ',
@@ -305,7 +359,7 @@ export const vi: Dict = {
     removeStep: 'Xoá bước {title}',
     addActivity: 'Thêm hoạt động',
     discardTitle: 'Bỏ hoạt động này?',
-    discardBody: 'Nó chưa được thêm vào.',
+    discardBody: 'Chưa thêm vào đâu, yên tâm.',
     discardAction: 'Bỏ hoạt động',
     discard: 'Bỏ',
     keepEditing: 'Tiếp tục sửa',
@@ -313,12 +367,12 @@ export const vi: Dict = {
 
   task: {
     goneTitle: 'Hoạt động này không còn nữa',
-    goneBody: 'Nó đã bị xoá, hoặc liên kết đã cũ.',
+    goneBody: 'Chắc là nó bị xoá rồi, hoặc liên kết đã cũ quá.',
     backToToday: 'Về hôm nay',
     deleteActivity: 'Xoá hoạt động',
     steps: 'CÁC BƯỚC',
     noStepsTitle: 'Chưa có bước nào',
-    noStepsBody: 'Chia việc này thành hai hoặc ba bước thường khiến việc bắt đầu dễ hơn.',
+    noStepsBody: 'Chia nhỏ thành hai ba bước, tự nhiên thấy dễ bắt đầu hơn hẳn.',
     addStep: 'Thêm một bước',
     remove: 'Xoá {title}',
     markDone: 'Đánh dấu đã xong',
@@ -328,7 +382,7 @@ export const vi: Dict = {
     edit: 'Sửa',
     editA11y: '{field}: {value}. Chạm để đổi.',
     renameTitle: 'Đổi tên hoạt động',
-    renamePlaceholder: 'Bạn đang làm gì?',
+    renamePlaceholder: 'Bạn định làm gì?',
     duration: 'Bao lâu',
     whenSlot: 'Buổi trong ngày',
     startsAt: 'Bắt đầu lúc',
@@ -347,14 +401,24 @@ export const vi: Dict = {
 
   onboarding: {
     stepOf: 'Bước {step} trên {total}',
+    /**
+     * Pupu giới thiệu chính mình, không phải app tự mô tả.
+     *
+     * `Chào bạn` rather than `Xin chào`: the second is the greeting a voice
+     * announcement uses, the first is what a person says walking in. And the
+     * promise is put as a favour Pupu is doing — `để đầu bạn nghỉ một chút` —
+     * because the English joke ("so your brain doesn't have to") does not
+     * survive a literal rendering; the Vietnamese sentence that does the same
+     * work is about giving the reader's head a rest.
+     */
     welcomeBody:
-      'Mỗi lần một ngày, bày ra để bạn nhìn thấy được. Dành cho những bộ não hợp với hình ảnh hơn là danh sách.',
+      'Chào bạn! Kế hoạch hôm nay cứ để Pupu giữ, đầu bạn nghỉ một chút. Mỗi lần một ngày thôi, bày sẵn ra cho dễ nhìn.',
     getStarted: 'Bắt đầu',
-    noAccount: 'Không cần tài khoản. Mọi thứ ở lại trên điện thoại của bạn.',
+    noAccount: 'Không tài khoản, không đăng ký. Mọi thứ nằm yên trong máy bạn.',
 
     needTitle: 'Bạn cần gì\nnhất lúc này?',
     needSubtitle:
-      'Để chúng tôi đặt đúng thứ lên màn hình đầu tiên của bạn. Bạn có thể đổi sau.',
+      'Để Pupu bày đúng thứ bạn cần lên màn hình đầu tiên. Đổi lại sau cũng được.',
     needOrganise: 'Sắp xếp ngày và thời gian của tôi',
     needRemember: 'Nhớ giúp các việc của tôi',
     needPrioritise: 'Ưu tiên các việc cần làm',
@@ -363,27 +427,30 @@ export const vi: Dict = {
 
     rhythmTitle: 'Bạn thích lên kế hoạch\ncho một ngày thế nào?',
     rhythmSubtitle:
-      'Có ngày cần thời khoá biểu, có ngày chỉ cần một thứ tự. Chọn thứ thường hợp với bạn.',
-    rhythmLoose: 'Thoải mái — sáng, chiều, tối',
-    rhythmTimed: 'Theo giờ — mọi thứ đúng lịch',
+      'Có ngày cần thời khoá biểu, có ngày chỉ cần một thứ tự thôi. Chọn kiểu thường hợp với bạn nhé.',
+    rhythmLoose: 'Thoải mái',
+    rhythmLooseSub: 'Sáng, chiều, tối',
+    rhythmTimed: 'Theo giờ',
+    rhythmTimedSub: 'Việc nào cũng có giờ',
     rhythmBoth: 'Một chút của cả hai',
+    rhythmBothSub: 'Tuỳ hôm',
 
     routinesMorningTitle: 'Một buổi sáng\ntốt lành diễn ra sao?',
     routinesMorningSubtitle:
-      'Chọn những việc bạn vốn đã làm. Chúng tôi sẽ giữ đúng thứ tự này để bạn không phải nhớ.',
+      'Chọn những việc bạn vốn vẫn làm. Pupu giữ đúng thứ tự cho, bạn khỏi phải nhớ.',
     routinesAfternoonTitle: 'Điều gì giữ cho\nbuổi chiều trôi chảy?',
     routinesAfternoonSubtitle:
-      'Giữa ngày là lúc các kế hoạch lặng lẽ đổ vỡ. Một vài điểm tựa là đủ.',
+      'Giữa ngày là lúc kế hoạch hay đổ nhất. Vài điểm tựa nhỏ là đủ rồi.',
     routinesEveningTitle: 'Ngày của bạn\nlắng lại thế nào?',
     routinesEveningSubtitle:
-      'Buổi tối chạy theo quán tính cho đến khi không còn vậy nữa. Chọn thứ bạn muốn kế hoạch nhớ giúp.',
+      'Buổi tối cứ trôi theo quán tính, ngoảnh lại là hết ngày. Chọn vài việc để Pupu nhắc giúp bạn.',
     routinesCta: 'Tiếp tục với thói quen của tôi',
-    routinesEmpty: 'Chọn nhiều hay ít tuỳ bạn — bạn có thể bỏ qua phần này.',
+    routinesEmpty: 'Chọn nhiều hay ít tuỳ bạn — bỏ qua cũng chẳng sao đâu.',
     routinesPicked: 'Đã chọn {count} · khoảng {duration}',
 
     remindersTitle: 'Một lời nhắc ngay\ntrước khi bạn bắt đầu',
     remindersSubtitle:
-      'Pupu có thể báo cho bạn vài phút trước một hoạt động, để kế hoạch nhớ thay cho bạn.',
+      'Pupu sẽ hích nhẹ bạn vài phút trước khi tới giờ, để bạn khỏi phải nhớ.',
     remindersCta: 'Bật nhắc nhở',
     remindersSkip: 'Không phải bây giờ',
     remindersBrand: 'PUPU',
@@ -394,14 +461,14 @@ export const vi: Dict = {
 
     readyTitle: 'Ngày của bạn\nđã sẵn sàng để xem',
     readySubtitle:
-      'Chúng tôi đã đặt sẵn một ngày khởi đầu cho bạn. Đổi gì cũng được, xoá gì cũng được — nó là của bạn.',
+      'Pupu bày sẵn một ngày để bạn khỏi bắt đầu từ trang trắng. Đổi gì, xoá gì cũng được — ngày này là của bạn.',
     readyCta: 'Bắt đầu lên kế hoạch',
-    readyBubble: 'Nào. Cùng xem thử nhé.',
+    readyBubble: 'Đi thôi, xem thử nào!',
   },
 
   notification: {
-    startingNow: 'Bắt đầu ngay. Mất {duration}.',
-    startsIn: 'Bắt đầu sau {lead}. Mất {duration}.',
+    startingNow: 'Tới giờ rồi. Chỉ {duration} thôi.',
+    startsIn: '{lead} nữa là tới giờ. Chỉ {duration} thôi.',
     channel: 'Nhắc nhở hoạt động',
   },
 
@@ -430,6 +497,7 @@ export const vi: Dict = {
   routine: {
     wake: 'Thức dậy',
     'water-am': 'Uống nước',
+    badminton: 'Đánh cầu lông',
     bed: 'Dọn giường',
     'teeth-am': 'Đánh răng',
     shower: 'Tắm',
@@ -437,6 +505,8 @@ export const vi: Dict = {
     'meds-am': 'Uống thuốc',
     breakfast: 'Ăn sáng',
     coffee: 'Uống cà phê',
+    incense: 'Thắp hương',
+    plants: 'Tưới cây',
     plan: 'Lên kế hoạch cho ngày',
     'stretch-am': 'Giãn cơ',
     commute: 'Đi làm',
@@ -448,6 +518,7 @@ export const vi: Dict = {
     email: 'Kiểm tra email',
     snack: 'Ăn nhẹ',
     desk: 'Dọn bàn làm việc',
+    trash: 'Đổ rác',
     move: 'Vận động cơ thể',
     errands: 'Việc vặt',
     breathe: 'Nghỉ lấy hơi',
@@ -457,9 +528,12 @@ export const vi: Dict = {
     dinner: 'Ăn tối',
     tidy: 'Dọn dẹp',
     dishes: 'Rửa bát',
+    laundry: 'Giặt đồ',
+    'hang-clothes': 'Phơi đồ',
     'teeth-pm': 'Đánh răng',
     skincare: 'Chăm sóc da',
     'meds-pm': 'Uống thuốc',
+    movie: 'Xem phim',
     read: 'Đọc một chương',
     journal: 'Viết nhật ký',
     clothes: 'Chuẩn bị quần áo',

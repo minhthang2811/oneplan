@@ -18,7 +18,8 @@ import { haptic } from '../lib/haptics';
 export const ONBOARDING_STEPS = 5;
 
 export function OnboardingScaffold({
-  step, title, subtitle, children, ctaLabel, onCta, ctaDisabled, onSkip, onBack, footer, headerSlot,
+  step, title, subtitle, children, ctaLabel, onCta, ctaDisabled, onSkip, onBack, footer,
+  headerSlot, fill,
 }: {
   /** May be fractional — a screen with sub-steps advances the bar within its own step. */
   step?: number;
@@ -34,6 +35,21 @@ export function OnboardingScaffold({
   footer?: ReactNode;
   /** Rendered above the title, inside the same entrance animation. */
   headerSlot?: ReactNode;
+  /**
+   * Hand the children every point of height left under the question.
+   *
+   * Off by default, because most screens here have content of a natural size
+   * and stretching it would be wrong. It is on for the ones whose content is a
+   * LIST OF ANSWERS, which should reach the button rather than stopping short
+   * of it and leaving a band of blank canvas — see `OptionList`.
+   *
+   * Two things have to be true together for it to work, which is why they live
+   * on one prop: the scroll view's content must be allowed to grow to at least
+   * the viewport (`flexGrow: 1`, and note that a `ScrollView` gives its content
+   * unbounded height otherwise, so a bare `flex: 1` child would collapse), and
+   * the children need a parent that actually takes the leftover.
+   */
+  fill?: boolean;
 }) {
   const { c } = useTheme();
   const { t } = useT();
@@ -51,7 +67,7 @@ export function OnboardingScaffold({
     const next = step != null ? Math.min(1, step / ONBOARDING_STEPS) : 0;
     pct.set(reduced ? next : withTiming(next, { duration: 420, easing: EASE }));
   }, [step, reduced, pct]);
-  const fill = useAnimatedStyle(() => ({ width: `${pct.get() * 100}%` }));
+  const barFill = useAnimatedStyle(() => ({ width: `${pct.get() * 100}%` }));
 
   return (
     <View style={{ flex: 1, backgroundColor: c.canvas }}>
@@ -90,7 +106,7 @@ export function OnboardingScaffold({
             <Animated.View
               style={[
                 { height: '100%', borderRadius: radius.bar, backgroundColor: c.accent },
-                fill,
+                barFill,
               ]}
             />
           </View>
@@ -109,8 +125,11 @@ export function OnboardingScaffold({
         contentContainerStyle={{
           paddingHorizontal: space.lg,
           paddingTop: space.sm,
-          paddingBottom: space.xxl,
+          // A filling screen's content ends at the button, so it does not also
+          // want a block of bottom padding pushing it up off it.
+          paddingBottom: fill ? space.md : space.xxl,
           gap: space.xl,
+          flexGrow: fill ? 1 : undefined,
         }}
         contentInsetAdjustmentBehavior="automatic"
         keyboardShouldPersistTaps="handled"
@@ -125,7 +144,7 @@ export function OnboardingScaffold({
           {subtitle ? <Txt variant="body" tone="muted">{subtitle}</Txt> : null}
         </Animated.View>
 
-        {children}
+        {fill ? <View style={{ flex: 1 }}>{children}</View> : children}
       </ScrollView>
 
       <View

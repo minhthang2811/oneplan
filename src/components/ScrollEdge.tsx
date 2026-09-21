@@ -42,14 +42,40 @@ const BAND = SCROLL_EDGE_BAND;
  * ── THE PROGRESSIVE BLUR ───────────────────────────────────────────────────
  * A single `BlurView` has a hard bottom edge, and a hard edge is the tell: the
  * real effect ramps out, so what you notice is that the text got readable and
- * not that a panel appeared. There is no gradient-mask primitive here, so the
- * ramp is built by STACKING bands that all start at the top and end at
- * different heights. Content at the very top passes under all four and is
- * blurred four times; content at the bottom of the band passes under one. The
- * accumulation is the gradient.
+ * not that a panel appeared. There is no gradient-mask primitive in React
+ * Native, so the ramp is built by STACKING bands that all start at the top and
+ * end at different heights. Content at the very top passes under all of them;
+ * content at the bottom passes under one. The accumulation is the gradient.
  *
- * Each band therefore runs at a FRACTION of the usual intensity — four bands
- * at `glass.intensity` would be an opaque slab at the top.
+ * ── THE SCRIM IS THE EFFECT; THE BLUR IS THE GARNISH ──────────────────────
+ * This took three goes to get right, and the first two both failed by treating
+ * the blur as the whole thing.
+ *
+ * Apple's own description has two halves — "blurring and REDUCING THE OPACITY
+ * of background content" — and only the first was implemented. The scrim was
+ * `glassTint`, borrowed from the tab bar, where the entire point of the
+ * material is that you can still see movement behind it. Over a scrolling page
+ * that is far too weak. On a screen of text you get away with it; on the Me
+ * screen, where a drawing of a dog passes under the bar, the drawing stayed
+ * clearly visible and a blurred illustration reads as a COLOURED SMEAR — dirt
+ * on the glass rather than something politely getting out of the way.
+ *
+ * So the scrim now peaks at 0.92, holds through the whole bar, and is painted
+ * in the CANVAS colour — the page's own — so that content does not fade into a
+ * pale grey bar, it dissolves into the background. Reminders is the reference:
+ * the rows behind its scrolled top are barely there at all.
+ *
+ * ── AND THE BLUR HAS TO END BEFORE THE SCRIM DOES ─────────────────────────
+ * A `BlurView` blurs within its own bounds and nothing below, so wherever the
+ * longest band ends there is a hard horizontal line IN THE CONTENT — blurred
+ * above, sharp below. Ramping the blur's strength cannot move that line or
+ * soften it; on an illustration it cuts straight through the picture, which is
+ * exactly what the second version looked like.
+ *
+ * The bands therefore stop at 0.68 of the effect's height, while the scrim
+ * runs to 1.0. The step lands under roughly half a page of cover, between a
+ * barely-blurred region and a sharp one, and disappears. Blur ends first,
+ * scrim ends last — that ordering is the whole design.
  *
  * ── WHAT ANIMATES, AND WHAT DELIBERATELY DOES NOT ──────────────────────────
  * Only the container's OPACITY. Animating `intensity` instead is the obvious
@@ -82,9 +108,20 @@ export function ScrollEdge({
   const chrome = useChrome();
   const insets = useSafeAreaInsets();
   const reduced = useReducedMotion();
+  /** Where the bar's CONTENT ends. */
   const height = insets.top + BAND;
+  /** Where the EFFECT ends — further down, in space nothing is laid out in. */
+  const blurred = height + scrollEdge.fade;
 
-  const tint = svgStop(c.glassTint);
+  /**
+   * THE PAGE'S OWN COLOUR, not a token.
+   *
+   * Every screen that mounts a `ScrollEdge` sits on `c.canvas`, and the trick
+   * only works because the scrim matches what is underneath: a scrim of the
+   * page's colour makes content dissolve into the background, while anything
+   * lighter or darker paints a visible bar across the top instead.
+   */
+  const tint = svgStop(c.canvas);
   // Gradient ids resolve per `<Svg>` document, but two screens both defining
   // `#edgeScrim` is the kind of thing that works until the day it does not.
   const uid = useId().replace(/:/g, '');
@@ -129,51 +166,66 @@ export function ScrollEdge({
       // for the row scrolling underneath it. `box-none` lets the optional
       // trailing controls stay tappable while the band itself does not.
       pointerEvents={leading || trailing ? 'box-none' : 'none'}
-      style={{ position: 'absolute', top: 0, left: 0, right: 0, height }}
+      style={{ position: 'absolute', top: 0, left: 0, right: 0, height: blurred }}
     >
       <Animated.View
         pointerEvents="none"
         style={[StyleSheet.absoluteFill, bandStyle]}
       >
-        {/* Four bands, all anchored at the top, ending at different heights.
-            The overlap is the gradient — see the note above. */}
-        {[1, 0.78, 0.54, 0.28].map((f) => (
+        {/* The weighted stack. All anchored at the top, ending at different
+            heights; the accumulation is the gradient and the weighting is what
+            keeps the steps between them invisible — see the note above. */}
+        {scrollEdge.bands.map((band) => (
           <BlurView
-            key={f}
+            key={band.h}
             // Explicit light/dark variants rather than the adaptive material,
             // for the same reason the tab bar uses them: an adaptive tint can
             // resolve against the wrong trait collection inside an overlay,
             // and this app now also has an appearance OVERRIDE, which the
             // adaptive material would not know about at all.
             tint={isDark ? 'systemThickMaterialDark' : 'systemThickMaterialLight'}
-            intensity={glass.intensity / 2.4}
+            // `intensity` is a 1-100 scale, so a band's share has to be
+            // clamped rather than merely multiplied: the outermost band is
+            // deliberately down at a few percent, which is a real blur and
+            // must not round to nothing.
+            intensity={Math.max(1, Math.round(glass.intensity * band.w))}
             blurMethod="dimezisBlurViewSdk31Plus"
             blurReductionFactor={glass.reductionFactor}
             pointerEvents="none"
-            style={{ position: 'absolute', top: 0, left: 0, right: 0, height: height * f }}
+            style={{ position: 'absolute', top: 0, left: 0, right: 0, height: blurred * band.h }}
           />
         ))}
 
-        {/* The legibility scrim, fading to nothing at the bottom so the band
-            does not end in a visible line. Same job as `glassTint` on the tab
-            bar: without it the compact title sits on whatever happens to have
-            scrolled underneath. */}
-        <Svg width="100%" height={height} style={StyleSheet.absoluteFill} pointerEvents="none">
+        {/* The scrim, and it is doing most of the work — see the note above.
+            Full strength through the bar so the clock and the compact title
+            never sit on the user's own content, and landing FLAT at the bottom
+            rather than running out in a straight line, because a linear fade to
+            zero still has a corner the eye reads as a line. */}
+        <Svg width="100%" height={blurred} style={StyleSheet.absoluteFill} pointerEvents="none">
           <Defs>
             <LinearGradient id={`edgeScrim${uid}`} x1="0" y1="0" x2="0" y2="1">
-              <Stop offset="0" stopColor={tint.stopColor} stopOpacity={tint.stopOpacity} />
-              <Stop offset="0.62" stopColor={tint.stopColor} stopOpacity={tint.stopOpacity * 0.72} />
-              <Stop offset="1" stopColor={tint.stopColor} stopOpacity={0} />
+              {scrollEdge.scrimStops.map((offset, i) => (
+                <Stop
+                  key={offset}
+                  offset={offset}
+                  stopColor={tint.stopColor}
+                  // `canvas` is an opaque hex, so `stopOpacity` is the alpha
+                  // outright rather than a fraction of the token's own.
+                  stopOpacity={scrollEdge.scrimAlphas[i]}
+                />
+              ))}
             </LinearGradient>
           </Defs>
-          <Rect x={0} y={0} width="100%" height={height} fill={`url(#edgeScrim${uid})`} />
+          <Rect x={0} y={0} width="100%" height={blurred} fill={`url(#edgeScrim${uid})`} />
         </Svg>
       </Animated.View>
 
+      {/* Pinned to the TOP inset rather than to this view's bottom, because
+          the view now extends past the bar to carry the fade. */}
       <View
         pointerEvents="box-none"
         style={{
-          position: 'absolute', left: 0, right: 0, bottom: 0, height: BAND,
+          position: 'absolute', left: 0, right: 0, top: insets.top, height: BAND,
           flexDirection: 'row', alignItems: 'center',
           paddingHorizontal: space.lg, gap: space.sm,
         }}

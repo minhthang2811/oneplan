@@ -41,14 +41,19 @@ name: Language — switch to Vietnamese and back
 - tapOn: "Quay lại"
 
 # 2. The screen behind it, which was never remounted.
-- assertVisible: "Chạy lại phần giới thiệu"
+- assertVisible: "Làm lại phần giới thiệu"
 - assertVisible: "Tôi"
 
 # 3. The tab bar, which lives outside every screen.
 - assertVisible: "Hôm nay"
 - assertVisible: "Tập trung"
 - tapOn: "Tập trung"
-- assertVisible: "Chọn khoảng thời gian bạn muốn biến mất"
+# `.*` RATHER THAN THE WHOLE SENTENCE: the Vietnamese line now ends in a
+# question mark, and a Maestro selector is a regex — a trailing `?` would be
+# read as "the previous character is optional" and the literal `?` in the text
+# would go unmatched. Escaping it works too; stopping before it is harder to
+# get wrong the next time this copy is reworded.
+- assertVisible: "Bạn muốn biến mất trong bao lâu.*"
 - takeScreenshot: artifacts/13-focus-vietnamese
 
 # Back to following the phone, so the rest of the suite sees English again.

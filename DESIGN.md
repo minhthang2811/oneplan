@@ -184,6 +184,86 @@ Selection is carried by **fill, plus a redundant tick**: at a dozen chips a row
 of checkboxes reads as a form to complete, while a block of filled pills reads
 as a shape. The tick is there so selection never depends on colour alone.
 
+### The shape of an answer
+
+The two question screens (need, rhythm) went through three versions, and the
+first two are worth recording because both failed for the same reason wearing
+different clothes.
+
+**v1** was an outlined pill with the label centred in it: no fill, no glyph, no
+indicator, natural height, and a band of empty canvas between the last option
+and the pinned button. **v2** kept the pill and stretched it to fill that band,
+which made the screen *worse* — a tall rounded rectangle with a hairline border
+and centred grey text is what an empty input field looks like, and five of them
+is a form waiting to be typed into. The diagnosis was wrong both times: the
+problem was never the leftover space, it was that the rows had no content in
+them to fill it with.
+
+**v3 takes the shape from the reference class.** Walking a spread of them —
+Udemy, Bumble, Strava, Opal, Headway, Deepstash, MyFitnessPal, Alta — four
+things are near-unanimous, and v1 had none of them:
+
+1. **A filled surface, not an outline.** The answer is an object sitting on the
+   canvas, not a hole cut in it.
+2. **The label is left-aligned.** Centred text in a full-width row has no edge to
+   start from, so a column of them gives the eye nothing to run down.
+3. **A leading glyph**, which is what makes the row read as content.
+4. **A trailing selection indicator**, so "which did I pick" survives being
+   answered in colour alone.
+
+The glyph is an `EmojiAvatar` — the same tinted disc an activity carries
+everywhere else — because in this app emoji is **identity, not iconography**,
+and the very next screens in the flow are the routine chips. An answer row drawn
+with SF Symbols would be the one screen in onboarding speaking a different
+language from the two either side of it. The selection treatment is
+`RoutineChip`'s, unchanged: same tint fill, same accent rim, same tick.
+
+Three details that are load-bearing:
+
+- **No `lilac` among the option tints.** `accentSoft` is a pale lilac and it is
+  what a chosen row is filled with, so a lilac avatar loses its disc entirely on
+  the one row the user has just said they care about.
+- **Border width never animates.** v1 went 1.25 → 2 points on selection, which
+  is a layout change: the content shifted and the neighbours nudged with it.
+  Constant width, interpolated colour.
+- **A hinted answer is a bigger card.** Where a label splits into an answer and
+  a gloss (rhythm's three did — an em-dash in a button label is nearly always a
+  title and a subtitle that have not been separated yet), the row is allowed to
+  be half again as tall, and grows its avatar and steps its label up a size to
+  earn that height. A 40pt disc adrift in a 124pt row is what makes a tall card
+  look like a mistake.
+
+### Where the leftover space goes
+
+`OptionList` distributes in two stages: the rows grow equally up to a cap, and
+anything left over is spent **above and below the group, never between the
+rows**.
+
+That second rule was learned the expensive way. `space-evenly` was tried first
+and it is wrong for exactly the case it was meant to rescue: with three options
+it put ninety points between each row, and three cards ninety points apart stop
+being a list — they read as three unrelated islands, and the reader has to work
+out for themselves that these are alternatives to one another, which is the one
+thing the layout is supposed to say for free. Proximity is what groups things.
+
+The centring is **biased upwards**, by reserving a band at the bottom. Air above
+the group sits between a question and its own answers, which is the one place it
+does damage; air below merely separates the list from the button. Perfectly
+centring three rows put nearly two hundred points between the question and the
+first thing that answers it, and the two stopped looking related.
+
+There is no arrangement in which three rows genuinely fill a 6.9-inch phone. The
+honest choice is between air in the wrong place and air in the right place, and
+every reference screen with few answers makes the same one.
+
+The mechanism cost one piece of plumbing: `PressScale` applies its `style` to
+the inner animated view (the transform cannot live on the `Pressable` without
+moving the touch target out from under the finger), so a `flex` handed to it
+asks a parent that has already been sized to its content. `outerStyle` lands on
+the `Pressable` instead — **sizing on the outside, paint on the inside** — and
+`style` is typed as an animated style, because `ChoiceRow` interpolates its own
+fill and rim.
+
 ## Glass
 
 `GlassPanel` is the one glass primitive, and it has **two implementations**.
@@ -549,11 +629,56 @@ screen competing with the tab bar — the "use Liquid Glass sparingly" failure �
 and it would read as a bar that is always there rather than an effect that
 builds.
 
-The ramp is built by **stacking four bands that all start at the top and end at
-different heights**, each at a fraction of the usual intensity. Content at the
-very top passes under all four; content at the bottom passes under one. The
-accumulation *is* the gradient — a single `BlurView` has a hard bottom edge, and
-a hard edge is the tell.
+The ramp is built by **stacking bands that all start at the top and end at
+different heights**. Content at the very top passes under all of them; content
+at the bottom passes under one. The accumulation *is* the gradient — a single
+`BlurView` has a hard bottom edge, and a hard edge is the tell.
+
+It took three goes to get right, and the first two failed the same way: by
+treating the blur as the whole effect.
+
+**Apple's own description has two halves — "blurring and *reducing the opacity*
+of background content" — and only the first was implemented.** The scrim was
+`glassTint`, borrowed from the tab bar, where the entire point of the material
+is that you can still see movement behind it. Over a scrolling page that is far
+too weak. On a screen of text you get away with it; on Me, where a drawing of a
+dog passes under the bar, the drawing stayed clearly visible and a blurred
+illustration reads as a **coloured smear** — dirt on the glass rather than
+something politely getting out of the way.
+
+So the scrim now peaks at 0.95, holds through the whole bar, and is painted in
+the **canvas colour** — the page's own, taken from the theme rather than from a
+token. That is what makes content *dissolve into the background* instead of
+fading into a pale bar; `glassTint` is lighter than the canvas, so simply
+raising its opacity would have drawn a bar across the top of every screen.
+Reminders is the reference: the rows behind its scrolled top are barely there.
+
+**The blur has to finish before the scrim starts releasing.** A `BlurView`
+blurs within its own bounds and nothing below, so wherever the longest band
+ends there is a hard horizontal line *in the content* — blurred above, sharp
+below. Ramping the blur's strength cannot move that line or soften it; on an
+illustration it cuts straight through the picture. The bands therefore stop at
+0.58 of the effect's height while the scrim holds full strength to 0.64 and only
+then ramps to nothing. The margin is the part that is easy to get wrong: if the
+blur merely ends somewhere under a *partial* scrim, the first thing that becomes
+visible as the scrim lets go is blurred content, and blurred content appearing
+out of nothing is exactly what reads as a smudge. Ending the blur first means
+what emerges at the bottom of the effect is **sharp** — the eye sees content
+fading in, not a smear resolving.
+
+Two numbers were measured rather than guessed. The bands are **weighted**, and
+the weighting runs the opposite way from the obvious: the longest band carries
+the *least* blur, because blur radii compose as roughly the root of the sum of
+squares and equal bands put their largest perceptual steps at the weak end,
+where the eye is most sensitive. And the scrim's hold is set by the hardest
+case: what survives a wash is not the bright part of a picture but its dark
+linework, and Pupu's outline is ~200 levels from the canvas — two levels at 95%
+cover, thirty at 85%, and thirty is exactly enough to read as a mark on the
+glass.
+
+The scrim also lands **flat**: a linear fade to zero still has a corner in it,
+and the eye takes a discontinuity in the *rate* of change for a line even when
+the colour is continuous.
 
 **Only opacity animates.** Animating `intensity` re-renders the blur every frame,
 which is the same per-frame re-rasterisation the metaball investigation measured
@@ -566,35 +691,38 @@ large-title collapse works this way, and it is what makes "scroll back up to
 reveal the header" true with no extra mechanism: the big title returning *is* the
 compact one leaving, because they are two readings of one offset.
 
-### The tab bar contracts
+### The tab bar does not contract
 
-Apple's own bars shrink out of the way as you scroll into content and return the
-moment you scroll towards the top. It **contracts rather than sliding away**: a
-bar that leaves entirely has to be hunted for, and Apple's guidance is against
-hiding navigation outright. Shrinking keeps it continuously present and tappable;
-it simply stops claiming to be the thing you are looking at.
+It used to. Apple's own bars shrink out of the way as you scroll into content and
+return the moment you scroll towards the top, and the app followed them: a spring
+on a shared `collapsed` value, with direction hysteresis and an overscroll test
+to keep it from flickering.
 
-**Transform only, never opacity.** `expo-glass-effect` documents that opacity 0
-on a `GlassView` *or any parent* stops the material rendering at all — so fading
-toward zero would work perfectly until the final frame and then drop the glass.
+**It was the right behaviour for the wrong screen.** That pattern is built for a
+feed you swim through, where the bar is spending screen space you are not using.
+Today is a single day that fits in a screenful or two — so the only thing the
+contraction ever did here was shrink the navigation exactly as the user reached
+the bottom of a short list, and spring it back on the way up. Chrome that changes
+size on a screen whose end is already in sight reads as instability rather than
+as deference. The bar is now **one fixed size, always**, and the only thing left
+that responds to scrolling is the blur at the top, which is an effect applied to
+the *content* rather than navigation moving about.
 
-### Two things the hysteresis has to survive
+Two findings from that machinery are worth keeping even though the code is gone,
+because they will be true again of anything that reacts to a scroll direction:
 
-A bar that reacts to any movement flickers constantly, so travel is accumulated
-in one direction and reset when the direction changes; the bar only moves once
-that accumulation passes `scrollEdge.hysteresis`, and never within
-`scrollEdge.hideAfter` of the top.
-
-**Overscroll is not a direction, and missing that broke the feature outright.**
-Measured on a day that fits in a little over one screen: a single flick produced
-28 events wanting the bar contracted, immediately followed by 7 wanting it
-expanded — so it contracted and sprang straight back, every time. The 7 were the
-**rubber band**. iOS lets a list travel past its own end and settles it back, and
-that settle is genuine upward movement of tens of points — far more than any
-threshold is meant to absorb, and read as intent it means "scrolling up" when the
-finger has already left the screen. The distinction is not speed or distance, so
-no threshold could have caught it; it is *where* it happens, beyond the content's
-own bounds, which the scroll event reports outright.
+- **Direction alone is never enough.** iOS rubber-bands at the top of a list, a
+  finger never travels in a straight line, and momentum overshoots and corrects.
+  A gesture has to *commit* before chrome may move.
+- **Overscroll is not a direction, and missing that broke the feature outright.**
+  Measured on a day that fits in a little over one screen: a single flick produced
+  28 events wanting the bar contracted, immediately followed by 7 wanting it
+  expanded — so it contracted and sprang straight back, every time. The 7 were the
+  **rubber band**: genuine upward movement of tens of points, far more than any
+  threshold is meant to absorb, at a moment when the finger has already left the
+  screen. The distinction is not speed or distance, so no threshold could have
+  caught it; it is *where* it happens, beyond the content's own bounds, which the
+  scroll event reports outright.
 
 ## Appearance
 
@@ -972,6 +1100,25 @@ sitting dog differ by how much they move, which is exactly what `idle` controls.
 Faking a pose by flipping or skewing the artwork would read as a bug, not a
 performance — that constraint still stands for everything not drawn.
 
+There is a fourth idle, `sway`, and it is allowed on **exactly one screen**: the
+welcome step. `breathe` is a 1.8% scale — a dog that is *breathing*, which is the
+right note for an empty day and reads on a welcome screen as a still image that
+happens to be slightly unstable. A body that **leans** is a body with weight in
+it, so `sway` adds a rotation of under three degrees over a five-second cycle,
+plus a half-beat of lift at double the rate so Pupu is highest passing through
+upright and lowest at each extreme. That is what a body does shifting from foot
+to foot, and it is the only reason it does not look like a picture being rotated.
+The frequency gate is what confines it: the first screen of the first run, seen
+once, where the whole job of the picture is to say *there is somebody here*. The
+failure mode on the other side of this is a mascot that wags at you while you
+read, which is harder to forgive than one that sits still.
+
+The last onboarding step centres him instead of stacking him under the headline.
+He is the payoff of the whole flow and he was sitting in the top third with the
+bottom half of the phone blank; centring him in the column the scaffold hands
+over splits the leftover height above and below rather than dumping it at the
+bottom.
+
 Where Pupu may appear is decided by the same frequency gate as the motion
 vocabulary, not by where he would be cute:
 
@@ -1121,6 +1268,48 @@ Two details carry it:
   is not an animation you watch; it is a room that is not quite still. Under
   Reduce Motion the blooms are painted once and never move.
 
+### The forest under the light
+
+The field of light was still, on its own, a gradient on a flat wall. Forest and
+Life Reset both put real scenery behind the dial and get away with it for one
+reason: the scenery is low-contrast and the timer is the only bright thing on the
+screen. `BotanicalBackdrop` is that layer — a sky wash, a sun, two hazed
+treelines, a ground mound, and fern fronds hanging in from the corners.
+
+- **It is the one documented exception to the colour contract**, and it is kept
+  out of `Colors` on purpose. These greens are *atmosphere*: one screen, and
+  nothing in the app ever means anything by them. The moment a botanical green
+  becomes reachable as a semantic token, something will be tinted with it and the
+  contract is gone.
+- **The aura sits on top of the forest, not under it.** The activity's colour has
+  to wash *over* the foliage or starting a session on "Lunch" stops turning the
+  room the colour of Lunch — which is the one thing tying the ambience back to
+  the user's own data. Over leaves it reads as light through a canopy.
+  `FocusAura`'s light-mode weight came down from 0.5 to 0.34 when this landed:
+  two full-strength layers of atmosphere is one too many, and at 0.5 the accent
+  bloom washed the wood out to a grey-lilac stain.
+- **It does not move**, and that is the harder call. The screen already has its
+  ambient motion in the aura's three drifts. A second slow loop would give it two
+  things moving at different rates, which is the point at which ambience becomes
+  something you notice. The foliage is the *still* layer the light moves over.
+- **Drawn, not photographed.** A bitmap would ship twice (light and dark), be
+  wrong at every aspect ratio it was not cut for, and could not take the tint.
+  Everything atmospheric here is already vector.
+
+Two drawing notes worth keeping, because both were got wrong first:
+
+- **Foliage is painted per group, never per shape.** Overlapping translucent
+  shapes double their alpha where they meet, which draws the seams between the
+  trees as bright veins. The opacity belongs on the enclosing `<G>`.
+- **A leaflet is an elliptical arc, not two quadratics.** A pointed blade was
+  wrong twice for opposite reasons: narrow, it came to a needle and the frond
+  read as barbed wire; wide enough to have a belly, neighbours overlapped and the
+  whole thing filled in as one saw-edged triangle. A quadratic pair cannot be
+  both blunt at the tip and slender in the body — those are the same control
+  point. An arc is rounded at both ends by construction, and SVG's arc command
+  carries its own rotation, so each leaflet places itself without a wrapping
+  `<G>`.
+
 ## Language
 
 The app ships English and Vietnamese, and **opens in the phone's language**
@@ -1149,3 +1338,43 @@ without being asked.
   other catalogue is typed as `Dict`, and a missing key fails the build rather
   than falling back at runtime. This is why the app does not use a string-keyed
   i18n library.
+
+### Voice: a catalogue is not a translation
+
+The Vietnamese catalogue was, for a while, a careful translation of the English
+one — every sentence grammatical, and the whole file reading like a manual. Two
+things were doing the damage.
+
+It said **`chúng tôi`**, the corporate "we", which puts a company between the
+user and the dog. And it had almost no **sentence-final particles** — `nhé`,
+`nha`, `thôi`, `rồi`, `mà`, `đó`, `nào` — which in Vietnamese are not
+decoration but the tone itself. "Bạn có thể thử lại." and "Thử lại nhé." give
+the same instruction; only one of them sounds like it came from someone who
+likes you.
+
+The rewrite was benchmarked on Mobbin against the apps people actually keep
+open — Finch, Me+, Tiimo, Noom, Gentler Streak, stoic. Four patterns are
+unanimous across that set, and all four are now in the catalogue:
+
+| Pattern | Where it came from | Where it landed |
+|---|---|---|
+| **The mascot speaks; a company never does.** | Finch's "Nourish what matters to you, cheep!"; Gentler Streak introduces its mascot by name | Every `chúng tôi` became Pupu. Pupu "giữ đúng thứ tự cho", "hích nhẹ bạn", "bày sẵn một ngày" |
+| **Leave tomorrow's door open.** | Tiimo's "see you tomorrow", stoic.'s same line, Me+'s "come back tomorrow" | The evening celebration ends "Nghỉ thôi, mai tính tiếp nhé" — the last thing said each day is an invitation back, not a full stop |
+| **Shrink the task, never the person.** | Noom's "New habits are hard. Streaks make it easy!" | The lock-screen reminder is "Chỉ {duration} thôi"; the empty day asks for one thing, "nhỏ xíu cũng được" |
+| **Buttons in the user's own voice.** | Me+'s "I'm in!", Finch's "Awesome!" | Pupu's bubble on the last onboarding screen is "Đi thôi, xem thử nào!" |
+
+Two rules are Vietnamese-specific and have no English counterpart:
+
+- **Do not translate an English image.** "Plans quietly collapse" and "that
+  counted" are English figures; rendered literally they came out stiff and
+  faintly odd. They are now sentences a Vietnamese writer would have written for
+  that moment — "kế hoạch hay đổ nhất", "ít hay nhiều thì cũng tính" — which say
+  something slightly different and land instead of translating.
+- **A subjectless English frame usually cannot be copied.** `Here to {need}` has
+  no subject, so English can bolt it onto an answer written in the user's voice.
+  Vietnamese cannot: "Ở đây để … của tôi" welds the app's voice to the user's.
+  `Đang {need}` takes its place, leaving the subject implied.
+
+The particles are load-bearing enough that they have a placement rule: they go
+on anything reassuring, inviting or optional, and come **off** destructive
+confirmations, which stay flat. "Xoá hoạt động" does not get a `nhé`.

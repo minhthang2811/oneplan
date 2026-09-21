@@ -28,7 +28,6 @@ import { CalendarDayIcon } from './CalendarDayIcon';
 import { GlassPanel, LIQUID_GLASS } from './Glass';
 import { useT, type TKey } from '../i18n';
 import { GelSurface, gelInsetShadow } from './Gel';
-import { useChrome, useChromeReset } from './Chrome';
 import { useTheme } from '../theme/useTheme';
 import { motion, radius, space } from '../theme/tokens';
 import { haptic } from '../lib/haptics';
@@ -132,20 +131,6 @@ export function TabBar({ state, navigation }: TabBarProps) {
   // is on screen all day, so a calendar glyph frozen at the date the app
   // happened to launch on is wrong for exactly as long as the app stays open.
   const today = parseKey(useToday()).getDate();
-  const chrome = useChrome();
-  const resetChrome = useChromeReset();
-
-  /**
-   * ARRIVING AT A TAB ALWAYS SHOWS ITS NAVIGATION.
-   *
-   * `collapsed` is shared by every screen, and only screens that scroll ever
-   * put it back — so switching to one that does not (Focus never calls
-   * `useChromeScroll` at all) inherited a contracted bar with no way to
-   * restore it. Doing this here rather than in each screen means a tab added
-   * later cannot forget: the bar itself guarantees it, for every tab, whether
-   * or not that tab scrolls.
-   */
-  useEffect(() => { resetChrome(); }, [state.index, resetChrome]);
 
   const count = state.routes.length;
   const [row, setRow] = useState(0);
@@ -318,53 +303,29 @@ export function TabBar({ state, navigation }: TabBarProps) {
   });
 
   /**
-   * THE CONTRACTION — iOS 26's tab bar behaviour.
+   * ── THE BAR IS ONE SIZE, ALWAYS ────────────────────────────────────────
+   * This used to contract as you scrolled into content and spring back near
+   * the top — iOS 26's own tab bar behaviour, and right for the screens Apple
+   * ships it on, which are feeds you swim through. Today is not that. A day
+   * fits in a screenful or two, so the only thing the contraction ever did
+   * here was shrink the navigation exactly as the user arrived at the bottom
+   * of a short list, then bounce it back on the way up. Chrome that changes
+   * size on a screen whose end is already in sight reads as instability rather
+   * than as deference.
    *
-   * Apple's own bars (Music, Photos, News) shrink out of the way as you scroll
-   * INTO content and come back the moment you scroll towards the top. It is
-   * the single most recognisable thing the new tab bar does, and it is the
-   * reason the bar can afford to float over the content at all: a bar that
-   * never moves has to be budgeted for permanently, while one that retreats is
-   * only spending screen space when you are not reading.
-   *
-   * It contracts rather than SLIDING AWAY, which is a deliberate difference
-   * from the pattern most apps ship. A bar that leaves entirely has to be
-   * hunted for — you scroll up expecting navigation and get a frame of nothing
-   * — and Apple's guidance is against hiding navigation outright. Shrinking
-   * keeps it continuously present and continuously tappable; it simply stops
-   * claiming to be the thing you are looking at.
-   *
-   * ── NO OPACITY, ON PURPOSE ─────────────────────────────────────────────
-   * The obvious way to make chrome recede is to fade it, and `expo-glass-effect`
-   * documents that opacity 0 on a `GlassView` OR ANY PARENT stops the material
-   * rendering at all. Animating towards zero on the way out would therefore
-   * work perfectly until the final frame and then drop the glass, which is a
-   * bug that only appears at the end of the animation. Transform-only sidesteps
-   * the question entirely, and a scale is the better cue anyway: distance, not
-   * absence.
+   * So there is no transform on this view at all, and `Chrome` no longer
+   * carries the state that drove one. The scroll-driven treatment that
+   * remains is the blur at the TOP, which is an effect applied to the content
+   * passing under the status bar — legibility, not navigation moving about.
    */
-  const barStyle = useAnimatedStyle(() => {
-    if (reduced || !chrome) return { transform: [] };
-    const k = chrome.collapsed.get();
-    return {
-      transform: [
-        { translateY: 10 * k },
-        { scale: 1 - 0.13 * k },
-      ],
-    };
-  });
-
   return (
-    <Animated.View
+    <View
       pointerEvents="box-none"
-      style={[
-        {
-          position: 'absolute', left: 0, right: 0, bottom: 0,
-          paddingBottom: Math.max(insets.bottom, space.md),
-          paddingHorizontal: space.base,
-        },
-        barStyle,
-      ]}
+      style={{
+        position: 'absolute', left: 0, right: 0, bottom: 0,
+        paddingBottom: Math.max(insets.bottom, space.md),
+        paddingHorizontal: space.base,
+      }}
     >
       <GlassPanel
         radius={radius.pill}
@@ -445,7 +406,7 @@ export function TabBar({ state, navigation }: TabBarProps) {
           </View>
         </GestureDetector>
       </GlassPanel>
-    </Animated.View>
+    </View>
   );
 }
 
