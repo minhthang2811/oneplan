@@ -126,7 +126,20 @@ export function FocusAura({
     return { primary, accent: c.accent };
   }, [tint, theme, isDark, c.accent]);
 
-  const base = isDark ? 0.15 : 0.5;
+  /**
+   * ── THE LIGHT SET CAME DOWN WHEN THE SCREEN GAINED SCENERY ───────────────
+   * This field used to be the ONLY thing on the ground, and it was painted
+   * strongly enough to carry that on its own. `BotanicalBackdrop` now does the
+   * work of making the screen a place, and two full-strength layers of
+   * atmosphere is one too many: at 0.5 the accent bloom washed the foliage out
+   * to grey-lilac and the forest read as a stain rather than as a wood. The
+   * aura's job here is to TINT the room the colour of the activity, which it
+   * does perfectly well at two thirds of the weight.
+   *
+   * Dark is unchanged. It was never competing with anything — on a near-black
+   * canvas the foliage separates by value and the bloom by hue.
+   */
+  const base = isDark ? 0.15 : 0.34;
 
   return (
     <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>

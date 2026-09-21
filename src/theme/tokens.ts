@@ -14,6 +14,14 @@
  * SHAPE CONTRACT: actions and chips are pills, cards 16, sheets 24, inputs 12,
  * inner bars 8. Nothing else.
  *
+ *   A row that is BOTH — tappable, and built like a card — is a card. The
+ *   onboarding answer is the case that forced the ruling: it is an action, so
+ *   the pill rule reaches it, and it also carries an avatar, a title, a gloss
+ *   and a trailing control, which is `TaskRow`'s anatomy exactly. What decides
+ *   it is what the thing IS on the screen rather than what happens when you
+ *   touch it, because the shape is what the eye groups by. Pills stay for
+ *   controls whose whole content is their own label.
+ *
  * SPACING: 4pt base. Every gap is a multiple of 4.
  */
 
@@ -420,12 +428,209 @@ export const scrollEdge = {
   /** How far the content must scroll before the edge is at full strength. A
    *  short ramp reads as a switch; a long one never arrives. */
   ramp: 64,
-  /** Scroll distance in one direction before the compact bar commits to
-   *  showing or hiding. Without a threshold the bar flickers on the rubber-band
-   *  at the top of the list and on every small correction mid-scroll. */
-  hysteresis: 28,
-  /** How far past the top the list must be before hiding is allowed at all —
-   *  hiding chrome while the user is still near the top of their day is the
-   *  one case where it is certainly wrong. */
+  /** How far past the top the list must be before the compact title takes
+   *  over from the large one. */
   hideAfter: 96,
+
+  /**
+   * Extra points of pure RAMP below the band, past where the controls stop.
+   *
+   * The blur used to end exactly where the bar's content did, and an effect
+   * that stops on the same line as a row of controls does not read as an
+   * effect: it reads as the bottom edge of a panel. Apple's own scroll edge
+   * keeps fading well after the bar's content has ended, which is what makes
+   * it look like the content is dissolving rather than like something sitting
+   * on top of it. Nothing is laid out in here — it is fade and nothing else —
+   * so it costs no vertical space.
+   *
+   * It is 56 rather than 30 because the fade has to be LONGER than the blur
+   * it is hiding; see `bands` below.
+   */
+  fade: 56,
+
+  /**
+   * THE RAMP, AND THE ONE THING THAT ACTUALLY MAKES IT WORK.
+   *
+   * There is no gradient-mask primitive in React Native, so a progressive blur
+   * is built by STACKING bands that all start at the top of the effect and stop
+   * at different heights: content near the status bar passes under all of them,
+   * content lower down passes under one. The accumulation is the gradient.
+   *
+   * ── WHY THE BANDS ALONE CAN NEVER BE ENOUGH ───────────────────────────────
+   * A `BlurView` blurs what is behind it WITHIN ITS OWN BOUNDS and nothing
+   * below. So wherever the longest band ends there is a hard horizontal line in
+   * the CONTENT — blurred above it, sharp below — and no amount of ramping the
+   * blur's strength moves that line or softens it. Weighting the bands (which
+   * this does) shrinks how big the step is; it cannot remove it. On a screen
+   * whose top content is a drawing rather than text, that line cuts straight
+   * through the picture and is the first thing anyone sees.
+   *
+   * ── SO THE BANDS STOP EARLY AND THE SCRIM OUTLIVES THEM ───────────────────
+   * The longest band reaches only `0.26` of the effect's height — deep inside
+   * the stretch where the scrim is still at full strength, and a long way ABOVE
+   * the point where the scrim begins to release at `0.64`. That margin is the
+   * part it is easy to get wrong: if the blur merely ends somewhere under a
+   * *partial* scrim, then the first thing that becomes visible as the scrim
+   * lets go is blurred content, and blurred content appearing out of nothing is
+   * precisely what reads as a smudge on the glass. Ending the blur first means
+   * that what emerges at the bottom of the effect is SHARP — the eye sees
+   * content fading in, not a smear resolving.
+   *
+   * So: blur ends, then the scrim holds a good deal longer, then the scrim
+   * releases. That order is the whole design, and it is why `fade` had to
+   * grow — the scrim needs room to come down to nothing after the last band has
+   * gone.
+   *
+   * ── AND THAT ORDERING IS WHY THERE ARE ONLY TWO BANDS ─────────────────────
+   * There were six, and four of them were being paid for and never seen. Once
+   * the scrim holds 0.95 down to 0.64, ANY band that respects the ordering
+   * above is by definition under near-total cover — so the elaborate weighted
+   * ramp that made the steps between six bands invisible was solving a problem
+   * the scrim had already solved. What is left is the only job the blur still
+   * does: the few percent of content that survives under the status bar is a
+   * recognisable GHOST while it is sharp, and an even wash once it is not.
+   *
+   * Six live `BlurView`s is not free. Each one is a `UIVisualEffectView` that
+   * re-blurs whatever is behind it every frame while the list moves, on Today,
+   * To-do, Me and all four settings screens — and the metaball investigation in
+   * `TabBar` measured per-frame blur re-rasterisation at 15fps and rejected it
+   * on exactly that basis. Two bands buy the wash; four more bought nothing.
+   *
+   * `h` is a band's height as a fraction of the effect; `w` is its share of the
+   * blur, as a fraction of `glass.intensity`. The shorter band still carries
+   * the more blur — blur radii compose as roughly the root of the sum of
+   * squares, so an even split would put its largest perceptual step at the weak
+   * end, which is where the eye is most sensitive to it.
+   */
+  bands: [
+    { h: 0.26, w: 0.34 },
+    { h: 0.13, w: 0.5 },
+  ],
+
+  /**
+   * The scrim, as gradient stops down the effect: `at` is the fraction of the
+   * height, `alpha` the opacity there.
+   *
+   * ── ONE ARRAY OF PAIRS, NOT TWO PARALLEL ONES ─────────────────────────────
+   * It was `scrimStops` and `scrimAlphas`, matched by index and by nothing
+   * else. Adding a stop without adding an alpha compiles perfectly and hands
+   * `<Stop>` an `undefined` opacity, which react-native-svg reads as the spec
+   * default of 1 — so the scrim would jump to fully opaque canvas and paint a
+   * solid bar across the top of every scrolling screen. `bands` above already
+   * had the shape that cannot fail that way.
+   *
+   * ── THIS IS THE EFFECT, NOT A GARNISH ─────────────────────────────────────
+   * Apple's description of a scroll edge is "blurring and REDUCING THE OPACITY
+   * of background content", and the second half is the half that was missing.
+   * The scrim used to be `glassTint` — a near-white at 0.62, borrowed from the
+   * floating tab bar, where the whole point is that you can still see movement
+   * behind the material. Over a scrolling page that is far too weak: the
+   * content underneath stayed clearly visible, so a blurred illustration read
+   * as a coloured smear on the screen rather than as something fading away.
+   *
+   * It now peaks at 0.95 and holds through the whole bar, so content passing
+   * under the status bar and the compact title is reduced to a ghost. Reminders
+   * is the reference: the rows behind its scrolled top are barely there at all.
+   *
+   * The hold runs to `0.64`, which is just past the bottom of the bar itself,
+   * so the clock and the compact title never sit on anything but a flat page.
+   * The number was measured rather than guessed: what survives a wash is not
+   * the bright part of a picture but its DARK LINEWORK, and the Me screen
+   * scrolls a drawing of a dog under here whose outline is ~200 levels away
+   * from the canvas. At 95% cover that is two levels; at 85% it is thirty, and
+   * thirty levels is exactly enough to read as a mark on the glass. The hold is
+   * set by the hardest case on the hardest screen, not the average one.
+   *
+   * ── AND IT IS PAINTED IN THE CANVAS COLOUR ────────────────────────────────
+   * Which `ScrollEdge` takes from the theme rather than from a token, because
+   * the whole trick depends on it matching the page. A scrim of the PAGE's own
+   * colour makes content dissolve into the background; `glassTint` is lighter
+   * than the canvas, so raising its opacity would instead have drawn a pale bar
+   * across the top of every screen.
+   *
+   * The curve holds flat to `0.64` and then runs a smoothstep to zero, so it
+   * has no corner at either end. A linear fade to zero still reads as an edge:
+   * the eye takes a discontinuity in the RATE of change for a line, even when
+   * the colour itself is continuous.
+   */
+  scrim: [
+    { at: 0, alpha: 0.95 },
+    { at: 0.64, alpha: 0.95 },
+    { at: 0.74, alpha: 0.77 },
+    { at: 0.84, alpha: 0.396 },
+    { at: 0.93, alpha: 0.093 },
+    { at: 1, alpha: 0 },
+  ],
 } as const;
+
+/**
+ * THE FOCUS SCREEN'S FOREST.
+ *
+ * ── THIS IS THE ONE DOCUMENTED EXCEPTION TO THE COLOUR CONTRACT ────────────
+ * The contract at the top of this file says there is one accent and that
+ * `TINTS` is data encoding, never decoration. These greens are neither: they
+ * are ATMOSPHERE, they appear on exactly one screen, and nothing in the app
+ * ever means anything by them. They are kept out of `Colors` for that reason —
+ * a botanical green must never become reachable as a semantic token, because
+ * the moment it is, something will be tinted with it and the contract is gone.
+ *
+ * ── WHY THEY ARE THIS DESATURATED ──────────────────────────────────────────
+ * Focus is the screen you are meant to STOP looking at. The reference class
+ * (Forest, Life Reset) puts real scenery behind the dial and gets away with it
+ * because the scenery is low-contrast and the timer is the only bright thing.
+ * A saturated forest here would compete with the numerals, which are the one
+ * thing on the screen that has to be readable at a glance from across a desk.
+ *
+ * Light is a pale sage wash — colour arriving as pigment on an already-bright
+ * canvas. Dark is near-black with just enough green to be a place rather than
+ * an absence, for the same reason `FocusAura` inverts: deep values on a
+ * near-black canvas read as mud, so the dark set stays close to the canvas and
+ * separates by value alone.
+ */
+export const botanical: Record<
+  'light' | 'dark',
+  {
+    /** The vertical wash, top to bottom. Replaces the flat canvas fill. */
+    skyTop: string;
+    skyBottom: string;
+    /** Light coming through the canopy. */
+    sun: string;
+    /** Three depths of foliage, far to near. */
+    far: string;
+    mid: string;
+    near: string;
+    /** The foreground fronds that frame the stage. */
+    frond: string;
+    /** Leaf midribs and stems — one step darker than the leaf they sit on. */
+    stem: string;
+  }
+> = {
+  light: {
+    skyTop: '#F4F3EC',
+    skyBottom: '#E5EDE1',
+    sun: '#FFF6DF',
+    /**
+     * Foliage is PALER than the first pass, and the first pass is worth
+     * recording as the mistake it was. Drawn at a comfortable illustration
+     * contrast the fronds read as stickers laid over the screen rather than as
+     * the room the dial is in — and they sat directly behind the screen's
+     * title, which they have no business competing with. Scenery on a focus
+     * screen has to be one of the quietest things on it.
+     */
+    far: '#D5E1CF',
+    mid: '#C2D4BB',
+    near: '#AECAA7',
+    frond: '#A6C5A1',
+    stem: '#93B58E',
+  },
+  dark: {
+    skyTop: '#101512',
+    skyBottom: '#0A0F0C',
+    sun: '#2A2A1C',
+    far: '#18231B',
+    mid: '#1D2C22',
+    near: '#243629',
+    frond: '#2B4132',
+    stem: '#35503C',
+  },
+};

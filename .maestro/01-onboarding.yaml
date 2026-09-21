@@ -32,7 +32,7 @@ name: Onboarding — Pupu's first-run moments
 
 # --- Welcome: Pupu sits in front of the Bloom brand mark -------------------
 - assertVisible: "Pupu"
-- assertVisible: "No account needed. Everything stays on your phone."
+- assertVisible: "No account, no sign-up. It all stays on your phone."
 - takeScreenshot: artifacts/01-welcome-pupu-sit
 - tapOn: "Get started"
 
@@ -50,9 +50,12 @@ name: Onboarding — Pupu's first-run moments
 
 # --- Rhythm ----------------------------------------------------------------
 - assertVisible: "Some days need a timetable.*"
-- tapOn: "Loose — morning, afternoon, evening"
+# The answer and its gloss are two lines now, and the row's accessibilityLabel
+# joins them — "Loose. Morning, afternoon, evening". Matching the first half
+# plus `.*` keeps this from breaking again the next time the gloss is reworded.
+- tapOn: "Loose. Morning.*"
 - assertVisible:
-    text: "Loose — morning, afternoon, evening"
+    text: "Loose. Morning.*"
     selected: true
 - tapOn: "Continue.*"
 

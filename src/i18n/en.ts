@@ -359,10 +359,24 @@ export const en = {
 
   onboarding: {
     stepOf: 'Step {step} of {total}',
+    /**
+     * THE FIRST SENTENCE ANYONE READS, AND IT IS PUPU WHO SAYS IT.
+     *
+     * The old line described the product to you — "one day at a time, laid out
+     * so you can see it ... built for brains that do better with pictures than
+     * lists" — which is accurate, is the right positioning, and is a brochure.
+     * It also arrives directly under a drawing of a dog who is sitting there
+     * looking at you, saying nothing.
+     *
+     * So he says it instead. Same promise, in the first person, and the joke
+     * does the work the explanation was doing: "so your brain doesn't have to"
+     * IS the pitch for a visual planner aimed at people who lose track of
+     * things, and it lands better as a favour than as a feature.
+     */
     welcomeBody:
-      'One day at a time, laid out so you can see it. Built for brains that do better with pictures than lists.',
+      'Hello. I’ll hold today’s plan so your brain doesn’t have to — one day at a time, laid out where you can see it.',
     getStarted: 'Get started',
-    noAccount: 'No account needed. Everything stays on your phone.',
+    noAccount: 'No account, no sign-up. It all stays on your phone.',
 
     needTitle: 'What do you need\nmost right now?',
     needSubtitle:
@@ -376,9 +390,17 @@ export const en = {
     rhythmTitle: 'How do you like\nto plan a day?',
     rhythmSubtitle:
       'Some days need a timetable, some just need an order. Pick what usually works.',
-    rhythmLoose: 'Loose — morning, afternoon, evening',
-    rhythmTimed: 'Timed — everything on the clock',
+    /**
+     * Answer and gloss, as two keys rather than one string joined by an
+     * em-dash. An em-dash in a button label is nearly always a title and a
+     * subtitle that have not been separated yet — see the note in `rhythm.tsx`.
+     */
+    rhythmLoose: 'Loose',
+    rhythmLooseSub: 'Morning, afternoon, evening',
+    rhythmTimed: 'Timed',
+    rhythmTimedSub: 'Everything on the clock',
     rhythmBoth: 'A bit of both',
+    rhythmBothSub: 'Depends on the day',
 
     routinesMorningTitle: 'How does a\ngood morning go?',
     routinesMorningSubtitle:
@@ -444,6 +466,7 @@ export const en = {
   routine: {
     wake: 'Wake up',
     'water-am': 'Drink water',
+    badminton: 'Play badminton',
     bed: 'Make bed',
     'teeth-am': 'Brush teeth',
     shower: 'Shower',
@@ -451,6 +474,8 @@ export const en = {
     'meds-am': 'Take meds',
     breakfast: 'Breakfast',
     coffee: 'Have coffee',
+    incense: 'Light incense',
+    plants: 'Water the plants',
     plan: 'Plan your day',
     'stretch-am': 'Stretch',
     commute: 'Commute',
@@ -462,6 +487,7 @@ export const en = {
     email: 'Check email',
     snack: 'Snack',
     desk: 'Tidy desk',
+    trash: 'Take out the rubbish',
     move: 'Move your body',
     errands: 'Errands',
     breathe: 'Take a breather',
@@ -471,9 +497,12 @@ export const en = {
     dinner: 'Dinner',
     tidy: 'Tidy up',
     dishes: 'Do the dishes',
+    laundry: 'Do the laundry',
+    'hang-clothes': 'Hang clothes out to dry',
     'teeth-pm': 'Brush teeth',
     skincare: 'Skincare',
     'meds-pm': 'Take meds',
+    movie: 'Watch a film',
     read: 'Read a chapter',
     journal: 'Journal',
     clothes: 'Lay out clothes',

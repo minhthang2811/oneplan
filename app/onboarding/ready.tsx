@@ -20,6 +20,10 @@ export default function Ready() {
       title={t('onboarding.readyTitle')}
       subtitle={t('onboarding.readySubtitle')}
       ctaLabel={t('onboarding.readyCta')}
+      // The last screen has no list and no controls — only Pupu and one line
+      // from him — so it is the one place where "fill the column" means
+      // CENTRE rather than stretch. See the block below.
+      fill
       onCta={() => {
         haptic.success();
         // The one-way door. Flipping `onboarded` drops every onboarding entry
@@ -34,22 +38,36 @@ export default function Ready() {
           celebration for answering five questions spends the gesture before the
           user has earned it. Confetti is kept for finishing a real focus
           session, so that the first time it fires it means something. */}
-      <View style={{ alignItems: 'center', paddingTop: space.sm, gap: space.base }}>
-        <View style={{ height: 210, alignItems: 'center', justifyContent: 'center' }}>
+      {/*
+        CENTRED IN WHAT IS LEFT, NOT STACKED UNDER THE TITLE.
+
+        Pupu used to sit directly below the headline with a block of empty
+        canvas under him, which put the one thing this screen is FOR up in the
+        top third and left the bottom half of the phone blank. He is the
+        payoff of the whole flow; he belongs on the optical centre of the
+        screen, and at a size that says so. `justifyContent: 'center'` inside
+        the scaffold's filling column is the whole mechanism — the leftover
+        height is split above and below him instead of being dumped at the
+        bottom.
+      */}
+      {/* `flexGrow`, not `flex: 1` — see the note on `fill` in the scaffold.
+          Pupu's stage is a fixed 248pt and a zero basis would let a short phone
+          squeeze the column under it rather than scrolling. */}
+      <View style={{ flexGrow: 1, flexShrink: 0, alignItems: 'center', justifyContent: 'center', gap: space.lg }}>
+        <View style={{ height: 248, alignItems: 'center', justifyContent: 'center' }}>
           {/* Dimming on an inner plain view — `entering` owns opacity. */}
           <Animated.View
             entering={reduced ? undefined : FadeIn.delay(120).duration(420)}
             style={{ position: 'absolute' }}
           >
             <View style={{ opacity: 0.5 }}>
-              <Bloom scale={0.9} />
+              <Bloom scale={1.04} />
             </View>
           </Animated.View>
-          <PupuScene pose="cheer" size={182} delay={120} idle="bob" />
+          <PupuScene pose="cheer" size={216} delay={120} idle="bob" />
         </View>
         <PupuBubble text={t('onboarding.readyBubble')} delay={520} />
       </View>
-      <View style={{ height: space.base }} />
     </OnboardingScaffold>
   );
 }

@@ -14,7 +14,7 @@ import { PupuScene } from '../../src/components/mascot/PupuScene';
 import { Button } from '../../src/components/Button';
 import { TAB_BAR_HEIGHT } from '../../src/components/TabBar';
 import { ScrollEdge } from '../../src/components/ScrollEdge';
-import { useChromeScroll, useChromeReset } from '../../src/components/Chrome';
+import { useChromeScroll } from '../../src/components/Chrome';
 import { SlotCelebration, useSlotCompletion } from '../../src/components/SlotCelebration';
 import { useTheme } from '../../src/theme/useTheme';
 import { radius, space } from '../../src/theme/tokens';
@@ -40,8 +40,7 @@ export default function Today() {
   const insets = useSafeAreaInsets();
   const { c, isDark } = useTheme();
   const { t } = useT();
-  const scroll = useChromeScroll();
-  const resetChrome = useChromeReset();
+  const { scroll, reset: resetChrome } = useChromeScroll();
 
   const tasks = usePlanStore((s) => s.tasks);
   const layout = usePlanStore((s) => s.layout);
@@ -152,9 +151,9 @@ export default function Today() {
   /**
    * A day with nothing in it renders no list, so there is nothing left that
    * could scroll the chrome back into place. Paging from a scrolled day to an
-   * empty one — which is most days — otherwise left the tab bar contracted
-   * with no way to restore it, because a date change is not a navigation
-   * focus change and nothing else fires.
+   * empty one — which is most days — otherwise leaves the blurred scroll edge
+   * at full strength over a screen with nothing under it, because a date change
+   * is not a navigation focus change and nothing else fires.
    */
   /**
    * OUTSTANDING WORK MEANS THE DAY IS NOT EMPTY.

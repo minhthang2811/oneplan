@@ -36,7 +36,7 @@ export function SettingsScreen({
 }) {
   const { c } = useTheme();
   const insets = useSafeAreaInsets();
-  const scroll = useChromeScroll();
+  const { scroll } = useChromeScroll();
 
   return (
     <View style={{ flex: 1, backgroundColor: c.canvas }}>

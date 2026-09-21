@@ -20,6 +20,7 @@ import { PressScale } from '../../src/components/Press';
 import { PupuScene, Confetti } from '../../src/components/mascot/PupuScene';
 import { TAB_BAR_HEIGHT } from '../../src/components/TabBar';
 import { FocusAura } from '../../src/components/FocusAura';
+import { BotanicalBackdrop } from '../../src/components/BotanicalBackdrop';
 import { useTheme } from '../../src/theme/useTheme';
 import { radius, space, motion } from '../../src/theme/tokens';
 import { useT } from '../../src/i18n';
@@ -139,9 +140,17 @@ export default function Focus() {
 
   return (
     <View style={{ flex: 1, backgroundColor: c.canvasTinted }}>
-      {/* Behind everything, and outside both branches so switching between the
-          picker and a running session does not remount the field and restart
-          its drift from zero. */}
+      {/* ── THE GROUND, IN TWO LAYERS ──────────────────────────────────────
+          The forest is the STILL layer and the aura is the MOVING one, and
+          they are in this order on purpose: the activity's colour has to wash
+          OVER the foliage, not under it, or starting a session on "Lunch"
+          stops turning the room the colour of Lunch — which is the one thing
+          on this screen that ties the ambience back to the user's own data.
+
+          Both sit outside the two branches below, so switching between the
+          picker and a running session does not remount them and restart the
+          drift from zero. */}
+      <BotanicalBackdrop />
       <FocusAura tint={auraTint} intensity={focus ? 1 : 0.72} />
 
       {/* The title sits OUTSIDE both branches and above the stage. It is the one

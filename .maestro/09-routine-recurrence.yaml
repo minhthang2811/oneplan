@@ -34,7 +34,9 @@ name: Routines — survive a relaunch, exactly once
 - tapOn: "Get started"
 - tapOn: "Organise my day and time"
 - tapOn: "Continue.*"
-- tapOn: "Loose — morning, afternoon, evening"
+# The answer and its gloss are two lines now, and the row's
+# accessibilityLabel joins them — "Loose. Morning, afternoon, evening".
+- tapOn: "Loose. Morning.*"
 - tapOn: "Continue.*"
 
 - assertVisible: "Wake up"

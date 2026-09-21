@@ -28,7 +28,7 @@ export default function Me() {
   const insets = useSafeAreaInsets();
   const { c, isDark } = useTheme();
   const { t } = useT();
-  const scroll = useChromeScroll();
+  const { scroll } = useChromeScroll();
   const language = useLanguageStore((s) => s.language);
 
   const tasks = usePlanStore((s) => s.tasks);

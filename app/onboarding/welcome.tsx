@@ -38,7 +38,10 @@ export default function Welcome() {
               <Bloom scale={1.06} />
             </View>
           </Animated.View>
-          <PupuScene pose="sit" size={208} delay={140} idle="breathe" />
+          {/* `sway` rather than `breathe`: the one screen in the app where
+              Pupu is the whole point, seen once, with nothing else on it to
+              look at. See the note on the pose in `PupuScene`. */}
+          <PupuScene pose="sit" size={208} delay={140} idle="sway" />
         </View>
 
         <Animated.View

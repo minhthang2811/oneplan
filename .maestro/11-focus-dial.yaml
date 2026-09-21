@@ -27,7 +27,9 @@ name: Focus dial — follows the activity it was opened for
 - tapOn: "Get started"
 - tapOn: "Organise my day and time"
 - tapOn: "Continue.*"
-- tapOn: "Loose — morning, afternoon, evening"
+# The answer and its gloss are two lines now, and the row's
+# accessibilityLabel joins them — "Loose. Morning, afternoon, evening".
+- tapOn: "Loose. Morning.*"
 - tapOn: "Continue.*"
 - tapOn: "Continue.*"
 - tapOn: "Continue.*"
