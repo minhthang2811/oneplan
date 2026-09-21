@@ -88,8 +88,13 @@ export function PressScale({
     <Pressable
       onPressIn={() => { if (!reduced) p.set(withTiming(1, { duration: motion.press, easing: EASE })); }}
       onPressOut={() => { if (!reduced) p.set(withSpring(0, motion.release)); }}
-      style={outerStyle}
       {...rest}
+      // AFTER the spread, not before. `Base` omits `style` so today nothing in
+      // `rest` can carry one — but that is one loose spread at a call site away
+      // from being untrue, and a `style` arriving through it would silently
+      // win, dropping the sizing and collapsing the caller to content height
+      // with no error anywhere.
+      style={outerStyle}
     >
       <Animated.View style={[style, anim]}>{children}</Animated.View>
     </Pressable>

@@ -45,9 +45,18 @@ export function OnboardingScaffold({
    *
    * Two things have to be true together for it to work, which is why they live
    * on one prop: the scroll view's content must be allowed to grow to at least
-   * the viewport (`flexGrow: 1`, and note that a `ScrollView` gives its content
-   * unbounded height otherwise, so a bare `flex: 1` child would collapse), and
-   * the children need a parent that actually takes the leftover.
+   * the viewport, and the children need a parent that actually takes the
+   * leftover.
+   *
+   * ── AND THE WRAPPER MUST NOT BE `flex: 1` ────────────────────────────────
+   * It was, and that is a trap worth naming. `flex: 1` expands to `flexGrow: 1`
+   * plus `flexBasis: 0`, and the basis is the problem: it throws away the
+   * children's own height, so the content container can never measure taller
+   * than the viewport and the scroll view quietly stops being able to scroll.
+   * On a 667pt phone the five answers below need more room than there is, and
+   * instead of scrolling they were compressed until the cards overlapped each
+   * other. `flexGrow` with the default `auto` basis fills a tall screen exactly
+   * the same way and lets a short one scroll.
    */
   fill?: boolean;
 }) {
@@ -144,7 +153,7 @@ export function OnboardingScaffold({
           {subtitle ? <Txt variant="body" tone="muted">{subtitle}</Txt> : null}
         </Animated.View>
 
-        {fill ? <View style={{ flex: 1 }}>{children}</View> : children}
+        {fill ? <View style={{ flexGrow: 1, flexShrink: 0 }}>{children}</View> : children}
       </ScrollView>
 
       <View

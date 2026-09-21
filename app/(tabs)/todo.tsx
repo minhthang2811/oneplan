@@ -39,7 +39,7 @@ export default function Todo() {
   const insets = useSafeAreaInsets();
   const { c, isDark } = useTheme();
   const { t } = useT();
-  const scroll = useChromeScroll();
+  const { scroll } = useChromeScroll();
   const tasks = usePlanStore((s) => s.tasks);
   const addTask = usePlanStore((s) => s.addTask);
   const toggleTask = usePlanStore((s) => s.toggleTask);

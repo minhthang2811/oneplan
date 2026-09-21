@@ -143,7 +143,20 @@ export function PupuScene({
   );
 
   useEffect(() => {
-    if (!focused) { cancelAnimation(loop); return; }
+    if (!focused) {
+      /**
+       * SETTLE, DO NOT FREEZE.
+       *
+       * `cancelAnimation` alone leaves the loop stopped wherever it was, and
+       * for `sway` that is a visible pose — come back to the screen and Pupu is
+       * standing there leaning. Easing to 0 costs one short timing on a screen
+       * nobody is looking at and guarantees the next arrival starts from rest,
+       * for every idle.
+       */
+      cancelAnimation(loop);
+      loop.set(withTiming(0, { duration: motion.exit }));
+      return;
+    }
     if (reduced || idle === 'none') return;
     // 3.8s each way. Deliberately slower than a resting breath, for the same
     // reason the focus halo is: at anything near human tempo it stops being
@@ -193,19 +206,30 @@ export function PupuScene({
     /**
      * The lean, and the half-beat of lift that goes with it.
      *
-     * `l` runs 0 to 1 and back, so `l - 0.5` is what turns it into a movement
-     * that goes BOTH WAYS about the centre rather than one that only ever
-     * leaves and returns to rest — a body that tips one way and springs back
-     * reads as a flinch, one that tips either side reads as weight moving.
+     * The lean goes BOTH WAYS about the centre — a body that tips one way and
+     * springs back reads as a flinch, one that tips either side reads as weight
+     * moving — and the rise runs at DOUBLE the rate, so Pupu is highest as he
+     * passes through upright and lowest at each extreme. That is what a body
+     * does shifting from foot to foot, and it is the whole reason this does not
+     * look like a picture being rotated.
      *
-     * The rise is at DOUBLE the rate, so Pupu is highest as he passes through
-     * upright and lowest at each extreme. That is what a body does when it
-     * shifts from foot to foot, and it is the whole reason this does not look
-     * like a picture being rotated.
+     * ── BOTH MUST BE ZERO AT `l === 0`, AND THE FIRST VERSION WAS NOT ────────
+     * It was `l - 0.5`, which is the obvious way to centre a 0..1 value and is
+     * wrong here, because `l` is not an arbitrary parameter: it is the shared
+     * idle loop, it STARTS at 0, it returns to 0 at the end of every cycle, and
+     * `cancelAnimation` freezes it wherever it happens to be when the screen
+     * loses focus. `l - 0.5` makes 0 the far left extreme — so the entrance
+     * spring landed Pupu tilted 2.6 degrees on the one screen where he is the
+     * whole point, and leaving and returning could strand him there.
+     *
+     * A sine of the phase puts rest at both ends of the loop, which is what
+     * `breathe` and `bob` already get for free from their own mappings. The
+     * lift is re-anchored to match: it is measured DOWN from upright rather
+     * than up from the extremes, so it too is zero at rest.
      */
-    const swayed = idle === 'sway' ? l - 0.5 : 0;
+    const swayed = idle === 'sway' ? 0.5 * Math.sin(l * 2 * Math.PI) : 0;
     const sway = swayed * 5.2;
-    const rock = idle === 'sway' ? -2.6 * (1 - Math.abs(swayed) * 2) : 0;
+    const rock = Math.abs(swayed) * 5.2;
 
     return {
       opacity: e,

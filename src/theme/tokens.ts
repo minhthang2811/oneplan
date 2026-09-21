@@ -14,6 +14,14 @@
  * SHAPE CONTRACT: actions and chips are pills, cards 16, sheets 24, inputs 12,
  * inner bars 8. Nothing else.
  *
+ *   A row that is BOTH — tappable, and built like a card — is a card. The
+ *   onboarding answer is the case that forced the ruling: it is an action, so
+ *   the pill rule reaches it, and it also carries an avatar, a title, a gloss
+ *   and a trailing control, which is `TaskRow`'s anatomy exactly. What decides
+ *   it is what the thing IS on the screen rather than what happens when you
+ *   touch it, because the shape is what the eye groups by. Pills stay for
+ *   controls whose whole content is their own label.
+ *
  * SPACING: 4pt base. Every gap is a multiple of 4.
  */
 
@@ -458,39 +466,58 @@ export const scrollEdge = {
    * through the picture and is the first thing anyone sees.
    *
    * ── SO THE BANDS STOP EARLY AND THE SCRIM OUTLIVES THEM ───────────────────
-   * The longest band reaches only `0.58` of the effect's height — well inside
-   * the stretch where the scrim is still at full strength, and a clear margin
-   * ABOVE the point where the scrim begins to release at `0.62`. That margin is
-   * the part it is easy to get wrong: if the blur merely ends somewhere under a
+   * The longest band reaches only `0.26` of the effect's height — deep inside
+   * the stretch where the scrim is still at full strength, and a long way ABOVE
+   * the point where the scrim begins to release at `0.64`. That margin is the
+   * part it is easy to get wrong: if the blur merely ends somewhere under a
    * *partial* scrim, then the first thing that becomes visible as the scrim
    * lets go is blurred content, and blurred content appearing out of nothing is
    * precisely what reads as a smudge on the glass. Ending the blur first means
    * that what emerges at the bottom of the effect is SHARP — the eye sees
    * content fading in, not a smear resolving.
    *
-   * So: blur ends, then the scrim holds a little longer, then the scrim
+   * So: blur ends, then the scrim holds a good deal longer, then the scrim
    * releases. That order is the whole design, and it is why `fade` had to
    * grow — the scrim needs room to come down to nothing after the last band has
    * gone.
    *
+   * ── AND THAT ORDERING IS WHY THERE ARE ONLY TWO BANDS ─────────────────────
+   * There were six, and four of them were being paid for and never seen. Once
+   * the scrim holds 0.95 down to 0.64, ANY band that respects the ordering
+   * above is by definition under near-total cover — so the elaborate weighted
+   * ramp that made the steps between six bands invisible was solving a problem
+   * the scrim had already solved. What is left is the only job the blur still
+   * does: the few percent of content that survives under the status bar is a
+   * recognisable GHOST while it is sharp, and an even wash once it is not.
+   *
+   * Six live `BlurView`s is not free. Each one is a `UIVisualEffectView` that
+   * re-blurs whatever is behind it every frame while the list moves, on Today,
+   * To-do, Me and all four settings screens — and the metaball investigation in
+   * `TabBar` measured per-frame blur re-rasterisation at 15fps and rejected it
+   * on exactly that basis. Two bands buy the wash; four more bought nothing.
+   *
    * `h` is a band's height as a fraction of the effect; `w` is its share of the
-   * blur, as a fraction of `glass.intensity`. The weighting runs the opposite
-   * way from the obvious: the LONGEST band carries the LEAST, because blur radii
-   * compose as roughly the root of the sum of squares and equal bands put their
-   * largest perceptual steps at the weak end, which is exactly where the eye is
-   * most sensitive to them.
+   * blur, as a fraction of `glass.intensity`. The shorter band still carries
+   * the more blur — blur radii compose as roughly the root of the sum of
+   * squares, so an even split would put its largest perceptual step at the weak
+   * end, which is where the eye is most sensitive to it.
    */
   bands: [
-    { h: 0.58, w: 0.11 },
-    { h: 0.5, w: 0.16 },
-    { h: 0.42, w: 0.22 },
-    { h: 0.33, w: 0.3 },
-    { h: 0.23, w: 0.4 },
-    { h: 0.12, w: 0.54 },
+    { h: 0.26, w: 0.34 },
+    { h: 0.13, w: 0.5 },
   ],
 
   /**
-   * The scrim's alpha, sampled down the effect at `scrimStops`.
+   * The scrim, as gradient stops down the effect: `at` is the fraction of the
+   * height, `alpha` the opacity there.
+   *
+   * ── ONE ARRAY OF PAIRS, NOT TWO PARALLEL ONES ─────────────────────────────
+   * It was `scrimStops` and `scrimAlphas`, matched by index and by nothing
+   * else. Adding a stop without adding an alpha compiles perfectly and hands
+   * `<Stop>` an `undefined` opacity, which react-native-svg reads as the spec
+   * default of 1 — so the scrim would jump to fully opaque canvas and paint a
+   * solid bar across the top of every scrolling screen. `bands` above already
+   * had the shape that cannot fail that way.
    *
    * ── THIS IS THE EFFECT, NOT A GARNISH ─────────────────────────────────────
    * Apple's description of a scroll edge is "blurring and REDUCING THE OPACITY
@@ -521,13 +548,19 @@ export const scrollEdge = {
    * than the canvas, so raising its opacity would instead have drawn a pale bar
    * across the top of every screen.
    *
-   * The curve holds flat to 0.45 and then runs a smoothstep to zero, so it has
-   * no corner at either end. A linear fade to zero still reads as an edge: the
-   * eye takes a discontinuity in the RATE of change for a line, even when the
-   * colour itself is continuous.
+   * The curve holds flat to `0.64` and then runs a smoothstep to zero, so it
+   * has no corner at either end. A linear fade to zero still reads as an edge:
+   * the eye takes a discontinuity in the RATE of change for a line, even when
+   * the colour itself is continuous.
    */
-  scrimStops: [0, 0.64, 0.74, 0.84, 0.93, 1],
-  scrimAlphas: [0.95, 0.95, 0.77, 0.396, 0.093, 0],
+  scrim: [
+    { at: 0, alpha: 0.95 },
+    { at: 0.64, alpha: 0.95 },
+    { at: 0.74, alpha: 0.77 },
+    { at: 0.84, alpha: 0.396 },
+    { at: 0.93, alpha: 0.093 },
+    { at: 1, alpha: 0 },
+  ],
 } as const;
 
 /**

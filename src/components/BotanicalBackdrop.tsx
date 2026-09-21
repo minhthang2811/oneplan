@@ -1,4 +1,4 @@
-import { useId, useMemo } from 'react';
+import { memo, useId, useMemo } from 'react';
 import { View, StyleSheet, useWindowDimensions, type StyleProp, type ViewStyle } from 'react-native';
 import Svg, { Circle, Defs, G, LinearGradient, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
 import { useTheme } from '../theme/useTheme';
@@ -39,8 +39,16 @@ import { svgStop } from '../theme/svgColor';
  * and `FocusAura` is mounted ON TOP of the whole thing, so the activity's
  * colour still floods the room — over foliage it reads as light through a
  * canopy rather than as a gradient on a flat wall.
+ *
+ * ── MEMOIZED, BECAUSE IT TAKES NO PROPS AND FOCUS RE-RENDERS OFTEN ─────────
+ * The output depends on the theme and the window size and nothing else, but
+ * `Focus` subscribes to `tasks` and `focus`, so every task edit anywhere in the
+ * app used to walk this whole tree again: three `<Svg>` documents, two
+ * treelines of hand-placed paths, the haze, and three fronds of twenty-four
+ * paths each. The frond GEOMETRY was already `useMemo`'d; the element creation
+ * and react-native-svg's reconciliation of it were not.
  */
-export function BotanicalBackdrop() {
+export const BotanicalBackdrop = memo(function BotanicalBackdrop() {
   const { width: W, height: H } = useWindowDimensions();
   const { isDark } = useTheme();
   const g = botanical[isDark ? 'dark' : 'light'];
@@ -187,7 +195,7 @@ export function BotanicalBackdrop() {
       />
     </View>
   );
-}
+});
 
 /* --------------------------------------------------------------- shapes -- */
 

@@ -60,7 +60,7 @@ const BAND = SCROLL_EDGE_BAND;
  * clearly visible and a blurred illustration reads as a COLOURED SMEAR — dirt
  * on the glass rather than something politely getting out of the way.
  *
- * So the scrim now peaks at 0.92, holds through the whole bar, and is painted
+ * So the scrim now peaks at 0.95, holds through the whole bar, and is painted
  * in the CANVAS colour — the page's own — so that content does not fade into a
  * pale grey bar, it dissolves into the background. Reminders is the reference:
  * the rows behind its scrolled top are barely there at all.
@@ -72,10 +72,14 @@ const BAND = SCROLL_EDGE_BAND;
  * soften it; on an illustration it cuts straight through the picture, which is
  * exactly what the second version looked like.
  *
- * The bands therefore stop at 0.68 of the effect's height, while the scrim
- * runs to 1.0. The step lands under roughly half a page of cover, between a
- * barely-blurred region and a sharp one, and disappears. Blur ends first,
- * scrim ends last — that ordering is the whole design.
+ * The bands therefore stop at 0.26 of the effect's height, while the scrim
+ * holds 0.95 all the way to 0.64. The step lands under near-total cover and is
+ * invisible by construction rather than by tuning. Blur ends first, scrim ends
+ * last — that ordering is the whole design, and it is also why there are only
+ * two bands left: under a scrim that strong, any band respecting the ordering
+ * is nearly unseen, so the four extra `UIVisualEffectView`s the old weighted
+ * ramp needed were re-blurring the screen every frame for nothing. See
+ * `scrollEdge.bands`.
  *
  * ── WHAT ANIMATES, AND WHAT DELIBERATELY DOES NOT ──────────────────────────
  * Only the container's OPACITY. Animating `intensity` instead is the obvious
@@ -204,14 +208,14 @@ export function ScrollEdge({
         <Svg width="100%" height={blurred} style={StyleSheet.absoluteFill} pointerEvents="none">
           <Defs>
             <LinearGradient id={`edgeScrim${uid}`} x1="0" y1="0" x2="0" y2="1">
-              {scrollEdge.scrimStops.map((offset, i) => (
+              {scrollEdge.scrim.map((stop) => (
                 <Stop
-                  key={offset}
-                  offset={offset}
+                  key={stop.at}
+                  offset={stop.at}
                   stopColor={tint.stopColor}
-                  // `canvas` is an opaque hex, so `stopOpacity` is the alpha
+                  // `canvas` is an opaque hex, so `alpha` is the opacity
                   // outright rather than a fraction of the token's own.
-                  stopOpacity={scrollEdge.scrimAlphas[i]}
+                  stopOpacity={stop.alpha}
                 />
               ))}
             </LinearGradient>

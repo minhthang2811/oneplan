@@ -50,7 +50,10 @@ export default function Ready() {
         height is split above and below him instead of being dumped at the
         bottom.
       */}
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: space.lg }}>
+      {/* `flexGrow`, not `flex: 1` — see the note on `fill` in the scaffold.
+          Pupu's stage is a fixed 248pt and a zero basis would let a short phone
+          squeeze the column under it rather than scrolling. */}
+      <View style={{ flexGrow: 1, flexShrink: 0, alignItems: 'center', justifyContent: 'center', gap: space.lg }}>
         <View style={{ height: 248, alignItems: 'center', justifyContent: 'center' }}>
           {/* Dimming on an inner plain view — `entering` owns opacity. */}
           <Animated.View

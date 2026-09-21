@@ -89,6 +89,23 @@ export function Button({
 const CHOICE_MAX = { plain: 80, hinted: 124 };
 
 /**
+ * Hides a subtree from assistive technology.
+ *
+ * The row below carries its own `accessibilityRole` and `accessibilityLabel`,
+ * so everything drawn inside it is a RENDERING of that label rather than
+ * anything separately meaningful. iOS happens to agree — a view with a role and
+ * a label swallows its descendants — but **Android does not**, and TalkBack
+ * will read the avatar's emoji, then the label, then the gloss, after having
+ * already announced all of it. `TabBar` documents the same trap on its two
+ * cross-faded tab faces; this is that fix, in row form.
+ */
+const DECORATIVE = {
+  accessible: false,
+  accessibilityElementsHidden: true,
+  importantForAccessibility: 'no-hide-descendants',
+} as const;
+
+/**
  * AN ANSWER TO AN ONBOARDING QUESTION.
  *
  * ── WHAT THE FIRST VERSION GOT WRONG ───────────────────────────────────────
@@ -189,11 +206,40 @@ export function ChoiceRow({
       accessibilityRole="radio"
       accessibilityState={{ selected }}
       accessibilityLabel={hint ? `${label}. ${hint}` : label}
-      outerStyle={grow ? { flex: 1, maxHeight: CHOICE_MAX[hint ? 'hinted' : 'plain'] } : undefined}
+      /**
+       * THE FLOOR AND THE FLEX HAVE TO BE ON THE SAME VIEW.
+       *
+       * `minHeight` used to sit on the inner style — the paint — while the
+       * `flex` sat out here on the `Pressable`. That splits the row in two
+       * under compression: `flex: 1` lets the Pressable shrink freely while the
+       * card inside it refuses to follow, so the bottom of a card stops being
+       * tappable and the next row's touch target starts underneath it. The
+       * touch target is the thing that must never be smaller than the card, so
+       * its floor belongs here.
+       *
+       * `flexGrow`/`flexShrink` spelled out rather than `flex: 1`, because
+       * `flex: 1` also sets `flexBasis: 0` — which throws away the row's own
+       * content height and is exactly what made a five-answer screen collapse
+       * on a short phone. Basis `auto` starts each row at its natural height
+       * and grows it into whatever the column has spare; `flexShrink: 0` means
+       * a column that is too short scrolls instead of crushing the rows.
+       */
+      outerStyle={
+        grow
+          ? {
+              flexGrow: 1,
+              flexShrink: 0,
+              minHeight: 64,
+              maxHeight: CHOICE_MAX[hint ? 'hinted' : 'plain'],
+            }
+          : undefined
+      }
       style={[
         {
           minHeight: 64,
-          flex: grow ? 1 : undefined,
+          // Fills whatever the Pressable was given, from a base of its own
+          // content — never `flex: 1`, for the reason above.
+          flexGrow: grow ? 1 : undefined,
           flexDirection: 'row', alignItems: 'center', gap: space.md,
           paddingHorizontal: space.md, paddingVertical: space.md,
           borderRadius: radius.card, borderCurve: 'continuous',
@@ -206,9 +252,11 @@ export function ChoiceRow({
       {/* The glyph grows with the card. A 40pt disc adrift in a 124pt row is
           what makes a tall card look like a mistake; scaling it is what makes
           the same height read as deliberate. */}
-      <EmojiAvatar emoji={emoji} tint={tint} size={hint ? 52 : 40} />
+      <View {...DECORATIVE}>
+        <EmojiAvatar emoji={emoji} tint={tint} size={hint ? 52 : 40} />
+      </View>
 
-      <View style={{ flex: 1, gap: 1 }}>
+      <View style={{ flex: 1, gap: 1 }} {...DECORATIVE}>
         <Txt variant={hint ? 'title' : 'bodyStrong'} numberOfLines={2}>{label}</Txt>
         {hint ? (
           <Txt variant="caption" tone="muted" numberOfLines={1}>{hint}</Txt>
@@ -221,6 +269,7 @@ export function ChoiceRow({
           right-hand end of it. */}
       <Animated.View
         pointerEvents="none"
+        {...DECORATIVE}
         style={[
           {
             width: 22, height: 22, borderRadius: 11, borderWidth: 1.5,
@@ -289,7 +338,12 @@ export function OptionList({ children }: { children: ReactNode }) {
   return (
     <View
       style={{
-        flex: 1, gap: space.md,
+        // `flexGrow`, not `flex: 1`: the latter sets `flexBasis: 0`, which
+        // discards the rows' own height and leaves a column too short to hold
+        // them silently overlapping instead of scrolling. `flexShrink: 0` is
+        // the other half of that — see `ChoiceRow`'s `outerStyle`.
+        flexGrow: 1, flexShrink: 0,
+        gap: space.md,
         justifyContent: 'center',
         // The upward bias. `center` splits the slack evenly; reserving a band
         // at the bottom moves the group half of it back towards the question.

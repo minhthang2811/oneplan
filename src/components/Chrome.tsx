@@ -69,8 +69,24 @@ const ChromeContext = createContext<Chrome | null>(null);
  * does not.
  */
 export function useChromeScroll(): {
-  onScroll: (e: NativeSyntheticEvent<NativeScrollEvent>) => void;
-  scrollEventThrottle: number;
+  /** Spread these two onto the scrolling view. */
+  scroll: {
+    onScroll: (e: NativeSyntheticEvent<NativeScrollEvent>) => void;
+    scrollEventThrottle: number;
+  };
+  /**
+   * Declares that this screen currently has nothing to scroll.
+   *
+   * ── WHY THIS LIVES HERE AND NOT IN ITS OWN HOOK ──────────────────────────
+   * It used to be `useChromeReset`, a separate hook that zeroed the shared
+   * offset — and it could not reach `last`, which lives in this one. So the
+   * reset was undone by the very next focus: scroll Today to 600, page to an
+   * empty day (`y` goes to 0, `last` stays 600), switch tabs and come back, and
+   * the focus effect below restores 600, blurring the top of a day with nothing
+   * under it. The two values have to be cleared together, so they have to be
+   * owned together.
+   */
+  reset: () => void;
 } {
   const chrome = useContext(ChromeContext);
   const last = useRef(0);
@@ -102,29 +118,18 @@ export function useChromeScroll(): {
     }, [chrome])
   );
 
-  return { onScroll, scrollEventThrottle: 16 };
+  const reset = useCallback(() => {
+    last.current = 0;
+    chrome?.y.set(0);
+  }, [chrome]);
+
+  return { scroll: { onScroll, scrollEventThrottle: 16 }, reset };
 }
 
 /** For the chrome itself. Returns null outside a provider, so a screen that is
  *  not inside the tabs navigator simply renders static chrome. */
 export function useChrome(): Chrome | null {
   return useContext(ChromeContext);
-}
-
-/**
- * Declares that there is nothing to scroll.
- *
- * `y` is shared, and only screens that SCROLL ever put it back — so a screen
- * showing content with no list strands the previous screen's offset, and with
- * it a blurred edge sitting over nothing. The way to reach that is ordinary:
- * page Today to an empty day, and the empty branch renders no list at all
- * while a date change is not a navigation focus change, so nothing fires.
- *
- * Idempotent and safe to call on every render pass.
- */
-export function useChromeReset(): () => void {
-  const chrome = useContext(ChromeContext);
-  return useCallback(() => { chrome?.y.set(0); }, [chrome]);
 }
 
 export function ChromeProvider({ children }: { children: ReactNode }) {
