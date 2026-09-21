@@ -235,6 +235,27 @@ and `maestro hierarchy` refuses outright with "Multiple devices connected". Use
 `xcrun simctl list devices booted` to check, and `maestro test --device <udid>`
 if you must keep more than one.
 
+**The simulator has to be in English.** The flows assert English strings, and
+the app opens in the phone's language — so on a simulator set to Vietnamese
+every text selector misses and the suite fails from the first `assertVisible`
+with nothing wrong in the app at all. `08-language` and `12-translated-chrome`
+go further: they *switch* to Vietnamese and back, so they assume English is
+where they started. There is no `simctl` verb for this; it is a defaults write
+and a reboot, and it is worth putting back afterwards:
+
+```bash
+D=<udid>
+xcrun simctl spawn $D defaults read -g AppleLanguages   # keep this
+xcrun simctl spawn $D defaults write -g AppleLanguages -array en-US
+xcrun simctl spawn $D defaults write -g AppleLocale -string en_US
+xcrun simctl shutdown $D && xcrun simctl boot $D
+```
+
+A `clearState: true` flow does **not** strand a development build, which is the
+thing you would expect it to do: the dev client finds the packager again on the
+next launch, so the seven flows that clear state run against Metro like any
+other.
+
 Rules learned the hard way, documented in the flows themselves:
 
 1. A selector is a **full regex match**, not a substring — a bare prefix fails,
