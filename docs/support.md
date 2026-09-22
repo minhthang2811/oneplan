@@ -2,7 +2,7 @@
 
 ## Getting help
 
-Email **[your-support-email@example.com]** and describe what happened, which
+Email **minhthang281198@gmail.com** and describe what happened, which
 iPhone and iOS version you are on, and what you expected instead. Screenshots
 help.
 

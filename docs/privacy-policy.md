@@ -53,4 +53,4 @@ with a new date above.
 
 ## Contact
 
-Questions about this policy: **[your-support-email@example.com]**
+Questions about this policy: **minhthang281198@gmail.com**
