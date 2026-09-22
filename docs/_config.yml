@@ -1,0 +1,9 @@
+# GitHub Pages config for the Pupu support site.
+#
+# Pages is serving this `docs/` folder rather than a separate branch, so the
+# published URLs are https://minhthang2811.github.io/pupu/<page>. Apple requires
+# a reachable Privacy Policy URL and a Support URL on every App Store listing,
+# and this is the cheapest way to own both without running a server.
+title: Pupu
+description: A visual day planner for iPhone.
+theme: jekyll-theme-minimal
