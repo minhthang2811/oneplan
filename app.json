@@ -59,6 +59,12 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "5930fe65-1e48-439b-8d59-d0a0fc6566a2"
+      }
+    },
+    "owner": "needev"
   }
 }
