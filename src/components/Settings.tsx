@@ -161,7 +161,17 @@ export function RowItem({
   );
   if (!onPress) return body;
   return (
-    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={label}>
+    // A tappable row is ONE accessibility element, which hides the value Txt
+    // inside it — VoiceOver said "Reminders, button" and never "Off", and the
+    // permission row never said "Not allowed". The value goes back in as an
+    // accessibility VALUE rather than into the label, so the label stays the
+    // row's stable name for the rotor and for everything that finds it by it.
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityValue={value ? { text: value } : undefined}
+    >
       {body}
     </Pressable>
   );
