@@ -15,7 +15,16 @@
         "releaseNotes": "First release.\n\nPupu plans a day in loose time-of-day buckets, keeps your routines, and runs a focus timer — all on your iPhone, with no account and no network.",
         "privacyPolicyUrl": "https://minhthang2811.github.io/pupu/privacy-policy",
         "supportUrl": "https://minhthang2811.github.io/pupu/support",
-        "marketingUrl": "https://minhthang2811.github.io/pupu/"
+        "marketingUrl": "https://minhthang2811.github.io/pupu/",
+        "screenshots": {
+          "APP_IPHONE_67": [
+            "store/screenshots/en-US/01-today.png",
+            "store/screenshots/en-US/02-focus.png",
+            "store/screenshots/en-US/03-todo.png",
+            "store/screenshots/en-US/04-detail.png",
+            "store/screenshots/en-US/05-me.png"
+          ]
+        }
       },
       "vi": {
         "title": "Pupu: Kế hoạch & thói quen",
@@ -44,15 +53,22 @@
       "violenceCartoonOrFantasy": "NONE",
       "violenceRealistic": "NONE",
       "violenceRealisticProlongedGraphicOrSadistic": "NONE",
+      "gunsOrOtherWeapons": "NONE",
       "gambling": false,
       "unrestrictedWebAccess": false,
-      "seventeenPlus": false
+      "lootBox": false,
+      "advertising": false,
+      "messagingAndChat": false,
+      "userGeneratedContent": false,
+      "healthOrWellnessTopics": false,
+      "parentalControls": false,
+      "ageAssurance": false,
+      "kidsAgeBand": null,
+      "ageRatingOverride": "NONE",
+      "koreaAgeRatingOverride": "NONE"
     },
     "review": {
-      "firstName": "REPLACE_ME",
-      "lastName": "REPLACE_ME",
       "email": "minhthang281198@gmail.com",
-      "phone": "REPLACE_ME",
       "notes": "No account or login is required — the app opens straight into onboarding and everything works offline. Pupu makes no network requests at all, so no test server or demo credentials are needed."
     }
   }
