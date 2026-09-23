@@ -26,7 +26,7 @@
 #
 # Tabs are at 16% / 39% / 61% / 83%, y 93% — same as `04-tab-transitions.yaml`,
 # and percentages must be WHOLE NUMBERS or Maestro throws at runtime.
-appId: com.pupu.app
+appId: com.minhthang.pupu
 name: Tab bar — drag the liquid indicator
 ---
 - launchApp

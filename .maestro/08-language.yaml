@@ -7,7 +7,7 @@
 #
 # The flow restores "System" at the end, so it leaves the simulator in the state
 # every other flow in this suite expects to find.
-appId: com.pupu.app
+appId: com.minhthang.pupu
 name: Language — switch to Vietnamese and back
 ---
 - launchApp

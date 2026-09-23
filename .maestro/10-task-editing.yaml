@@ -17,7 +17,7 @@
 # The action sheets are iOS-native, so their buttons are matched by their plain
 # labels — those are real UIKit elements in the hierarchy, unlike the in-app
 # controls the other flows have to tap by point.
-appId: com.pupu.app
+appId: com.minhthang.pupu
 name: Task editing — rename, retime, and move
 ---
 - launchApp:

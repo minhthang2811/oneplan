@@ -98,13 +98,62 @@ export default function TaskDetail() {
 
   /**
    * Holds the in-progress rename across an unmount — see the note where these
-   * are filled in, below the guard.
+   * are filled in, just below.
    */
   const editingRef = useRef(false);
   const saveRef = useRef<(value: string) => void>(() => {});
   useEffect(() => () => {
     if (editingRef.current) saveRef.current(titleRef.current);
   }, []);
+
+  /**
+   * An empty rename is a cancel, not a nameless activity. Blur commits, which
+   * is what makes tapping anywhere else on the screen a safe way out.
+   *
+   * Declared above the `!task` guard because the effect that hands it to
+   * `saveRef` is a hook and has to be up here too — so it checks `task` itself.
+   * On the render where the activity has just been deleted there is nothing
+   * to rename, and a rename left open when that happens is dropped, not
+   * written back onto an id that no longer exists.
+   */
+  const saveTitle = (value: string) => {
+    if (!task) return;
+    const v = value.trim();
+    if (!v || v === task.title) return;
+    haptic.tick();
+    updateTask(task.id, { title: v });
+  };
+
+  /**
+   * ── LEAVING THE SCREEN MID-RENAME MUST NOT THROW THE RENAME AWAY ──────────
+   * The commit hangs off `onBlur`, which covers tapping elsewhere on the
+   * screen and covers the return key. It does NOT cover leaving: tapping Back,
+   * or swiping the screen away, unmounts the `TextInput` without ever blurring
+   * it, so a rename that had been typed but not dismissed was silently
+   * discarded — and "I typed it and went back" is the ordinary way to finish
+   * an inline edit, not an edge case.
+   *
+   * The refs are what make an unmount handler correct: the cleanup above runs
+   * once, with the closure it was created in, so reading the live title and
+   * the live "am I editing" out of refs is the only way it sees the values as
+   * they were when the screen went away. It calls `saveTitle` rather than
+   * `commitTitle` because there is no longer any component to set state on.
+   */
+  /**
+   * WRITTEN IN AN EFFECT, NOT DURING RENDER.
+   *
+   * These were assigned in the component body, which mutates a ref during the
+   * render phase. React is allowed to render a component and throw the result
+   * away — concurrent rendering, a Suspense retry, StrictMode's double
+   * invocation — and an abandoned render still runs a body-level assignment.
+   * The unmount handler above would then commit a title taken from a render
+   * that never happened. An effect only runs for renders that commit, which is
+   * exactly the set these refs are supposed to describe.
+   */
+  useEffect(() => {
+    editingRef.current = editingTitle;
+    saveRef.current = saveTitle;
+  });
 
   // Deleted from under us (or a stale deep link) — say so rather than crash.
   if (!task) {
@@ -144,52 +193,10 @@ export default function TaskDetail() {
    */
   const routine = isRoutineTask(task.id);
 
-  /**
-   * An empty rename is a cancel, not a nameless activity. Blur commits, which
-   * is what makes tapping anywhere else on the screen a safe way out.
-   */
-  const saveTitle = (value: string) => {
-    const v = value.trim();
-    if (!v || v === task.title) return;
-    haptic.tick();
-    updateTask(task.id, { title: v });
-  };
-
   const commitTitle = (submitted?: string) => {
     setEditingTitle(false);
     saveTitle(submitted ?? titleRef.current);
   };
-
-  /**
-   * ── LEAVING THE SCREEN MID-RENAME MUST NOT THROW THE RENAME AWAY ──────────
-   * The commit hangs off `onBlur`, which covers tapping elsewhere on the
-   * screen and covers the return key. It does NOT cover leaving: tapping Back,
-   * or swiping the screen away, unmounts the `TextInput` without ever blurring
-   * it, so a rename that had been typed but not dismissed was silently
-   * discarded — and "I typed it and went back" is the ordinary way to finish
-   * an inline edit, not an edge case.
-   *
-   * The refs are what make an unmount handler correct: the cleanup below runs
-   * once, with the closure it was created in, so reading the live title and
-   * the live "am I editing" out of refs is the only way it sees the values as
-   * they were when the screen went away. It calls `saveTitle` rather than
-   * `commitTitle` because there is no longer any component to set state on.
-   */
-  /**
-   * WRITTEN IN AN EFFECT, NOT DURING RENDER.
-   *
-   * These were assigned in the component body, which mutates a ref during the
-   * render phase. React is allowed to render a component and throw the result
-   * away — concurrent rendering, a Suspense retry, StrictMode's double
-   * invocation — and an abandoned render still runs a body-level assignment.
-   * The unmount handler below would then commit a title taken from a render
-   * that never happened. An effect only runs for renders that commit, which is
-   * exactly the set these refs are supposed to describe.
-   */
-  useEffect(() => {
-    editingRef.current = editingTitle;
-    saveRef.current = saveTitle;
-  });
 
 
   const editDuration = () =>

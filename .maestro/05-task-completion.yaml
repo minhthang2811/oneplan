@@ -40,7 +40,7 @@
 # path from completion — it retracts the stroke, deflates the fill, and
 # deliberately fires no celebration — so "it went back" is a real assertion and
 # not a formality.
-appId: com.pupu.app
+appId: com.minhthang.pupu
 name: Task completion — check, and take it back
 ---
 # Clear state so the seeded starter day is present and nothing is already

@@ -1,0 +1,55 @@
+# DELETING AN ACTIVITY FROM ITS OWN DETAIL SCREEN MUST NOT CRASH.
+#
+# It did. `confirmDelete` removes the task from the store and then pops the
+# screen, so the detail screen renders once more with `task` undefined on its
+# way out — which is exactly what the `!task` guard in `app/task/[id].tsx` is
+# for. But a `useEffect` had landed BELOW that guard, so that last render
+# called one hook fewer than the render before it, and React threw "Rendered
+# fewer hooks than expected". In a release build the route's ErrorBoundary
+# caught it and showed "That screen did not load" with the raw React message,
+# right after the most ordinary destructive action in the app.
+#
+# No other flow deletes from the detail screen, which is how it went unnoticed.
+#
+# WHY THREE ASSERTIONS AFTER THE DELETE. The crash surfaces differently per
+# build: a dev build shows LogBox's red screen, a release build shows the
+# ErrorBoundary. Both are asserted absent. Then the plan itself is asserted
+# PRESENT — a screen that is merely blank would pass two negative checks.
+#
+# THE SHEET BUTTON SHARES THE TRASH BUTTON'S LABEL. Both read "Delete
+# activity", and while the native action sheet is up the button behind it is
+# still in the hierarchy. The sheet's option is the one BELOW the sheet's
+# title (the activity's name); the trash button sits above everything.
+appId: com.minhthang.pupu
+name: Task delete — from the detail screen, without a crash
+---
+- launchApp:
+    clearState: true
+
+- assertVisible: "Pupu"
+- tapOn: "Get started"
+- tapOn: "Organise my day and time"
+- tapOn: "Continue.*"
+- tapOn: "Loose. Morning.*"
+- tapOn: "Continue.*"
+- tapOn: "Continue.*"
+- tapOn: "Continue.*"
+- tapOn: "Continue.*"
+- tapOn: "Not right now"
+- tapOn: "Start planning"
+
+# "Quick tidy" is the seeded 5-minute morning activity.
+- assertVisible: "Quick tidy, 5m"
+- tapOn: "Quick tidy, 5m"
+- assertVisible: "Steps"
+
+- tapOn: "Delete activity"
+- tapOn:
+    text: "Delete activity"
+    below: "Quick tidy"
+- takeScreenshot: artifacts/22-after-delete
+
+- assertNotVisible: "Rendered fewer hooks.*"
+- assertNotVisible: "That screen did not load"
+- assertVisible: "Plan your day, 10m"
+- assertNotVisible: "Quick tidy.*"

@@ -24,7 +24,7 @@
 # Also avoid the display headlines: they are hand-wrapped with a literal "\n"
 # so the serif breaks where the designer wanted, which regex `.` will not cross
 # without DOTALL. The subtitles are single-line, so assert on those.
-appId: com.pupu.app
+appId: com.minhthang.pupu
 name: Onboarding — Pupu's first-run moments
 ---
 - launchApp:

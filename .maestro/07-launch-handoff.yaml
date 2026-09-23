@@ -25,7 +25,7 @@
 # about 2.0s, and a debug build downloading a bundle can be slower. The wait is
 # `extendedWaitUntil` rather than a fixed sleep so a stuck overlay fails loudly
 # at the timeout instead of a longer sleep quietly papering over it.
-appId: com.pupu.app
+appId: com.minhthang.pupu
 name: Launch — the overlay hands over
 ---
 - launchApp
