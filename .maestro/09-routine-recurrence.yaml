@@ -21,7 +21,7 @@
 # `routinesBuiltFor`, and the honest place to exercise that is a unit test over
 # the store. What is asserted here is the half that actually regressed twice:
 # the routine existing at all, and existing once.
-appId: com.pupu.app
+appId: com.minhthang.pupu
 name: Routines — survive a relaunch, exactly once
 ---
 - launchApp:

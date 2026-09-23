@@ -325,7 +325,7 @@ app.json) is still yours to set.
 
 Before the first submission you will need, on the Apple side: a paid Apple
 Developer account, an App Store Connect app record using the bundle identifier
-`com.pupu.app`, and the usual store listing (screenshots, description,
+`com.minhthang.pupu`, and the usual store listing (screenshots, description,
 support URL, privacy policy URL).
 
 `ITSAppUsesNonExemptEncryption` is already declared `false` in app.json, which

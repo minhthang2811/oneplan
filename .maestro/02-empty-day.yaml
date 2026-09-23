@@ -2,7 +2,7 @@
 #
 # Steps forward to a date with nothing on it rather than deleting the seeded
 # day, so the flow leaves the user's data alone and can be run repeatedly.
-appId: com.pupu.app
+appId: com.minhthang.pupu
 name: Empty day — Pupu asleep
 ---
 - launchApp

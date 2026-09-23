@@ -9,7 +9,7 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.pupu.app",
+      "bundleIdentifier": "com.minhthang.pupu",
       "infoPlist": {
         "_comment": "YES lets iOS derive the status bar style from the view controller's trait collection, so it follows light/dark with no JS. It is incompatible with expo-status-bar's imperative API, which is therefore not used.",
         "UIViewControllerBasedStatusBarAppearance": true
@@ -19,7 +19,7 @@
       }
     },
     "android": {
-      "package": "com.pupu.app",
+      "package": "com.minhthang.pupu",
       "adaptiveIcon": {
         "backgroundColor": "#F4F1ED",
         "foregroundImage": "./assets/android-icon-foreground.png",

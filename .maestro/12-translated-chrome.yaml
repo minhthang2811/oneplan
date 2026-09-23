@@ -23,7 +23,7 @@
 # those flows then fail for a reason that has nothing to do with what they
 # test. Starting from a cleared install makes this one indifferent to what ran
 # before it, and the restore at the end keeps it polite to what runs after.
-appId: com.pupu.app
+appId: com.minhthang.pupu
 name: Language — no English left on the settings screens
 ---
 - launchApp:

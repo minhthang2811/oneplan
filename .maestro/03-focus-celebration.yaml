@@ -16,7 +16,7 @@
 # state rather than sleeping a fixed 60s and hoping, so the flow fails loudly if
 # the timer stalls instead of passing on a lucky screenshot. Verifying this by
 # hand cost three attempts to land a capture inside the 2.2s confetti window.
-appId: com.pupu.app
+appId: com.minhthang.pupu
 name: Focus — completion celebration
 ---
 - launchApp

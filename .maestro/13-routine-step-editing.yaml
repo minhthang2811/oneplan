@@ -24,7 +24,7 @@
 # The id staying put is the reason for the overlay, and it is what keeps a step
 # you have already ticked this morning from coming back unticked when you rename
 # it. That part is not observable from here; it lives in `writeRoutine`.
-appId: com.pupu.app
+appId: com.minhthang.pupu
 name: Routine steps — rename one, and relength it
 ---
 - launchApp:
