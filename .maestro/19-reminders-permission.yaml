@@ -35,6 +35,10 @@ name: Reminders — turn them on, through the permission prompt
 
 - tapOn: "Me"
 - assertVisible: "Reminders.*"
+# Me's summary of the setting, before. A tappable settings row carries its
+# value as an accessibility VALUE (see `RowItem`), which Maestro exposes as the
+# element's text — so this is read off the Reminders row itself.
+- assertVisible: "Off"
 - tapOn: "Reminders"
 - assertVisible: "System permission.*"
 - assertNotVisible: "When"
@@ -68,5 +72,7 @@ name: Reminders — turn them on, through the permission prompt
 - takeScreenshot: artifacts/37-reminders-on
 
 - tapOn: "Back"
-- assertNotVisible: "Reminders, Off"
+# ...and after: the default lead time, where "Off" was.
+- assertVisible: "10m before"
+- assertNotVisible: "Off"
 - takeScreenshot: artifacts/38-me-reminders-on

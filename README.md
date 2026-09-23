@@ -277,9 +277,17 @@ Release build ran a nearly full disk out of space mid-link.
 ```bash
 npx expo prebuild --clean --platform ios   # LANG=en_US.UTF-8 if pod install crashes on encoding
 xcodebuild -workspace ios/Pupu.xcworkspace -scheme Pupu -configuration Release \
-  -sdk iphonesimulator -destination "id=<udid>" ONLY_ACTIVE_ARCH=YES ARCHS=arm64 build
-xcrun simctl install <udid> ~/Library/Developer/Xcode/DerivedData/Pupu-*/Build/Products/Release-iphonesimulator/Pupu.app
+  -sdk iphonesimulator -destination "id=<udid>" ONLY_ACTIVE_ARCH=YES ARCHS=arm64 \
+  -derivedDataPath ios/build build
+xcrun simctl install <udid> ios/build/Build/Products/Release-iphonesimulator/Pupu.app
 ```
+
+`-derivedDataPath` is what makes the install line safe to copy. Xcode's default
+DerivedData folder is named after a hash of the workspace's PATH, so every
+checkout, worktree or old clone of this repo leaves its own `Pupu-<hash>` —
+and a glob across them installs whichever sorts first, which is exactly the
+stale binary this section exists to avoid. Under `ios/` it is also gitignored,
+and `prebuild --clean` sweeps it away with everything else it regenerates.
 
 Rules learned the hard way, documented in the flows themselves:
 
@@ -337,8 +345,9 @@ Rules learned the hard way, documented in the flows themselves:
     left unanswered, sits on top of every flow that runs after it. Tap "Open".
     And two elements can share a label: the reminders switch and its row's text
     are both "Activity reminders", and a plain text tap hits the words, which
-    toggle nothing. `rightOf:` should tell them apart by position and on
-    Maestro 2.10 resolves to nothing, so the switch carries a `testID`.
+    toggle nothing. A `rightOf:` selector whose reference carried `index: 0`
+    found nothing — plain `rightOf:` was not tried — so the switch carries a
+    `testID` instead.
 
 ## Publishing to the App Store
 
@@ -392,9 +401,12 @@ eas update:configure      # writes updates.url
 ```
 
 Turning it on changes what the app does on the network. On every launch it asks
-Expo's update server whether there is a newer bundle — sending the platform,
-runtime version, channel and an install-scoped random `EAS-Client-ID`, and
-nothing from the plan. Three documents currently promise the opposite and have
+Expo's update server whether there is a newer bundle. The request carries
+nothing from the plan, but it is not empty: headers for the platform, runtime
+version, channel, protocol and API version, the embedded and currently running
+update IDs, recently failed update IDs, and an install-scoped random
+`EAS-Client-ID` that persists across launches — plus, as with any request, the
+device's IP address, which Expo's servers receive. Three documents currently promise the opposite and have
 to change in the same commit: [docs/privacy-policy.md](./docs/privacy-policy.md)
 ("makes no network requests of any kind"), the App Review notes in
 [store.config.json](./store.config.json) ("makes no network requests at all"),

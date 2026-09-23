@@ -47,6 +47,12 @@ name: Add activity — create one, and discard one
     index: 0
 - assertVisible: "New activity"
 - tapOn: "Cancel"
+# The SHEET'S OWN TITLE is the witness, not the day behind it. "Nothing here
+# yet" stays in the hierarchy behind a form sheet whether or not it closed, and
+# "Discard activity" is absent for the instant before an action sheet animates
+# in — so both passed even if the guard wrongly asked. `assertNotVisible` waits
+# for the title to go, which a prompt holding the sheet open would prevent.
+- assertNotVisible: "New activity"
 - assertNotVisible: "Discard activity"
 - assertVisible: "Nothing here yet"
 

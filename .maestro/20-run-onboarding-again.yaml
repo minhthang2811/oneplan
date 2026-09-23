@@ -79,6 +79,11 @@ name: Run onboarding again — keeps the plan, no duplicates
 - assertNotVisible:
     text: "Morning routine.*"
     index: 1
+# And it is the SECOND run's routine. Wake up alone is 5m; Wake up + Brush
+# teeth is 8m (as `09-routine-recurrence.yaml` asserts). A re-run that left the
+# first run's routine in place would still be exactly one row — this is the
+# line that tells the two apart.
+- assertVisible: "Morning routine, 8m"
 - takeScreenshot: artifacts/40-after-second-onboarding
 
 # --- and the user's own to-do is still there -------------------------------
