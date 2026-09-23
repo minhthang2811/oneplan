@@ -1,0 +1,59 @@
+{
+  "configVersion": 0,
+  "apple": {
+    "copyright": "2026 Pupu",
+    "categories": ["PRODUCTIVITY", "LIFESTYLE"],
+    "info": {
+      "en-US": {
+        "title": "Pupu: Day Planner & Routines",
+        "subtitle": "Plan a day, not a timetable",
+        "keywords": [
+          "focus,timer,todo,task,habit,adhd,reminder,pomodoro,agenda,checklist,offline,private,calm,schedule"
+        ],
+        "promoText": "Free, works offline, and asks for nothing — no account, no sync, no tracking. Just a day with a shape.",
+        "description": "Pupu holds the shape of your day so your head does not have to.\n\nMost planners hand you a timetable and expect you to defend it. Pupu asks for less. Put the day into Anytime, Morning, Afternoon and Evening, give a few things a clock time if they need one, and leave the rest loose. The day gets an order without becoming a schedule you can fail.\n\nWHAT IS INSIDE\n• Time-of-day buckets — Morning, Afternoon, Evening, and Anytime for whatever fits\n• Steps inside an activity — break \"Morning routine\" into wake up, water, teeth, breakfast\n• Routines that come back — set them once and they arrive every day, in the same order\n• A focus ring — pick 15, 25, 45 minutes or an hour, and disappear into it\n• A to-do inbox — things with no date, sorted by how much they matter\n• Local reminders — a nudge a few minutes before, so the plan does the remembering\n• English and Tiếng Việt\n\nNO ACCOUNT, NO CLOUD, NO TRACKING\nPupu makes no network requests at all. There is nothing to sign up for, nothing syncs, and nothing about you leaves your iPhone. Your day is written to this device and read from this device — that is the whole architecture.\n\nDESIGNED TO BE CALM\nSoft colours, a typeface with some warmth in it, and motion that explains rather than decorates. Light and dark, following your phone.\n\nFree. No subscription, no in-app purchases, no ads.",
+        "releaseNotes": "First release.\n\nPupu plans a day in loose time-of-day buckets, keeps your routines, and runs a focus timer — all on your iPhone, with no account and no network.",
+        "privacyPolicyUrl": "https://minhthang2811.github.io/pupu/privacy-policy",
+        "supportUrl": "https://minhthang2811.github.io/pupu/support",
+        "marketingUrl": "https://minhthang2811.github.io/pupu/"
+      },
+      "vi": {
+        "title": "Pupu: Kế hoạch & thói quen",
+        "subtitle": "Ngày có nhịp, không lịch cứng",
+        "keywords": [
+          "tập trung,hẹn giờ,việc cần làm,thói quen,nhắc nhở,pomodoro,lịch,ngoại tuyến,riêng tư,adhd"
+        ],
+        "promoText": "Miễn phí, chạy ngoại tuyến, không đòi hỏi gì — không tài khoản, không đồng bộ, không theo dõi.",
+        "description": "Pupu giữ hình dáng một ngày của bạn, để đầu bạn không phải nhớ.\n\nPhần lớn ứng dụng lên kế hoạch đưa cho bạn một thời khoá biểu rồi bắt bạn bảo vệ nó. Pupu đòi hỏi ít hơn. Xếp ngày vào Bất kỳ, Buổi sáng, Buổi chiều và Buổi tối, gắn giờ cụ thể cho vài việc thật sự cần, phần còn lại cứ để lỏng. Ngày có thứ tự mà không biến thành một lịch trình bạn có thể thất bại.\n\nCÓ GÌ BÊN TRONG\n• Khung thời gian trong ngày — Sáng, Chiều, Tối, và Bất kỳ cho những gì hợp lúc nào cũng được\n• Bước nhỏ trong một hoạt động — chia \"Thói quen buổi sáng\" thành dậy, uống nước, đánh răng, ăn sáng\n• Thói quen lặp lại — đặt một lần, mỗi ngày chúng tự quay lại theo đúng thứ tự\n• Vòng tập trung — chọn 15, 25, 45 phút hoặc 1 tiếng rồi biến mất vào đó\n• Hộp việc cần làm — những việc chưa có ngày, xếp theo mức độ quan trọng\n• Nhắc nhở tại máy — báo trước vài phút, để kế hoạch nhớ thay bạn\n• Tiếng Việt và tiếng Anh\n\nKHÔNG TÀI KHOẢN, KHÔNG ĐÁM MÂY, KHÔNG THEO DÕI\nPupu không thực hiện bất kỳ yêu cầu mạng nào. Không có gì để đăng ký, không có gì đồng bộ, và không có thông tin nào về bạn rời khỏi iPhone. Ngày của bạn được ghi trên máy này và đọc từ máy này — đó là toàn bộ kiến trúc.\n\nĐƯỢC THIẾT KẾ ĐỂ BÌNH TĨNH\nMàu dịu, một bộ chữ có hơi ấm, và chuyển động để giải thích chứ không phải để trang trí. Sáng và tối, đi theo điện thoại của bạn.\n\nMiễn phí. Không thuê bao, không mua trong ứng dụng, không quảng cáo.",
+        "releaseNotes": "Bản phát hành đầu tiên.\n\nPupu sắp xếp một ngày theo các khung thời gian lỏng, giữ các thói quen của bạn, và chạy đồng hồ tập trung — tất cả trên iPhone, không tài khoản và không mạng.",
+        "privacyPolicyUrl": "https://minhthang2811.github.io/pupu/privacy-policy",
+        "supportUrl": "https://minhthang2811.github.io/pupu/support",
+        "marketingUrl": "https://minhthang2811.github.io/pupu/"
+      }
+    },
+    "advisory": {
+      "alcoholTobaccoOrDrugUseOrReferences": "NONE",
+      "contests": "NONE",
+      "gamblingSimulated": "NONE",
+      "medicalOrTreatmentInformation": "NONE",
+      "profanityOrCrudeHumor": "NONE",
+      "sexualContentGraphicAndNudity": "NONE",
+      "sexualContentOrNudity": "NONE",
+      "horrorOrFearThemes": "NONE",
+      "matureOrSuggestiveThemes": "NONE",
+      "violenceCartoonOrFantasy": "NONE",
+      "violenceRealistic": "NONE",
+      "violenceRealisticProlongedGraphicOrSadistic": "NONE",
+      "gambling": false,
+      "unrestrictedWebAccess": false,
+      "seventeenPlus": false
+    },
+    "review": {
+      "firstName": "REPLACE_ME",
+      "lastName": "REPLACE_ME",
+      "email": "minhthang281198@gmail.com",
+      "phone": "REPLACE_ME",
+      "notes": "No account or login is required — the app opens straight into onboarding and everything works offline. Pupu makes no network requests at all, so no test server or demo credentials are needed."
+    }
+  }
+}
