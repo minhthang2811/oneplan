@@ -359,7 +359,7 @@ there is no Xcode project to configure by hand — everything comes from
 ```bash
 npm install -g eas-cli
 eas login
-eas build:configure          # links the project to your Expo account, once
+eas init                     # links the project to your Expo account, once
 ```
 
 Then, for each release:
@@ -374,10 +374,29 @@ eas submit --platform ios --latest
 from app.json so the two cannot disagree. The marketing version (`version` in
 app.json) is still yours to set.
 
-Before the first submission you will need, on the Apple side: a paid Apple
-Developer account, an App Store Connect app record using the bundle identifier
-`com.minhthang.pupu`, and the usual store listing (screenshots, description,
-support URL, privacy policy URL).
+Before the first submission you will need a paid Apple Developer account. The
+first `eas submit` creates the App Store Connect record for `com.minhthang.pupu`
+under `submit.production.ios.appName` in eas.json — set because the fallback,
+app.json's `name`, is plain "Pupu", and when a name is taken EAS appends a
+random suffix such as "Pupu (3f9a1c)".
+
+The listing itself — both localizations, the age rating, the review notes and
+the screenshots in `store/screenshots/` — is
+[store.config.json](./store.config.json), pushed by EAS Metadata once that
+record exists:
+
+```bash
+APPLE_REVIEW_FIRST_NAME=… APPLE_REVIEW_LAST_NAME=… APPLE_REVIEW_PHONE=… eas metadata:push
+```
+
+The App Review contact comes from the environment because this repository is
+public: [store.config.js](./store.config.js) merges it in, and refuses to run
+without it. What EAS Metadata cannot set stays in App Store Connect: the App
+Privacy answers, price and availability, and picking the build to submit.
+
+`promptToConfigurePushNotifications` is off in eas.json because Pupu never
+registers for remote notifications — every reminder is scheduled on the
+device — so there is nothing for an APNs key to do.
 
 `ITSAppUsesNonExemptEncryption` is already declared `false` in app.json, which
 is what stops App Store Connect holding every build behind the export
