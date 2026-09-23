@@ -8,14 +8,16 @@ import { Button } from '../../src/components/Button';
 import { SettingsScreen, Section, RowItem, ChoiceRow } from '../../src/components/Settings';
 import { useTheme } from '../../src/theme/useTheme';
 import { radius, space } from '../../src/theme/tokens';
-import { useT, translate } from '../../src/i18n';
+import { useT, translate, type TKey } from '../../src/i18n';
 import { usePlanStore } from '../../src/store/usePlanStore';
 import {
   notificationPermission, requestNotificationPermission, remindableCount, reminderBody,
+  type NotificationPermission,
 } from '../../src/lib/notifications';
 import { formatDuration } from '../../src/lib/time';
 import { useNowMinutes } from '../../src/lib/useNowMinutes';
 import { haptic } from '../../src/lib/haptics';
+import type { SymbolViewProps } from 'expo-symbols';
 
 /**
  * The lead times worth offering.
@@ -33,6 +35,18 @@ function leadLabel(m: number): string {
     ? translate('reminderSettings.asItStarts')
     : translate('reminderSettings.before', { duration: formatDuration(m) });
 }
+
+/** How the permission row states each answer the OS can give. */
+const PERMISSION_LABEL: Record<NotificationPermission, TKey> = {
+  allowed: 'reminderSettings.allowed',
+  unasked: 'reminderSettings.notAsked',
+  denied: 'reminderSettings.notAllowed',
+};
+const PERMISSION_ICON: Record<NotificationPermission, SymbolViewProps['name']> = {
+  allowed: 'bell.badge',
+  unasked: 'bell',
+  denied: 'bell.slash',
+};
 
 export default function Reminders() {
   const { c, shadow } = useTheme();
@@ -55,8 +69,7 @@ export default function Reminders() {
    * It re-reads on every return to the foreground, because coming back from
    * Settings is exactly the moment the answer changes.
    */
-  const [permission, setPermission] =
-    useState<'allowed' | 'askable' | 'denied' | null>(null);
+  const [permission, setPermission] = useState<NotificationPermission | null>(null);
   // Everything except the permission row only needs "does it deliver?".
   const permitted = permission == null ? null : permission === 'allowed';
   const refresh = useCallback(() => {
@@ -108,14 +121,23 @@ export default function Reminders() {
     haptic.tick();
     if (!on) { setReminders(false); return; }
 
-    // Turning this on has to survive an earlier "Don't Allow": iOS answers the
-    // second request instantly with the stored denial and shows no prompt, so
-    // the only honest move is to leave the switch off and point at Settings.
-    const granted = await requestNotificationPermission();
-    // A refusal is re-READ rather than assumed: the request also reports false
-    // when it merely failed, and that leaves the permission still askable.
-    if (granted) setPermission('allowed'); else refresh();
-    if (!granted) {
+    if (await requestNotificationPermission()) {
+      setPermission('allowed');
+      setReminders(true);
+      return;
+    }
+
+    // WHAT HAPPENED IS RE-READ, NOT ASSUMED. The request also reports false
+    // when it merely failed (see `requestNotificationPermission`), and then
+    // nothing was refused: iOS still has no Notifications page for Pupu, so
+    // "Open Settings" would be the very dead end the permission row avoids.
+    const answer = await notificationPermission().catch(() => null);
+    setPermission(answer);
+    if (answer === 'denied') {
+      // Turning this on has to survive an earlier "Don't Allow": iOS answers
+      // the second request instantly with the stored denial and shows no
+      // prompt, so the only honest move is to leave the switch off and point
+      // at Settings — which, having been asked, now has a page for Pupu.
       Alert.alert(
         t('me.notifOffTitle'),
         t('me.notifOffBody'),
@@ -124,9 +146,11 @@ export default function Reminders() {
           { text: t('common.openSettings'), onPress: () => Linking.openSettings() },
         ]
       );
-      return;
+    } else {
+      // Still never asked, or unknown. Say so rather than leave a switch that
+      // silently refuses to move — the failure the request's own note warns of.
+      Alert.alert(t('reminderSettings.askFailed'));
     }
-    setReminders(true);
   };
 
   /** The exact copy the OS will deliver, so the screen cannot over-promise. */
@@ -148,8 +172,16 @@ export default function Reminders() {
         Previously the app silently switched `reminders` off when it found the
         permission revoked, which from the user's side looks exactly like a
         setting that will not stick. This is the sentence that was missing.
+
+        NOT WHEN iOS HAS NEVER BEEN ASKED. The scheduler records a revocation
+        for any "not allowed", and that includes a permission that was never
+        asked on THIS phone — app data restored onto a new iPhone brings the
+        switch's old "on" with it, but not the OS's answer. The banner would
+        then say it was "turned off in iOS Settings", which is untrue, and its
+        button would open a Settings page with no Pupu entry. The row below
+        reads "Not asked yet" instead, and the switch raises the real prompt.
       */}
-      {revokedAt != null && !enabled ? (
+      {revokedAt != null && !enabled && permission !== 'unasked' ? (
         <Animated.View
           entering={reduced ? undefined : FadeIn.duration(240)}
           exiting={reduced ? undefined : FadeOut.duration(160)}
@@ -187,26 +219,14 @@ export default function Reminders() {
         ONLY A REAL "NO" LEADS TO SETTINGS. Never-asked is not denied: iOS shows
         no Notifications page for an app that has not asked yet, so sending
         someone there lands them on the Settings root with nothing to change.
-        While the permission is still askable the switch below is the way in —
+        While iOS has never been asked the switch below is the way in —
         it raises the real prompt — and this row just says where things stand.
       */}
       <Section title={t('reminderSettings.notifications')}>
         <RowItem
-          icon={
-            permission === 'denied' ? 'bell.slash' : permission === 'askable' ? 'bell' : 'bell.badge'
-          }
+          icon={permission == null ? 'bell.badge' : PERMISSION_ICON[permission]}
           label={t('reminderSettings.systemPermission')}
-          value={
-            permission == null
-              ? t('reminderSettings.checking')
-              : t(
-                  permission === 'allowed'
-                    ? 'reminderSettings.allowed'
-                    : permission === 'askable'
-                      ? 'reminderSettings.notAsked'
-                      : 'reminderSettings.notAllowed'
-                )
-          }
+          value={t(permission == null ? 'reminderSettings.checking' : PERMISSION_LABEL[permission])}
           onPress={permission === 'denied' ? () => Linking.openSettings() : undefined}
         />
       </Section>

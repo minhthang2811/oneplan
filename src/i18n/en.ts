@@ -263,6 +263,7 @@ export const en = {
     allowed: 'Allowed',
     notAllowed: 'Not allowed',
     notAsked: 'Not asked yet',
+    askFailed: 'Pupu could not ask for permission just now. Try the switch again.',
     activityReminders: 'Activity reminders',
     nothingWithTimes:
       'Nothing is scheduled yet — reminders attach to activities that have a start time, and none of yours do.',
