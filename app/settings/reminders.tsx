@@ -11,7 +11,7 @@ import { radius, space } from '../../src/theme/tokens';
 import { useT, translate } from '../../src/i18n';
 import { usePlanStore } from '../../src/store/usePlanStore';
 import {
-  hasNotificationPermission, requestNotificationPermission, remindableCount, reminderBody,
+  notificationPermission, requestNotificationPermission, remindableCount, reminderBody,
 } from '../../src/lib/notifications';
 import { formatDuration } from '../../src/lib/time';
 import { useNowMinutes } from '../../src/lib/useNowMinutes';
@@ -55,13 +55,16 @@ export default function Reminders() {
    * It re-reads on every return to the foreground, because coming back from
    * Settings is exactly the moment the answer changes.
    */
-  const [permitted, setPermitted] = useState<boolean | null>(null);
+  const [permission, setPermission] =
+    useState<'allowed' | 'askable' | 'denied' | null>(null);
+  // Everything except the permission row only needs "does it deliver?".
+  const permitted = permission == null ? null : permission === 'allowed';
   const refresh = useCallback(() => {
     // `null` is UNKNOWN, not denied, and that distinction is the whole reason
-    // this has a catch: `hasNotificationPermission` throws rather than
-    // reporting `false` when it cannot ask, so that a native failure is never
-    // mistaken for the user having said no. The row reads "Checking…".
-    hasNotificationPermission().then(setPermitted, () => setPermitted(null));
+    // this has a catch: `notificationPermission` throws rather than reporting
+    // a denial when it cannot ask, so that a native failure is never mistaken
+    // for the user having said no. The row reads "Checking…".
+    notificationPermission().then(setPermission, () => setPermission(null));
   }, []);
 
   useEffect(() => {
@@ -109,7 +112,9 @@ export default function Reminders() {
     // second request instantly with the stored denial and shows no prompt, so
     // the only honest move is to leave the switch off and point at Settings.
     const granted = await requestNotificationPermission();
-    setPermitted(granted);
+    // A refusal is re-READ rather than assumed: the request also reports false
+    // when it merely failed, and that leaves the permission still askable.
+    if (granted) setPermission('allowed'); else refresh();
     if (!granted) {
       Alert.alert(
         t('me.notifOffTitle'),
@@ -178,17 +183,31 @@ export default function Reminders() {
         Settings while the app is not even running. Without this row the only
         symptom of that disagreement is a switch that refuses to move, which
         reads as the app being broken rather than as a permission being off.
+
+        ONLY A REAL "NO" LEADS TO SETTINGS. Never-asked is not denied: iOS shows
+        no Notifications page for an app that has not asked yet, so sending
+        someone there lands them on the Settings root with nothing to change.
+        While the permission is still askable the switch below is the way in —
+        it raises the real prompt — and this row just says where things stand.
       */}
       <Section title={t('reminderSettings.notifications')}>
         <RowItem
-          icon={permitted === false ? 'bell.slash' : 'bell.badge'}
+          icon={
+            permission === 'denied' ? 'bell.slash' : permission === 'askable' ? 'bell' : 'bell.badge'
+          }
           label={t('reminderSettings.systemPermission')}
           value={
-            permitted == null
+            permission == null
               ? t('reminderSettings.checking')
-              : t(permitted ? 'reminderSettings.allowed' : 'reminderSettings.notAllowed')
+              : t(
+                  permission === 'allowed'
+                    ? 'reminderSettings.allowed'
+                    : permission === 'askable'
+                      ? 'reminderSettings.notAsked'
+                      : 'reminderSettings.notAllowed'
+                )
           }
-          onPress={permitted === false ? () => Linking.openSettings() : undefined}
+          onPress={permission === 'denied' ? () => Linking.openSettings() : undefined}
         />
       </Section>
 
@@ -214,6 +233,12 @@ export default function Reminders() {
               // of what it controls: the label beside it is a SIBLING, not a
               // label, and iOS does not associate the two.
               accessibilityLabel={t('reminderSettings.activityReminders')}
+              // That same label is why the Maestro flow needs a handle: the
+              // switch and its row's text both read "Activity reminders", and
+              // a text selector lands on the words, which toggle nothing. The
+              // id is an accessibilityIdentifier — VoiceOver never announces
+              // it — so, like `launch-overlay`, it costs a user nothing.
+              testID="reminders-switch"
             />
           }
         />

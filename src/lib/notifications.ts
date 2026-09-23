@@ -135,6 +135,28 @@ export async function hasNotificationPermission(): Promise<boolean> {
 }
 
 /**
+ * The same reading, with "never asked" kept apart from "said no".
+ *
+ * `hasNotificationPermission` folds the two together, which is right for the
+ * scheduler — neither one delivers anything — and wrong for a screen that has
+ * to tell the user what to DO about it. Anyone who answered "Not right now" in
+ * onboarding has never been asked by iOS at all, and iOS gives an app no
+ * Notifications page in Settings until it has asked once. So a row that read
+ * "Not allowed" and opened Settings dropped them on the Settings ROOT, with no
+ * Pupu page and nothing to switch on — a dead end that looked like a way out.
+ *
+ * `canAskAgain` is the honest split: while it holds, the in-app prompt is still
+ * the way forward and Settings is not. Throws for the same reason
+ * `hasNotificationPermission` does, and display callers treat that the same
+ * way — as unknown, never as denied.
+ */
+export async function notificationPermission(): Promise<'allowed' | 'askable' | 'denied'> {
+  const status = await Notifications.getPermissionsAsync();
+  if (isAllowed(status)) return 'allowed';
+  return status.canAskAgain ? 'askable' : 'denied';
+}
+
+/**
  * Asks the OS. Once the user has said no, iOS resolves this instantly with the
  * old denial and shows nothing, so a `false` here means "send them to
  * Settings", not "try again".
