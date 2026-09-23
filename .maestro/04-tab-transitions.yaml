@@ -21,6 +21,9 @@ appId: com.minhthang.pupu
 name: Tab transitions — every pair
 ---
 - launchApp
+# A fresh install opens on onboarding, and Maestro does not run flows in
+# filename order — see `flows/onboard-if-needed.yaml`.
+- runFlow: flows/onboard-if-needed.yaml
 # `launchApp` returns before React has mounted, so the first tap can land on a
 # blank window and do nothing. Wait for the anchor tab to actually render.
 - assertVisible: "Next day"

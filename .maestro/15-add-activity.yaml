@@ -1,0 +1,121 @@
+# Adding an activity from the sheet — the app's main way in for new work.
+#
+# Every other flow edits, moves, completes or deletes something the SEED put
+# there. Nothing created a new activity through `add.tsx`, so the form sheet,
+# its chips, its step field and the save path were unguarded — and they are the
+# first thing a new user does after onboarding.
+#
+# THE WITNESS IS THE ROW, READ BACK OFF THE DAY. The sheet closing proves
+# nothing on its own (Cancel closes it too). The row's accessibilityLabel is
+# "{title}, {duration}", so asserting "Water the plants, 30m" proves the title,
+# the duration chip and the save all landed together, on the right date.
+#
+# IT GOES TO AN EMPTY DAY FIRST, two days ahead, for the same reason
+# `02-empty-day.yaml` does: the seeded day is long enough that a new Evening row
+# lands off-screen, and an off-screen virtualized row is not in the hierarchy at
+# all (README rule 9). On an empty day the new row is the only one there.
+#
+# THE DISCARD GUARD IS HALF OF THIS FLOW. A sheet with typed text asks before it
+# closes; a sheet without it does not. Both halves are asserted, because a
+# guard that always asks is as broken as one that never does.
+appId: com.minhthang.pupu
+name: Add activity — create one, and discard one
+---
+- launchApp:
+    clearState: true
+
+- assertVisible: "Pupu"
+- tapOn: "Get started"
+- tapOn: "Organise my day and time"
+- tapOn: "Continue.*"
+- tapOn: "Loose. Morning.*"
+- tapOn: "Continue.*"
+- tapOn: "Continue.*"
+- tapOn: "Continue.*"
+- tapOn: "Continue.*"
+- tapOn: "Not right now"
+- tapOn: "Start planning"
+
+- assertVisible: "Next day"
+- tapOn: "Next day"
+- tapOn: "Next day"
+- assertVisible: "Nothing here yet"
+
+# --- an empty sheet closes without asking ----------------------------------
+- tapOn:
+    text: "Add activity"
+    index: 0
+- assertVisible: "New activity"
+- tapOn: "Cancel"
+- assertNotVisible: "Discard activity"
+- assertVisible: "Nothing here yet"
+
+# --- a sheet with text in it asks first, and "Keep editing" keeps it -------
+- tapOn:
+    text: "Add activity"
+    index: 0
+- assertVisible: "New activity"
+# The title field is autoFocused, so typing lands in it with no tap.
+- inputText: "Water the plants"
+- tapOn: "Cancel"
+- assertVisible: "Discard activity"
+- takeScreenshot: artifacts/23-add-discard-prompt
+- tapOn: "Keep editing"
+- assertVisible: "New activity"
+
+# --- fill it in ------------------------------------------------------------
+# OPTIONAL, AND ONLY HERE-AND-BELOW. After the action sheet closes, iOS puts
+# the caret back in the title field but does not always bring the keyboard with
+# it, and a `hideKeyboard` with no keyboard to hide FAILS. The chips below are
+# reachable either way (`keyboardShouldPersistTaps="handled"`), so whether the
+# keyboard is up is not something this flow has an opinion about.
+- hideKeyboard:
+    optional: true
+- tapOn: "30m"
+- tapOn: "Evening"
+# en-US clocks put a NARROW no-break space before "PM" (ICU 72+), so `.` rather
+# than a literal space — a space would silently never match.
+- tapOn: "7:00.PM"
+- tapOn: "Health"
+
+# A step, through the dashed field at the bottom. It is found by its
+# placeholder, which iOS exposes as the field's hint text.
+- scrollUntilVisible:
+    element: "Break it into steps"
+    direction: DOWN
+- tapOn: "Break it into steps"
+- inputText: "Fill the can"
+- pressKey: Enter
+- assertVisible: "Fill the can"
+- hideKeyboard:
+    optional: true
+- takeScreenshot: artifacts/24-add-filled-in
+
+# The header's "Add", rather than the "Add activity" button at the foot of the
+# form: the Today screen behind the sheet has an "Add activity" button of its
+# own, and a text selector cannot tell the two apart.
+- tapOn: "Add"
+
+# --- read it back off the day ----------------------------------------------
+- assertNotVisible: "New activity"
+- assertVisible: "Water the plants, 30m"
+- assertNotVisible: "Nothing here yet"
+- takeScreenshot: artifacts/25-added-to-the-day
+
+# And the details made it too, not just the two in the row's label.
+- tapOn: "Water the plants, 30m"
+- assertVisible: "Steps"
+- assertVisible: "Fill the can.*"
+- assertVisible: "Time of day: Evening.*"
+- tapOn: "Back"
+
+# --- a discarded sheet leaves nothing behind -------------------------------
+- tapOn:
+    text: "Add activity"
+    index: 0
+- inputText: "Never mind this one"
+- tapOn: "Cancel"
+- tapOn: "Discard activity"
+- assertNotVisible: "New activity"
+- assertNotVisible: "Never mind this one.*"
+- assertVisible: "Water the plants, 30m"

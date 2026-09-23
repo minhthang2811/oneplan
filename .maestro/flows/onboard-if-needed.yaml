@@ -1,0 +1,44 @@
+# Gets a flow past onboarding when — and only when — the app is showing it.
+#
+# WHY THIS EXISTS. The flows that do not clear state used to assume the app had
+# already been onboarded by whichever flow ran before them. Maestro 2.10 does
+# NOT run a folder's flows in filename order, so on a fresh install those flows
+# could open to the welcome screen and fail on their first assertion with
+# nothing wrong in the app. They only ever passed on a simulator that happened
+# to be onboarded already. Running this first makes each one stand alone.
+#
+# IT WAITS BEFORE IT DECIDES. `launchApp` returns before React has mounted
+# (README rule 4), so asking "is onboarding visible?" straight away can be asked
+# of an empty window, answer no, and skip the walk. Waiting for either the
+# welcome button or the Today screen's chevron first means the question is only
+# asked once one of the two real answers is on screen.
+#
+# The walk is the defaults every other flow uses. Lives in `flows/` so that
+# `maestro test .maestro/` does not also run it as a test of its own.
+appId: com.minhthang.pupu
+---
+- extendedWaitUntil:
+    visible: "Get started|Next day"
+    timeout: 15000
+
+- runFlow:
+    when:
+      visible: "Get started"
+    commands:
+      - tapOn: "Get started"
+      - tapOn: "Organise my day and time"
+      - assertVisible:
+          text: "Organise my day and time"
+          selected: true
+      - tapOn: "Continue.*"
+      - tapOn: "Loose. Morning.*"
+      - assertVisible:
+          text: "Loose. Morning.*"
+          selected: true
+      - tapOn: "Continue.*"
+      - tapOn: "Continue.*"
+      - tapOn: "Continue.*"
+      - tapOn: "Continue.*"
+      - tapOn: "Not right now"
+      - tapOn: "Start planning"
+      - assertVisible: "Next day"

@@ -190,6 +190,14 @@ as much the point as the assertions.
 | `11-focus-dial` | The dial follows the activity it was opened for, and forgets it after |
 | `12-translated-chrome` | No English literals left on Routines or Reminders |
 | `13-routine-step-editing` | A step's wording and length change in the settings, the summary **and** the day |
+| `14-task-delete` | Deleting an activity from its own detail screen does not crash that screen |
+| `15-add-activity` | A new activity saved from the sheet lands on the day with its details, and the discard guard asks only when there is something to lose |
+| `16-todo-inbox` | Typing into a priority bucket twice gives two rows, not one run-on; the sheet's inbox mode files a to-do, not a dated activity |
+| `17-focus-controls` | Pause, Resume, + 1 min, and End — both "Keep going" and ending for real |
+| `18-appearance-and-layout` | Dark and light repaint every tab (status bar included — check the screenshots), the timeline layout draws, and both go back to their defaults |
+| `19-reminders-permission` | A never-asked permission reads "Not asked yet" rather than a dead-end "Not allowed", and turning reminders on goes through the real iOS prompt |
+| `20-run-onboarding-again` | Starting over keeps the user's own activities and leaves exactly one morning routine |
+| `21-deep-links` | A `pupu://` link to a deleted activity lands on "This activity is gone", not a crash |
 
 `09` is the one that guards the worst bug the app has had: a routine used to be
 written onto the plan only on the day it was configured, so day two opened to an
@@ -218,7 +226,8 @@ JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home PATH="$
 ```
 
 Or the whole suite, which on Maestro 2.10 runs them sequentially against one
-simulator and takes about five minutes:
+simulator and takes about half an hour — `03` alone waits out a real one-minute
+focus session:
 
 ```bash
 JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home PATH="$HOME/.maestro/bin:$PATH" maestro test .maestro/
@@ -253,8 +262,24 @@ xcrun simctl shutdown $D && xcrun simctl boot $D
 
 A `clearState: true` flow does **not** strand a development build, which is the
 thing you would expect it to do: the dev client finds the packager again on the
-next launch, so the seven flows that clear state run against Metro like any
-other.
+next launch, so the flows that clear state run against Metro like any other.
+
+**Before a store submission, run the suite against a Release build of a freshly
+generated `ios/`.** `ios/` is gitignored and EAS regenerates it for every build,
+so a local copy drifts silently: one left over from before the bundle-ID move
+still built `com.pupu.app`, without `expo-updates` — a binary that no longer
+exists, which the flows (pinned to `com.minhthang.pupu`) cannot even launch.
+Release is also the configuration that embeds the Hermes bundle instead of
+loading from Metro, which is what ships. Building for the simulator's own
+architecture only halves the build's disk footprint, which matters: a universal
+Release build ran a nearly full disk out of space mid-link.
+
+```bash
+npx expo prebuild --clean --platform ios   # LANG=en_US.UTF-8 if pod install crashes on encoding
+xcodebuild -workspace ios/Pupu.xcworkspace -scheme Pupu -configuration Release \
+  -sdk iphonesimulator -destination "id=<udid>" ONLY_ACTIVE_ARCH=YES ARCHS=arm64 build
+xcrun simctl install <udid> ~/Library/Developer/Xcode/DerivedData/Pupu-*/Build/Products/Release-iphonesimulator/Pupu.app
+```
 
 Rules learned the hard way, documented in the flows themselves:
 
@@ -274,8 +299,8 @@ Rules learned the hard way, documented in the flows themselves:
    `takeScreenshot` calls are what catch that class of regression.
 6. Those screenshots do **not** land in `./artifacts`. Despite the path in the
    flow, Maestro 2.x writes them to
-   `~/.maestro/tests/<run timestamp>/<flow name>/takeScreenshot/artifacts/`.
-   Worth knowing, because rule 5 makes them the only guard against a whole class
+   `~/.maestro/tests/<run timestamp>/<flow name>/takeScreenshot/artifacts/`
+   (or under `--test-output-dir`, when one is given). Worth knowing, because rule 5 makes them the only guard against a whole class
    of bug and a guard nobody can find is not a guard.
 7. **`checked:` does not work on iOS.** React Native maps
    `accessibilityState.checked` to an accessibility *value*, not to the boolean
@@ -297,6 +322,23 @@ Rules learned the hard way, documented in the flows themselves:
    `scrollUntilVisible` is the fix, and the day header is worth remembering
    too — it is the list's `ListHeaderComponent`, so scrolling down takes the
    Next/Previous day chevrons with it and they have to be scrolled back to.
+10. **Flows do not run in filename order**, so no flow may rely on another
+    having run first. Nine of them used to assume some earlier flow had already
+    walked onboarding; they passed on a warm simulator and failed on a fresh
+    install. Any flow that does not clear state now starts with
+    `runFlow: flows/onboard-if-needed.yaml`, which waits for the first real
+    screen and walks onboarding only if that screen is the welcome.
+11. **`hideKeyboard` fails when there is no keyboard to hide.** After an action
+    sheet closes, or after a compose row remounts on submit, iOS may leave the
+    caret without the keyboard. Where the keyboard is legitimately optional the
+    step is `optional: true`, and says why.
+12. **`openLink` is followed by iOS's own "Open in “Pupu”?" confirmation**, which
+    belongs to SpringBoard rather than the app — so it survives a relaunch and,
+    left unanswered, sits on top of every flow that runs after it. Tap "Open".
+    And two elements can share a label: the reminders switch and its row's text
+    are both "Activity reminders", and a plain text tap hits the words, which
+    toggle nothing. `rightOf:` should tell them apart by position and on
+    Maestro 2.10 resolves to nothing, so the switch carries a `testID`.
 
 ## Publishing to the App Store
 
@@ -333,7 +375,31 @@ is what stops App Store Connect holding every build behind the export
 compliance questionnaire. The app ships no cryptography of its own.
 
 For the privacy questionnaire: Pupu stores everything locally via MMKV,
-makes no network requests, and collects nothing — "Data Not Collected".
+makes no network requests, and collects nothing — "Data Not Collected". That
+sentence is true **only while over-the-air updates are off** — see below.
+
+### Over-the-air updates: decide before the first build
+
+`expo-updates` is installed, but `updates.url` is not set, so every build made
+today is generated with `EXUpdatesEnabled = false`: the binary can never take an
+OTA fix, and the only way to change that is another binary through review. The
+URL comes from the EAS project ID, so to have OTA in 1.0 run this **before**
+`eas build`:
+
+```bash
+eas init                  # writes extra.eas.projectId
+eas update:configure      # writes updates.url
+```
+
+Turning it on changes what the app does on the network. On every launch it asks
+Expo's update server whether there is a newer bundle — sending the platform,
+runtime version, channel and an install-scoped random `EAS-Client-ID`, and
+nothing from the plan. Three documents currently promise the opposite and have
+to change in the same commit: [docs/privacy-policy.md](./docs/privacy-policy.md)
+("makes no network requests of any kind"), the App Review notes in
+[store.config.json](./store.config.json) ("makes no network requests at all"),
+and the questionnaire line above. Whether "Data Not Collected" still holds is
+worth re-reading Apple's definition for, rather than assuming.
 
 ## Contributing
 

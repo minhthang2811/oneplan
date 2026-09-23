@@ -1,0 +1,72 @@
+# Reminders — turning them on later, through the real iOS permission prompt.
+#
+# Every other flow answers onboarding's reminders step with "Not right now" to
+# stay clear of the system dialog, so the path from "off" to "on" — the one a
+# user takes when they change their mind — had never run. It is also the only
+# place the app asks iOS for anything, which makes it the one most likely to
+# behave differently on a device than it did in development.
+#
+# THE PERMISSION IS RESET ON LAUNCH so the prompt genuinely appears. Maestro
+# grants everything by default, which would let this flow pass while skipping
+# the dialog entirely — the exact thing it exists to exercise.
+#
+# The witness that reminders are ON is the "When" section: it only renders
+# while the switch is on (see `settings/reminders.tsx`), and the Me row's
+# summary changes from "Off" to a lead time.
+appId: com.minhthang.pupu
+name: Reminders — turn them on, through the permission prompt
+---
+- launchApp:
+    clearState: true
+    permissions:
+      notifications: unset
+
+- assertVisible: "Pupu"
+- tapOn: "Get started"
+- tapOn: "Organise my day and time"
+- tapOn: "Continue.*"
+- tapOn: "Loose. Morning.*"
+- tapOn: "Continue.*"
+- tapOn: "Continue.*"
+- tapOn: "Continue.*"
+- tapOn: "Continue.*"
+- tapOn: "Not right now"
+- tapOn: "Start planning"
+
+- tapOn: "Me"
+- assertVisible: "Reminders.*"
+- tapOn: "Reminders"
+- assertVisible: "System permission.*"
+- assertNotVisible: "When"
+# NEVER ASKED IS NOT DENIED. This row used to read "Not allowed" here and open
+# iOS Settings when tapped — but iOS shows no Notifications page for an app
+# that has never asked, so it dropped the user on the Settings root with nothing
+# to switch on. It now says where things actually stand, and leaves the asking
+# to the switch below.
+- assertVisible: "Not asked yet"
+- assertNotVisible: "Not allowed"
+- takeScreenshot: artifacts/36-reminders-off
+
+# THE SWITCH, NOT THE WORDS. The row's label and the `Switch` both carry the
+# accessibility text "Activity reminders", and the label comes first in the
+# hierarchy — so a plain text tap lands on the words, which (like iOS Settings)
+# do not toggle anything, and the flow fails later with the switch still off.
+# `rightOf:` should have told them apart by position and, on Maestro 2.10,
+# resolved to nothing; the switch carries a `testID` instead (see
+# `settings/reminders.tsx`), which VoiceOver never announces.
+- tapOn:
+    id: "reminders-switch"
+# The system's own dialog. Its wording belongs to iOS, so only the button is
+# matched, and it is optional in case the permission was already granted.
+- tapOn:
+    text: "Allow"
+    optional: true
+
+- assertVisible: "When"
+- assertVisible: "Allowed"
+- assertVisible: "What you will see.*"
+- takeScreenshot: artifacts/37-reminders-on
+
+- tapOn: "Back"
+- assertNotVisible: "Reminders, Off"
+- takeScreenshot: artifacts/38-me-reminders-on

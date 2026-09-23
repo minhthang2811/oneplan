@@ -40,6 +40,11 @@ name: Launch — the overlay hands over
       id: "launch-overlay"
     timeout: 15000
 
+# Only now, and not straight after `launchApp`: the guard waits for the app to
+# render, which would let the overlay come and go before the first assertion
+# above ever looked for it.
+- runFlow: flows/onboard-if-needed.yaml
+
 # And the app behind it is the real, usable app rather than a husk: assert
 # something only Today renders, then actually drive it.
 - assertVisible: "Next day"

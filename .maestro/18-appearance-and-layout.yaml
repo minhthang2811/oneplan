@@ -1,0 +1,72 @@
+# Appearance and the day's layout — the two settings that repaint everything.
+#
+# Neither had a flow. Both change how EVERY screen draws, which makes them the
+# settings most likely to hide a blank-screen or unreadable-text regression
+# that no hierarchy assertion can see (README rule 5). So this flow is mostly
+# screenshots on purpose: dark Me, dark Today, dark Focus, and the Timeline
+# layout, each captured for a human to look at.
+#
+# LOOK AT THE STATUS BAR in 30–33. This flow is what caught the clock and
+# signal bars staying BLACK on the dark canvas after Dark was chosen in-app on a
+# phone set to Light — react-native-screens had resolved the bar's style once
+# and was never asked again (see `statusBarStyle` in `app/_layout.tsx`). The
+# hierarchy cannot see it; only the screenshots can.
+#
+# What it CAN assert: the choice is reflected back on the Me row ("Dark"), it
+# survives leaving and re-entering the screen, and "System" puts it back — the
+# last step matters because every later flow's screenshots assume the default.
+#
+# The theme is picked from the LIST rows, not the preview cards: the cards are
+# hidden from accessibility on purpose (see `ThemeCard`), so they are not in the
+# hierarchy. The rows' labels are "{label}. {hint}", hence the `.*`.
+appId: com.minhthang.pupu
+name: Appearance and layout — dark mode, and the timeline
+---
+- launchApp
+# A fresh install opens on onboarding, and Maestro does not run flows in
+# filename order — see `flows/onboard-if-needed.yaml`.
+- runFlow: flows/onboard-if-needed.yaml
+- assertVisible: "Today"
+
+# --- dark ------------------------------------------------------------------
+- tapOn: "Me"
+- assertVisible: "Run onboarding again"
+- tapOn: "Appearance"
+- assertVisible: "Pupu follows your device by default.*"
+- tapOn: "Dark.*"
+- takeScreenshot: artifacts/30-appearance-dark
+- tapOn: "Back"
+- assertVisible: "Run onboarding again"
+- takeScreenshot: artifacts/31-me-dark
+
+- tapOn:
+    point: "39%,93%"   # Today
+- assertVisible: "Next day"
+- takeScreenshot: artifacts/32-today-dark
+- tapOn:
+    point: "61%,93%"   # Focus
+- assertVisible: "Pick how long you want to disappear for"
+- takeScreenshot: artifacts/33-focus-dark
+
+# --- the timeline layout, from the day's own menu ---------------------------
+- tapOn:
+    point: "39%,93%"   # Today
+- tapOn: "Day options"
+- tapOn: "Timeline layout"
+- assertVisible: "Next day"
+- takeScreenshot: artifacts/34-timeline-dark
+
+# It is the same setting as Me's "Day layout" row, so Me must agree.
+- tapOn:
+    point: "83%,93%"   # Me
+- assertVisible: "Day layout.*"
+- tapOn: "Day layout"
+- tapOn: "Compact"
+
+# --- and back to System, so later flows see the default --------------------
+- tapOn: "Appearance"
+- tapOn: "Light.*"
+- takeScreenshot: artifacts/35-appearance-light
+- tapOn: "System.*"
+- tapOn: "Back"
+- assertVisible: "Run onboarding again"

@@ -30,6 +30,9 @@ appId: com.minhthang.pupu
 name: Tab bar — drag the liquid indicator
 ---
 - launchApp
+# A fresh install opens on onboarding, and Maestro does not run flows in
+# filename order — see `flows/onboard-if-needed.yaml`.
+- runFlow: flows/onboard-if-needed.yaml
 - assertVisible: "Next day"
 
 # --- drag right, across two tabs, and land on Me ---------------------------
