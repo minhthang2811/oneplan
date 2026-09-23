@@ -6,6 +6,9 @@ appId: com.minhthang.pupu
 name: Empty day — Pupu asleep
 ---
 - launchApp
+# A fresh install opens on onboarding, and Maestro does not run flows in
+# filename order — see `flows/onboard-if-needed.yaml`.
+- runFlow: flows/onboard-if-needed.yaml
 
 # Guard: if this run lands in onboarding, this flow has nothing to assert.
 - assertVisible: "Today"

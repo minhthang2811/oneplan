@@ -1,0 +1,93 @@
+# "Run onboarding again" — starting over without losing the plan.
+#
+# The confirmation promises "Your activities, appearance and reminder settings
+# are kept", and the Ready screen at the end of the re-run says "We have put a
+# starter day in for you". Both being true at once is a trap: if the second run
+# seeded the day again, or wrote the morning routine beside the one already
+# there, the user would come back to duplicates of everything. So the flow
+# makes the SAME kind of pick twice and asserts exactly ONE morning routine
+# afterwards, holding the second run's steps — and that an activity the user
+# created themselves before starting over is still on the day.
+#
+# It also crosses the one-way door in the other direction: onboarding is
+# guarded out once finished (`Stack.Protected`), and this is the only way back
+# in, so it proves the guard opens again when `onboarded` flips false.
+appId: com.minhthang.pupu
+name: Run onboarding again — keeps the plan, no duplicates
+---
+- launchApp:
+    clearState: true
+
+- assertVisible: "Pupu"
+- tapOn: "Get started"
+- tapOn: "Organise my day and time"
+- tapOn: "Continue.*"
+- tapOn: "Loose. Morning.*"
+- tapOn: "Continue.*"
+- assertVisible: "Wake up"
+- tapOn: "Wake up"
+- tapOn: "Continue.*"
+- tapOn: "Continue.*"
+- tapOn: "Continue.*"
+- tapOn: "Not right now"
+- tapOn: "Start planning"
+
+- assertVisible: "Morning routine.*"
+
+# Something of the user's own, through the compose row on To-do, so there is
+# data that did not come from onboarding to check survives it.
+- tapOn:
+    point: "16%,93%"   # To-do
+- tapOn: "Needs focus — add here"
+- inputText: "Book the dentist"
+- pressKey: Enter
+- assertVisible: "Book the dentist, 15m"
+# Optional: committing remounts the compose field (see `Compose` in
+# `todo.tsx`), which usually takes the keyboard down with it — and a
+# `hideKeyboard` with no keyboard to hide fails the flow.
+- hideKeyboard:
+    optional: true
+
+# --- start over -------------------------------------------------------------
+- tapOn:
+    point: "83%,93%"   # Me
+- tapOn: "Run onboarding again"
+- assertVisible: "Run onboarding again\\?"
+- tapOn: "Start over"
+- assertVisible: "No account, no sign-up.*"
+- takeScreenshot: artifacts/39-onboarding-again
+
+- tapOn: "Get started"
+- tapOn: "Organise my day and time"
+- tapOn: "Continue.*"
+- tapOn: "Loose. Morning.*"
+- tapOn: "Continue.*"
+- assertVisible: "Wake up"
+- tapOn: "Wake up"
+- tapOn: "Brush teeth"
+- tapOn: "Continue.*"
+- tapOn: "Continue.*"
+- tapOn: "Continue.*"
+- tapOn: "Not right now"
+- tapOn: "Start planning"
+
+# --- one morning routine, carrying the second run's picks ------------------
+- assertVisible: "Next day"
+- assertVisible:
+    text: "Morning routine.*"
+    index: 0
+- assertNotVisible:
+    text: "Morning routine.*"
+    index: 1
+# And it is the SECOND run's routine. Wake up alone is 5m; Wake up + Brush
+# teeth is 8m (as `09-routine-recurrence.yaml` asserts). A re-run that left the
+# first run's routine in place would still be exactly one row — this is the
+# line that tells the two apart.
+- assertVisible: "Morning routine, 8m"
+- takeScreenshot: artifacts/40-after-second-onboarding
+
+# --- and the user's own to-do is still there -------------------------------
+- tapOn:
+    point: "16%,93%"   # To-do
+- assertVisible: "Book the dentist, 15m"
+- assertVisible: "HIGH \\(1\\)"

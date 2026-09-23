@@ -308,6 +308,8 @@ export const vi: Dict = {
     checking: 'Đang kiểm tra…',
     allowed: 'Đã cho phép',
     notAllowed: 'Chưa cho phép',
+    notAsked: 'Chưa được hỏi',
+    askFailed: 'Pupu chưa hỏi được quyền thông báo lúc này. Hãy thử bật công tắc lần nữa.',
     activityReminders: 'Nhắc nhở hoạt động',
     nothingWithTimes:
       'Chưa có lời nhắc nào cả — lời nhắc chỉ gắn được vào việc có giờ bắt đầu, mà giờ thì chưa việc nào của bạn có giờ.',

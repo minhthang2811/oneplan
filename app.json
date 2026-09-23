@@ -14,7 +14,7 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.minhthang.pupu",
       "infoPlist": {
-        "_comment": "YES lets iOS derive the status bar style from the view controller's trait collection, so it follows light/dark with no JS. It is incompatible with expo-status-bar's imperative API, which is therefore not used.",
+        "_comment": "YES hands the status bar style to the view controllers, which react-native-screens drives from the root Stack's statusBarStyle option (set from the resolved theme in app/_layout.tsx). It is incompatible with expo-status-bar's imperative API, which is therefore not used.",
         "UIViewControllerBasedStatusBarAppearance": true
       },
       "config": {

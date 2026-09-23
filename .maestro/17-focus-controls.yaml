@@ -1,0 +1,66 @@
+# Focus, while it runs — pause, resume, add a minute, and ending early.
+#
+# `03-focus-celebration.yaml` runs a session to the end and `11-focus-dial.yaml`
+# sets one up, but nothing touched the tray's transport controls in between.
+# Those are the controls someone actually uses mid-session, and "End" is guarded
+# by a confirmation whose two buttons do opposite things — so both answers are
+# taken, in the order that makes each one provable:
+#
+#   "Keep going" first, and the session must still be RUNNING afterwards (the
+#   Pause control is the witness — it only exists while the clock runs).
+#   Then "End session", and the picker must come back.
+#
+# The confirm sheet's destructive button reads "End session", the same string
+# as the tray control's accessibilityLabel that opened it, so the second tap is
+# anchored BELOW the sheet's title to reach the sheet rather than the tray.
+#
+# Starts from a preset (15m) rather than the dial, so nothing here depends on
+# where the dial is drawn — that is `03`'s fragility to carry, not this flow's.
+appId: com.minhthang.pupu
+name: Focus — pause, resume, add a minute, end early
+---
+- launchApp
+# A fresh install opens on onboarding, and Maestro does not run flows in
+# filename order — see `flows/onboard-if-needed.yaml`.
+- runFlow: flows/onboard-if-needed.yaml
+- assertVisible: "Today"
+
+- tapOn: "Focus"
+- assertVisible: "Pick how long you want to disappear for"
+- tapOn: "15m"
+- tapOn: "Start.*"
+- assertVisible: "Pause"
+- assertVisible: "Add one minute"
+
+# --- pause, and the clock says so ------------------------------------------
+- tapOn: "Pause"
+- assertVisible: "Resume"
+- assertVisible: "PAUSED"
+- takeScreenshot: artifacts/28-focus-paused
+
+# --- resume -----------------------------------------------------------------
+- tapOn: "Resume"
+- assertVisible: "Pause"
+- assertNotVisible: "PAUSED"
+
+# --- + 1 min: a 15-minute session a few seconds in reads 15:xx afterwards ---
+# Without the extra minute it would read 14:xx, so this tells the two apart.
+- tapOn: "Add one minute"
+- assertVisible: "15:[0-5][0-9]"
+- takeScreenshot: artifacts/29-focus-plus-one
+
+# --- End, then change your mind --------------------------------------------
+- tapOn: "End session"
+- assertVisible: "End this focus session.*"
+- tapOn: "Keep going"
+- assertNotVisible: "End this focus session.*"
+- assertVisible: "Pause"
+
+# --- End, and mean it ------------------------------------------------------
+- tapOn: "End session"
+- assertVisible: "End this focus session.*"
+- tapOn:
+    text: "End session"
+    below: "End this focus session.*"
+- assertVisible: "Pick how long you want to disappear for"
+- assertNotVisible: "Pause"

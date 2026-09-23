@@ -1,0 +1,46 @@
+# Opening the app from a `pupu://` link — including one that is out of date.
+#
+# `app.json` registers the `pupu` scheme, so any of these routes can be reached
+# from outside the app, and not always with a link that still makes sense. The
+# one that matters most is a TASK link whose activity no longer exists: the
+# detail screen has a "This activity is gone" state for exactly that, and it is
+# the only way to reach it besides deleting the activity you are looking at
+# (which `14-task-delete.yaml` covers from the inside).
+#
+# Uses the scheme, not the bundle id — the maestro-mobile-testing skill's
+# Expo rule: `com.minhthang.pupu://` would silently open nothing.
+#
+# EVERY `openLink` IS FOLLOWED BY iOS'S OWN "Open in “Pupu”?" CONFIRMATION —
+# the same one a user gets tapping a `pupu://` link in Safari or Notes. It
+# belongs to SpringBoard, not the app, so it survives the app being relaunched:
+# left unanswered it sat on top of the NEXT three flows and failed each of them
+# on its first assertion. "Open" is optional only because iOS may stop asking
+# for a scheme it has already been told to trust.
+appId: com.minhthang.pupu
+name: Deep links — a stale task link, and a settings screen
+---
+- launchApp
+# A fresh install opens on onboarding, and Maestro does not run flows in
+# filename order — see `flows/onboard-if-needed.yaml`.
+- runFlow: flows/onboard-if-needed.yaml
+- assertVisible: "Today"
+
+# --- a task that does not exist --------------------------------------------
+- openLink: "pupu://task/does-not-exist"
+- tapOn:
+    text: "Open"
+    optional: true
+- assertVisible: "This activity is gone"
+- assertVisible: "It was deleted, or the link is out of date."
+- takeScreenshot: artifacts/41-deep-link-gone
+- tapOn: "Back to today"
+- assertVisible: "Next day"
+
+# --- a settings screen, straight in ----------------------------------------
+- openLink: "pupu://settings/appearance"
+- tapOn:
+    text: "Open"
+    optional: true
+- assertVisible: "Pupu follows your device by default.*"
+- tapOn: "Back"
+- assertVisible: "Today"

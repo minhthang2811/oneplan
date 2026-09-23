@@ -1,0 +1,80 @@
+# The To-do list — adding by typing into a bucket, and through the sheet.
+#
+# Every other flow only glances at this tab ("MEDIUM.*" to prove it rendered).
+# It has two ways in of its own and neither was covered:
+#
+# 1. The dashed COMPOSE row under each priority bucket. It is an uncontrolled
+#    input that commits from a ref and remounts itself to clear, both to fix
+#    real bugs (see `Compose` in `todo.tsx`): a fast typist losing the end of
+#    what they wrote, and a second entry appending to the first. Adding TWO in a
+#    row to the same bucket is what would catch either coming back — the second
+#    row must read "Pay the rent", not "Call the bankPay the rent".
+# 2. The "+" in the header, which opens the Add sheet in its inbox mode — a
+#    different title, no time-of-day, and a MEDIUM priority rather than a date.
+#
+# The compose field is found by its placeholder, which iOS exposes as the
+# field's hint text. The bucket headers are ALL-CAPS with a count in brackets,
+# and a selector is a full regex, so the brackets are escaped.
+appId: com.minhthang.pupu
+name: To-do — compose in a bucket, and add from the sheet
+---
+- launchApp:
+    clearState: true
+
+- assertVisible: "Pupu"
+- tapOn: "Get started"
+- tapOn: "Organise my day and time"
+- tapOn: "Continue.*"
+- tapOn: "Loose. Morning.*"
+- tapOn: "Continue.*"
+- tapOn: "Continue.*"
+- tapOn: "Continue.*"
+- tapOn: "Continue.*"
+- tapOn: "Not right now"
+- tapOn: "Start planning"
+
+- assertVisible: "Next day"
+- tapOn:
+    point: "16%,93%"   # To-do
+- assertVisible: "MEDIUM.*"
+
+# --- two in a row, typed into the HIGH bucket ------------------------------
+- tapOn: "Needs focus — add here"
+- inputText: "Call the bank"
+- pressKey: Enter
+- assertVisible: "Call the bank, 15m"
+- tapOn: "Needs focus — add here"
+- inputText: "Pay the rent"
+- pressKey: Enter
+- assertVisible: "Pay the rent, 15m"
+- assertNotVisible: "Call the bankPay.*"
+- assertVisible: "HIGH \\(2\\)"
+# Optional: committing remounts the compose field (see `Compose` in
+# `todo.tsx`), which usually takes the keyboard down with it — and a
+# `hideKeyboard` with no keyboard to hide fails the flow.
+- hideKeyboard:
+    optional: true
+- takeScreenshot: artifacts/26-todo-composed
+
+# --- the header's "+" opens the sheet in inbox mode ------------------------
+- scrollUntilVisible:
+    element: "Add to-do"
+    direction: UP
+- tapOn: "Add to-do"
+- assertVisible: "New to-do"
+# Inbox mode has no time of day to pick — the day's slots are not offered.
+- assertNotVisible: "Morning"
+- inputText: "Renew passport"
+- tapOn: "Add"
+- assertNotVisible: "New to-do"
+- scrollUntilVisible:
+    element: "Renew passport, 15m"
+    direction: DOWN
+- takeScreenshot: artifacts/27-todo-from-sheet
+
+# --- and it is a to-do, not something on today's plan ----------------------
+- tapOn:
+    point: "39%,93%"   # Today
+- assertVisible: "Next day"
+- assertNotVisible: "Renew passport.*"
+- assertNotVisible: "Call the bank.*"

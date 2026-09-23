@@ -20,6 +20,9 @@ appId: com.minhthang.pupu
 name: Focus — completion celebration
 ---
 - launchApp
+# A fresh install opens on onboarding, and Maestro does not run flows in
+# filename order — see `flows/onboard-if-needed.yaml`.
+- runFlow: flows/onboard-if-needed.yaml
 
 # ASSERT BEFORE THE FIRST TAP — rule 4 in the README, which this flow was the
 # one to ignore. `launchApp` returns before React has mounted, so a tap issued

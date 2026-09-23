@@ -128,7 +128,7 @@ export default function RootLayout() {
   // Store state comes from MMKV synchronously, so fonts are the only thing the
   // splash has to wait for. That is why there is no onboarding flash.
   const onboarded = usePlanStore((s) => s.onboarded);
-  const { c } = useTheme();
+  const { c, isDark } = useTheme();
 
   /**
    * TODAY'S ROUTINES ARE BUILT HERE, ONCE A DAY.
@@ -248,6 +248,24 @@ export default function RootLayout() {
             screenOptions={{
               headerShown: false,
               contentStyle: { backgroundColor: c.canvas },
+              /**
+               * THE STATUS BAR IS TOLD, NOT LEFT TO WORK IT OUT.
+               *
+               * Left at react-native-screens' default ('auto'), the style is
+               * resolved ONCE, from the trait collection at the moment iOS
+               * asks — into an explicit dark- or light-content answer — and
+               * nothing asks again when Appearance picks a theme other than
+               * the phone's. So choosing Dark in Appearance on a phone set to
+               * Light left a black clock and black signal bars on the dark
+               * canvas, on every screen, until some sheet happened to open
+               * and force a re-read. Deriving it from the same `isDark` the
+               * palette uses means a theme change re-renders this option, and
+               * a changed option is what makes react-native-screens refresh
+               * the bar. Declarative, so it keeps the Info.plist's
+               * view-controller-based appearance, not expo-status-bar's
+               * imperative API that setting rules out.
+               */
+              statusBarStyle: isDark ? 'light' : 'dark',
             }}
           >
             <Stack.Screen name="index" />

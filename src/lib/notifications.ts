@@ -131,7 +131,35 @@ function isAllowed(status: Notifications.NotificationPermissionsStatus): boolean
  * handle the rejection themselves and say "unknown", not "denied".
  */
 export async function hasNotificationPermission(): Promise<boolean> {
-  return isAllowed(await Notifications.getPermissionsAsync());
+  return (await notificationPermission()) === 'allowed';
+}
+
+export type NotificationPermission = 'allowed' | 'unasked' | 'denied';
+
+/**
+ * The same reading, with "never asked" kept apart from "said no".
+ *
+ * `hasNotificationPermission` folds the two together, which is right for the
+ * scheduler — neither one delivers anything — and wrong for a screen that has
+ * to tell the user what to DO about it. Anyone who answered "Not right now" in
+ * onboarding has never been asked by iOS at all, and iOS gives an app no
+ * Notifications page in Settings until it has asked once. So a row that read
+ * "Not allowed" and opened Settings dropped them on the Settings ROOT, with no
+ * Pupu page and nothing to switch on — a dead end that looked like a way out.
+ *
+ * THE SPLIT IS THE STATUS, NOT `canAskAgain`. That flag reads the same on iOS,
+ * but on Android 13+ it stays true after the FIRST refusal (the OS allows one
+ * more prompt), so it labelled someone who had already said no as never asked.
+ * `undetermined` is exactly "never asked" on both platforms, and Android below
+ * 13 never reports it at all — there notifications are simply on or off.
+ *
+ * Throws for the same reason `hasNotificationPermission` does, and display
+ * callers treat that the same way — as unknown, never as denied.
+ */
+export async function notificationPermission(): Promise<NotificationPermission> {
+  const status = await Notifications.getPermissionsAsync();
+  if (isAllowed(status)) return 'allowed';
+  return status.status === Notifications.PermissionStatus.UNDETERMINED ? 'unasked' : 'denied';
 }
 
 /**
