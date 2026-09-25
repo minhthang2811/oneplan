@@ -19,11 +19,10 @@ import { SlotCelebration, useSlotCompletion } from '../../src/components/SlotCel
 import { useTheme } from '../../src/theme/useTheme';
 import { radius, space } from '../../src/theme/tokens';
 import { useT } from '../../src/i18n';
-import { usePlanStore, tasksForDate, bySlot } from '../../src/store/usePlanStore';
+import { usePlanStore, tasksForDate, bySlot, overdueTasks } from '../../src/store/usePlanStore';
 import { dateKey, parseKey, isToday, weekdayLong, longDate, SLOT_ORDER, slotLabel, type Slot } from '../../src/lib/time';
 import { useNowMinutes } from '../../src/lib/useNowMinutes';
 import { useToday } from '../../src/lib/useTodayKey';
-import { isRoutineTask } from '../../src/data/routines';
 import { haptic } from '../../src/lib/haptics';
 import type { Task } from '../../src/store/types';
 
@@ -105,12 +104,10 @@ export default function Today() {
    * are excluded: today already has its own copy, so yesterday's leftover
    * morning is not outstanding work, it is yesterday's record.
    */
-  const overdue = useMemo(() => {
-    if (!isToday(key)) return [];
-    return tasks
-      .filter((t) => t.date != null && t.date < key && !t.done && !isRoutineTask(t.id))
-      .sort((a, b) => (a.date! < b.date! ? -1 : a.date! > b.date! ? 1 : 0));
-  }, [tasks, key]);
+  const overdue = useMemo(
+    () => (isToday(key) ? overdueTasks(tasks, key) : []),
+    [tasks, key]
+  );
 
   const [overdueOpen, setOverdueOpen] = useState(false);
 
@@ -230,8 +227,10 @@ export default function Today() {
     setOverdueOpen(false);
     // The button just took itself off screen, so VoiceOver's focus has
     // nowhere to land. Saying what happened is the only feedback a screen
-    // reader user would otherwise get, and it names the way back.
-    AccessibilityInfo.announceForAccessibility(t('today.notTodayDone'));
+    // reader user would otherwise get, and it names the way back. QUEUED,
+    // because VoiceOver re-focuses and reads the next row in the same beat,
+    // and an unqueued announcement is cut off by exactly that.
+    AccessibilityInfo.announceForAccessibilityWithOptions(t('today.notTodayDone'), { queue: true });
   }, [declineCarryOver, key, t]);
 
   /** Declined today, and there is still something to show — the menu's cue. */
@@ -469,8 +468,7 @@ function OverdueBanner({
 }: {
   count: number;
   open: boolean;
-  /** Absent on the empty-day branch, which has no list to expand INTO. */
-  onToggle?: () => void;
+  onToggle: () => void;
   onMoveAll: () => void;
   onDecline: () => void;
 }) {
@@ -498,20 +496,14 @@ function OverdueBanner({
       <Txt variant="captionStrong" tone="muted" style={{ flex: 1 }} numberOfLines={2}>
         {t('today.overdueCount', { count })}
       </Txt>
-      {onToggle ? (
-        <Icon
-          name={open ? 'chevron.up' : 'chevron.down'}
-          size={11}
-          color={c.inkFaint}
-          weight="bold"
-        />
-      ) : null}
+      <Icon
+        name={open ? 'chevron.up' : 'chevron.down'}
+        size={11}
+        color={c.inkFaint}
+        weight="bold"
+      />
     </>
   );
-
-  const summaryStyle = {
-    flexDirection: 'row' as const, alignItems: 'center' as const, gap: space.sm,
-  };
 
   return (
     <View style={{ paddingTop: space.lg, paddingBottom: space.sm }}>
@@ -522,21 +514,15 @@ function OverdueBanner({
           backgroundColor: c.surfaceSunken,
         }}
       >
-        {onToggle ? (
-          <Pressable
-            onPress={onToggle}
-            accessibilityRole="button"
-            accessibilityState={{ expanded: open }}
-            accessibilityLabel={t('today.overdueCount', { count })}
-            style={summaryStyle}
-          >
-            {summary}
-          </Pressable>
-        ) : (
-          <View accessible accessibilityLabel={t('today.overdueCount', { count })} style={summaryStyle}>
-            {summary}
-          </View>
-        )}
+        <Pressable
+          onPress={onToggle}
+          accessibilityRole="button"
+          accessibilityState={{ expanded: open }}
+          accessibilityLabel={t('today.overdueCount', { count })}
+          style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}
+        >
+          {summary}
+        </Pressable>
 
         {/* Wraps rather than truncates, for the same reason the summary above
             stacks: in Vietnamese the two labels together can outrun the card. */}

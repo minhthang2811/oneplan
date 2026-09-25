@@ -715,11 +715,7 @@ export const usePlanStore = create<PlanState>()(
        */
       carryOver: (date) =>
         set((s) => {
-          const moving = new Set(
-            s.tasks
-              .filter((t) => t.date != null && t.date < date && !t.done && !isRoutineTask(t.id))
-              .map((t) => t.id)
-          );
+          const moving = new Set(overdueTasks(s.tasks, date).map((t) => t.id));
           if (moving.size === 0) return {};
           return {
             tasks: s.tasks.map((t) => (moving.has(t.id) ? { ...t, date } : t)),
@@ -948,6 +944,24 @@ export const PRIORITY_ORDER: Priority[] = ['high', 'medium', 'low', 'todo'];
 
 export function tasksForDate(tasks: Task[], key: string): Task[] {
   return tasks.filter((t) => t.date === key);
+}
+
+/**
+ * Unfinished work filed under a day before `date`, oldest day first.
+ *
+ * ONE DEFINITION, because three things now have to agree on it: the count on
+ * Today's overdue group, the "Show N unfinished" item that brings the group
+ * back after a "Not today", and the set `carryOver` actually moves. Spelled out
+ * separately, a change to one would have the banner offer one set and the
+ * button move another.
+ *
+ * Routines are excluded: today already has its own copy, so yesterday's
+ * leftover morning is yesterday's record, not outstanding work.
+ */
+export function overdueTasks(tasks: Task[], date: string): Task[] {
+  return tasks
+    .filter((t) => t.date != null && t.date < date && !t.done && !isRoutineTask(t.id))
+    .sort((a, b) => (a.date! < b.date! ? -1 : a.date! > b.date! ? 1 : 0));
 }
 
 export function inboxTasks(tasks: Task[]): Task[] {
