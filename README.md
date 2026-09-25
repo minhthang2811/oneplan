@@ -198,6 +198,7 @@ as much the point as the assertions.
 | `19-reminders-permission` | A never-asked permission reads "Not asked yet" rather than a dead-end "Not allowed", and turning reminders on goes through the real iOS prompt |
 | `20-run-onboarding-again` | Starting over keeps the user's own activities and leaves exactly one morning routine |
 | `21-deep-links` | A `pupu://` link to a deleted activity lands on "This activity is gone", not a crash |
+| `22-decline-carry-over` | "Not today" hides unfinished work without moving it, survives a relaunch, and can be taken back from Day options |
 
 `09` is the one that guards the worst bug the app has had: a routine used to be
 written onto the plan only on the day it was configured, so day two opened to an

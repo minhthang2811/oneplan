@@ -136,6 +136,19 @@ export const vi: Dict = {
       other: 'Chuyển cả {count} việc sang hôm nay?',
     },
     moveAllBody: 'Vẫn giữ nguyên buổi trong ngày. Đổi ý lúc nào cũng được nhé.',
+    /**
+     * `Để mai tính` — "let's sort it out tomorrow" — is the idiom, not a
+     * rendering of "Not today". It is the same door the evening celebration
+     * leaves open ("mai tính tiếp nhé"), and it is literally what happens: the
+     * question comes back tomorrow.
+     */
+    notToday: 'Để mai tính',
+    notTodayHint: 'Việc nào vẫn nằm yên ở ngày của nó. Mai Pupu hỏi lại nhé.',
+    notTodayDone: 'Ẩn tới mai rồi nhé. Muốn xem lại thì mở “Xem ngày kiểu nào?”.',
+    showUnfinished: {
+      one: 'Xem lại {count} việc dang dở',
+      other: 'Xem lại {count} việc dang dở',
+    },
   },
 
   todo: {
