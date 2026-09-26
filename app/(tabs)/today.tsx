@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
-import { View, Pressable, ActionSheetIOS, Alert } from 'react-native';
+import { View, Pressable, ActionSheetIOS, Alert, AccessibilityInfo } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -19,11 +19,10 @@ import { SlotCelebration, useSlotCompletion } from '../../src/components/SlotCel
 import { useTheme } from '../../src/theme/useTheme';
 import { radius, space } from '../../src/theme/tokens';
 import { useT } from '../../src/i18n';
-import { usePlanStore, tasksForDate, bySlot } from '../../src/store/usePlanStore';
+import { usePlanStore, tasksForDate, bySlot, overdueTasks } from '../../src/store/usePlanStore';
 import { dateKey, parseKey, isToday, weekdayLong, longDate, SLOT_ORDER, slotLabel, type Slot } from '../../src/lib/time';
 import { useNowMinutes } from '../../src/lib/useNowMinutes';
 import { useToday } from '../../src/lib/useTodayKey';
-import { isRoutineTask } from '../../src/data/routines';
 import { haptic } from '../../src/lib/haptics';
 import type { Task } from '../../src/store/types';
 
@@ -48,6 +47,9 @@ export default function Today() {
   const toggleStep = usePlanStore((s) => s.toggleStep);
   const setLayout = usePlanStore((s) => s.setLayout);
   const carryOver = usePlanStore((s) => s.carryOver);
+  const carryOverDeclinedOn = usePlanStore((s) => s.carryOverDeclinedOn);
+  const declineCarryOver = usePlanStore((s) => s.declineCarryOver);
+  const reofferCarryOver = usePlanStore((s) => s.reofferCarryOver);
 
   const key = dateKey(date);
   // Live clock: "now" depends on time passing, not on the task list changing.
@@ -102,18 +104,24 @@ export default function Today() {
    * are excluded: today already has its own copy, so yesterday's leftover
    * morning is not outstanding work, it is yesterday's record.
    */
-  const overdue = useMemo(() => {
-    if (!isToday(key)) return [];
-    return tasks
-      .filter((t) => t.date != null && t.date < key && !t.done && !isRoutineTask(t.id))
-      .sort((a, b) => (a.date! < b.date! ? -1 : a.date! > b.date! ? 1 : 0));
-  }, [tasks, key]);
+  const overdue = useMemo(
+    () => (isToday(key) ? overdueTasks(tasks, key) : []),
+    [tasks, key]
+  );
 
   const [overdueOpen, setOverdueOpen] = useState(false);
 
+  /**
+   * Whether the group is on screen, which is not the same as whether there is
+   * anything overdue. After "Not today" the work is still outstanding — the
+   * day options menu still counts it and offers it back — it is just no longer
+   * being put in front of someone who has already answered.
+   */
+  const offerOverdue = overdue.length > 0 && carryOverDeclinedOn !== key;
+
   const rows = useMemo<Row[]>(() => {
     const out: Row[] = [];
-    if (overdue.length > 0) {
+    if (offerOverdue) {
       out.push({ kind: 'overdue', count: overdue.length });
       if (overdueOpen) for (const t of overdue) out.push({ kind: 'overdueTask', task: t });
     }
@@ -128,7 +136,7 @@ export default function Today() {
       else for (const t of inSlot) out.push({ kind: 'task', task: t, isNow: t.id === nowTaskId });
     }
     return out;
-  }, [dayTasks, collapsed, nowTaskId, overdue, overdueOpen]);
+  }, [dayTasks, collapsed, nowTaskId, overdue, offerOverdue, overdueOpen]);
 
   /**
    * Which time-of-day blocks are finished.
@@ -165,8 +173,11 @@ export default function Today() {
    * chevron, its rows and the Anytime drop target — and the sleeping dog is
    * the right picture for a day with nothing on it, not for a day with six
    * things waiting.
+   *
+   * Once they have been declined for today, though, the day IS empty as far as
+   * today is concerned, and the sleeping dog is the right picture again.
    */
-  const empty = dayTasks.length === 0 && overdue.length === 0;
+  const empty = dayTasks.length === 0 && !offerOverdue;
   useEffect(() => { if (empty) resetChrome(); }, [empty, resetChrome]);
 
   /**
@@ -202,29 +213,75 @@ export default function Today() {
     }
   }, [carryOver, key, t, isDark]);
 
+  /**
+   * DECLINING ASKS NOTHING, because it changes nothing: every activity stays
+   * on its own day. A confirmation in front of a no-op would make saying no
+   * cost more than saying yes, which is the imbalance this button exists to
+   * remove. It is undone from the day options menu rather than a toast — the
+   * app has no toast, and the menu is where the rest of "how this day is
+   * shown" already lives.
+   */
+  const declineOverdue = useCallback(() => {
+    haptic.tick();
+    declineCarryOver(key);
+    setOverdueOpen(false);
+    // The button just took itself off screen, so VoiceOver's focus has
+    // nowhere to land. Saying what happened is the only feedback a screen
+    // reader user would otherwise get, and it names the way back. QUEUED,
+    // because VoiceOver re-focuses and reads the next row in the same beat,
+    // and an unqueued announcement is cut off by exactly that.
+    AccessibilityInfo.announceForAccessibilityWithOptions(t('today.notTodayDone'), { queue: true });
+  }, [declineCarryOver, key, t]);
+
+  /** Declined today, and there is still something to show — the menu's cue. */
+  const canReoffer = overdue.length > 0 && !offerOverdue;
+
   const openMenu = useCallback(() => {
-    const options = [t('today.compactLayout'), t('today.timelineLayout'), t('common.cancel')];
+    /**
+     * A LIST OF ACTIONS, NOT FIXED INDICES, because the last one comes and
+     * goes: "Show unfinished" is only there after a "Not today". Matching the
+     * sheet's tap back to hard-coded positions would silently run the wrong
+     * action the day an option is added in front of it.
+     */
+    const actions: { label: string; run: () => void }[] = [
+      { label: t('today.compactLayout'), run: () => setLayout('compact') },
+      { label: t('today.timelineLayout'), run: () => setLayout('timeline') },
+    ];
+    if (canReoffer) {
+      actions.push({
+        label: t('today.showUnfinished', { count: overdue.length }),
+        // Opened, not just restored: someone who asked to SEE them should
+        // not have to find the chevron as well.
+        run: () => { reofferCarryOver(); setOverdueOpen(true); },
+      });
+    }
     if (process.env.EXPO_OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions(
         {
-          options,
-          cancelButtonIndex: 2,
+          options: [...actions.map((a) => a.label), t('common.cancel')],
+          cancelButtonIndex: actions.length,
           title: t('today.dayOptions'),
           userInterfaceStyle: isDark ? 'dark' : 'light',
         },
         (i) => {
-          if (i === 0) { haptic.tick(); setLayout('compact'); }
-          if (i === 1) { haptic.tick(); setLayout('timeline'); }
+          const action = actions[i];
+          if (action) { haptic.tick(); action.run(); }
         }
       );
     } else {
-      Alert.alert(t('today.dayOptions'), undefined, [
-        { text: t('today.compactLayout'), onPress: () => setLayout('compact') },
-        { text: t('today.timelineLayout'), onPress: () => setLayout('timeline') },
-        { text: t('common.cancel'), style: 'cancel' },
-      ]);
+      /**
+       * Android's alert shows AT MOST THREE buttons and drops the rest without
+       * a word. With the fourth option present, Cancel is the one to lose:
+       * the dialog is made dismissable by tapping outside it instead, which is
+       * how Android users close a dialog anyway.
+       */
+      const buttons = [
+        ...actions.map((a) => ({ text: a.label, onPress: a.run })),
+        { text: t('common.cancel'), style: 'cancel' as const },
+      ].slice(0, 3);
+      Alert.alert(t('today.dayOptions'), undefined, buttons, { cancelable: true });
     }
-  }, [setLayout, isDark, t]);
+  }, [setLayout, isDark, t, canReoffer, overdue.length, reofferCarryOver]);
 
   const header = (
     <DayHeader
@@ -282,6 +339,20 @@ export default function Today() {
               : `${r.kind}-${r.slot}`
         }
         getItemType={(r) => r.kind}
+        /**
+         * NO SCROLL ANCHORING, because the one thing ever inserted at the top
+         * of this list is the thing the user is meant to see.
+         *
+         * FlashList v2 anchors on the first visible row by default and scrolls
+         * to keep it still when rows are inserted above it — right for a chat,
+         * wrong here. At the very top of the day that row is the Anytime
+         * section, so the overdue group arriving above it (paging to today, or
+         * "Show unfinished" from the menu) pushed the view down by the group's
+         * own height: the group landed off-screen, above a header now half
+         * under the status bar. A day's plan is short and replaced wholesale on
+         * every page, so there is no position worth holding across a change.
+         */
+        maintainVisibleContentPosition={{ disabled: true }}
         ListHeaderComponent={<View style={{ paddingTop: insets.top + space.sm }}>{header}</View>}
         contentContainerStyle={{
           paddingHorizontal: space.lg,
@@ -297,6 +368,7 @@ export default function Today() {
                 open={overdueOpen}
                 onToggle={() => { haptic.tick(); setOverdueOpen((o) => !o); }}
                 onMoveAll={() => confirmCarryOver(item.count)}
+                onDecline={declineOverdue}
               />
             );
           }
@@ -381,15 +453,24 @@ export default function Today() {
  * COLLAPSED BY DEFAULT, because it sits above today's plan and the plan is what
  * the user came for. Opening it lists the activities as ordinary rows, so each
  * one can still be ticked, opened or deleted individually.
+ *
+ * ── AND IT TAKES NO FOR AN ANSWER ─────────────────────────────────────────
+ * One action made the banner a question with a single permitted reply. Every
+ * planner in the reference class that does this well lets the user decline:
+ * Microsoft To Do only ever SUGGESTS yesterday's leftovers and forgets them if
+ * you do not pick them; Sunsama's rollover can be switched to a prompt; Tiimo's
+ * review asks "anything you want to move?", which has "no" as an answer.
+ * "Not today" sits beside "Move to today" as a peer — same size, quieter fill —
+ * because a decline that is harder to reach than the accept is not a choice.
  */
 function OverdueBanner({
-  count, open, onToggle, onMoveAll,
+  count, open, onToggle, onMoveAll, onDecline,
 }: {
   count: number;
   open: boolean;
-  /** Absent on the empty-day branch, which has no list to expand INTO. */
-  onToggle?: () => void;
+  onToggle: () => void;
   onMoveAll: () => void;
+  onDecline: () => void;
 }) {
   const { c } = useTheme();
   const { t } = useT();
@@ -415,20 +496,14 @@ function OverdueBanner({
       <Txt variant="captionStrong" tone="muted" style={{ flex: 1 }} numberOfLines={2}>
         {t('today.overdueCount', { count })}
       </Txt>
-      {onToggle ? (
-        <Icon
-          name={open ? 'chevron.up' : 'chevron.down'}
-          size={11}
-          color={c.inkFaint}
-          weight="bold"
-        />
-      ) : null}
+      <Icon
+        name={open ? 'chevron.up' : 'chevron.down'}
+        size={11}
+        color={c.inkFaint}
+        weight="bold"
+      />
     </>
   );
-
-  const summaryStyle = {
-    flexDirection: 'row' as const, alignItems: 'center' as const, gap: space.sm,
-  };
 
   return (
     <View style={{ paddingTop: space.lg, paddingBottom: space.sm }}>
@@ -439,34 +514,43 @@ function OverdueBanner({
           backgroundColor: c.surfaceSunken,
         }}
       >
-        {onToggle ? (
-          <Pressable
-            onPress={onToggle}
-            accessibilityRole="button"
-            accessibilityState={{ expanded: open }}
-            accessibilityLabel={t('today.overdueCount', { count })}
-            style={summaryStyle}
-          >
-            {summary}
-          </Pressable>
-        ) : (
-          <View accessible accessibilityLabel={t('today.overdueCount', { count })} style={summaryStyle}>
-            {summary}
-          </View>
-        )}
-
-        <PressScale
-          onPress={onMoveAll}
+        <Pressable
+          onPress={onToggle}
           accessibilityRole="button"
-          accessibilityLabel={t('today.moveToToday')}
-          style={{
-            alignSelf: 'flex-start',
-            paddingVertical: 8, paddingHorizontal: space.base,
-            borderRadius: radius.pill, backgroundColor: c.solid,
-          }}
+          accessibilityState={{ expanded: open }}
+          accessibilityLabel={t('today.overdueCount', { count })}
+          style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}
         >
-          <Txt variant="micro" color={c.onSolid}>{t('today.moveToToday')}</Txt>
-        </PressScale>
+          {summary}
+        </Pressable>
+
+        {/* Wraps rather than truncates, for the same reason the summary above
+            stacks: in Vietnamese the two labels together can outrun the card. */}
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
+          <PressScale
+            onPress={onMoveAll}
+            accessibilityRole="button"
+            accessibilityLabel={t('today.moveToToday')}
+            style={{
+              paddingVertical: 8, paddingHorizontal: space.base,
+              borderRadius: radius.pill, backgroundColor: c.solid,
+            }}
+          >
+            <Txt variant="micro" color={c.onSolid}>{t('today.moveToToday')}</Txt>
+          </PressScale>
+          <PressScale
+            onPress={onDecline}
+            accessibilityRole="button"
+            accessibilityLabel={t('today.notToday')}
+            accessibilityHint={t('today.notTodayHint')}
+            style={{
+              paddingVertical: 8, paddingHorizontal: space.base,
+              borderRadius: radius.pill, backgroundColor: c.surface,
+            }}
+          >
+            <Txt variant="micro" color={c.ink}>{t('today.notToday')}</Txt>
+          </PressScale>
+        </View>
       </View>
     </View>
   );

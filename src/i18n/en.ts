@@ -101,6 +101,20 @@ export const en = {
       other: 'Move all {count} to today?',
     },
     moveAllBody: 'They keep their time of day. You can move any of them back.',
+    /**
+     * Declining the carry-over, in the user's own voice. "Not today" rather
+     * than "Dismiss" or "Ignore": it says exactly what happens — the question
+     * comes back tomorrow — and it does not tell anyone they are ignoring
+     * their own work.
+     */
+    notToday: 'Not today',
+    notTodayHint: 'Leaves them on their own days. Pupu will ask again tomorrow.',
+    /** Spoken by VoiceOver once the group has gone, so the way back is said aloud. */
+    notTodayDone: 'Hidden until tomorrow. Day options can bring them back.',
+    showUnfinished: {
+      one: 'Show {count} unfinished activity',
+      other: 'Show {count} unfinished activities',
+    },
   },
 
   todo: {

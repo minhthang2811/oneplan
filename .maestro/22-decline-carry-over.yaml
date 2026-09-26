@@ -1,0 +1,101 @@
+# Unfinished work from an earlier day can be DECLINED, not only moved.
+#
+# The overdue group used to offer one answer — "Move to today" — so the only
+# way to clear it was to agree with it. "Not today" leaves every activity on
+# its own day and stops the group asking until tomorrow; the day options menu
+# brings it back. This flow proves all three halves of that:
+#
+#   1. DECLINING TOUCHES NO TASK. The activity is read back off the day it was
+#      planned for, after the decline, not assumed to still be there.
+#   2. THE DECLINE SURVIVES A RELAUNCH. It is persisted, because a decision made
+#      at nine should not be undone by iOS killing the app at ten.
+#   3. IT CAN BE TAKEN BACK, and then the original action still works.
+#
+# Maestro cannot move the device clock, so "comes back tomorrow" is not
+# provable here. That half is a string comparison — `carryOverDeclinedOn` is a
+# date, and the group shows whenever it is not today's.
+#
+# THE ACTIVITY IS MADE ON YESTERDAY, through the Today screen itself: page back,
+# add, page forward. It is the only way an activity becomes overdue without
+# waiting a day, and it needs a clean store — the seed is dated today, so after
+# `clearState` the count is exactly one.
+appId: com.minhthang.pupu
+name: Unfinished work — decline it for today, take it back, then move it
+---
+- launchApp:
+    clearState: true
+- runFlow: flows/onboard-if-needed.yaml
+
+# --- make something overdue ---------------------------------------------------
+- tapOn: "Previous day"
+- assertVisible: "Nothing here yet"
+- tapOn:
+    text: "Add activity"
+    index: 0
+- assertVisible: "New activity"
+# The title field is autoFocused, so typing lands in it with no tap.
+- inputText: "Return the library books"
+- hideKeyboard:
+    optional: true
+- tapOn: "Add"
+- assertVisible: "Return the library books, 15m"
+
+- tapOn: "Next day"
+- assertVisible: "1 unfinished from an earlier day"
+- assertVisible: "Not today"
+- takeScreenshot: artifacts/42-overdue-offered
+
+# --- decline it ---------------------------------------------------------------
+- tapOn: "Not today"
+- assertNotVisible: "1 unfinished from an earlier day"
+- assertNotVisible: "Not today"
+# Today's own plan is still there — the decline hid ONE group, not the day.
+- assertVisible: "Plan your day, 10m"
+- takeScreenshot: artifacts/43-overdue-declined
+
+# Declining moved nothing: the activity is still on the day it was planned for.
+- tapOn: "Previous day"
+- assertVisible: "Return the library books, 15m"
+- tapOn: "Next day"
+- assertNotVisible: "1 unfinished from an earlier day"
+
+# --- and it survives a relaunch -------------------------------------------------
+- stopApp
+- launchApp
+# README rule 4: assert the first screen before trusting a negative check, or
+# `assertNotVisible` passes against a window React has not drawn into yet.
+- assertVisible: "Plan your day, 10m"
+- assertNotVisible: "1 unfinished from an earlier day"
+
+# --- take it back ---------------------------------------------------------------
+- tapOn: "Day options"
+- tapOn: "Show 1 unfinished activity"
+- assertVisible: "1 unfinished from an earlier day"
+# Brought back OPEN, so the row itself is listed without finding the chevron.
+- assertVisible: "Return the library books, 15m"
+- takeScreenshot: artifacts/44-overdue-reoffered
+
+# --- and moving it still works --------------------------------------------------
+# The sheet's option shares its label with the banner's button, which stays in
+# the hierarchy behind the sheet. The sheet's is the one below its own title.
+- tapOn: "Move to today"
+- tapOn:
+    text: "Move to today"
+    below: "Move 1 activity to today?"
+- assertNotVisible: "1 unfinished from an earlier day"
+- assertVisible: "Return the library books, 15m"
+- tapOn: "Previous day"
+- assertVisible: "Nothing here yet"
+- tapOn: "Next day"
+
+# --- leave today as the seed made it --------------------------------------------
+# Flows that do not clear state inherit this one's, and an extra Anytime row at
+# the top of today pushes every seeded row down by one (README rule 9).
+- tapOn: "Return the library books, 15m"
+- assertVisible: "Steps"
+- tapOn: "Delete activity"
+- tapOn:
+    text: "Delete activity"
+    below: "Return the library books"
+- assertVisible: "Plan your day, 10m"
+- assertNotVisible: "Return the library books.*"

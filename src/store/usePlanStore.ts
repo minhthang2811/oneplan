@@ -49,6 +49,20 @@ interface PlanState {
    * preference the user set.
    */
   routinesBuiltFor: Record<RoutineSlot, string | null>;
+  /**
+   * The day the user said "not today" to carrying unfinished work over, or null.
+   *
+   * A DATE, NOT A LIST OF TASKS. Declining answers the question Today asked
+   * this morning — "move these here?" — and the answer is scoped to the day it
+   * was given. Tomorrow is a different day with a different plan, so whatever
+   * is still outstanding is offered again, and nothing has to clear this at
+   * midnight: the stored date simply stops matching.
+   *
+   * Persisted because a decision made at nine should survive the OS killing
+   * the app at ten. Top-level for the same reason as `routinesBuiltFor`: it is
+   * a record of something the user did, not a standing preference.
+   */
+  carryOverDeclinedOn: string | null;
 
   addTask: (t: NewTask) => string;
   updateTask: (id: string, patch: Partial<Task>) => void;
@@ -88,6 +102,10 @@ interface PlanState {
   ensureToday: () => void;
   /** Moves every unfinished, non-routine activity from a past day onto `date`. */
   carryOver: (date: string) => void;
+  /** Leaves unfinished work on its own days and stops offering it on `date`. */
+  declineCarryOver: (date: string) => void;
+  /** Takes back a "not today", so the unfinished work is offered again. */
+  reofferCarryOver: () => void;
 
   startFocus: (totalSeconds: number, taskId?: string | null) => void;
   pauseFocus: () => void;
@@ -350,6 +368,7 @@ export const usePlanStore = create<PlanState>()(
       layout: 'compact',
       remindersRevokedAt: null,
       routinesBuiltFor: emptyBuilt(),
+      carryOverDeclinedOn: null,
 
       addTask: (t) => {
         const id = newId();
@@ -696,16 +715,29 @@ export const usePlanStore = create<PlanState>()(
        */
       carryOver: (date) =>
         set((s) => {
-          const moving = new Set(
-            s.tasks
-              .filter((t) => t.date != null && t.date < date && !t.done && !isRoutineTask(t.id))
-              .map((t) => t.id)
-          );
+          const moving = new Set(overdueTasks(s.tasks, date).map((t) => t.id));
           if (moving.size === 0) return {};
           return {
             tasks: s.tasks.map((t) => (moving.has(t.id) ? { ...t, date } : t)),
           };
         }),
+
+      /**
+       * "NOT TODAY" — THE OTHER HALF OF THE QUESTION.
+       *
+       * The overdue group used to offer exactly one answer, so the only way to
+       * make it go away was to agree with it. Someone whose day is already full,
+       * or who has not decided what to do about last week yet, had a banner
+       * above their plan that could only be silenced by piling more onto today.
+       *
+       * Declining TOUCHES NO TASK. Every activity stays on the day it was
+       * planned for, still reachable by paging back, still openable and
+       * movable one at a time — this only records that Today should stop
+       * asking. See `carryOverDeclinedOn` for why it is a date.
+       */
+      declineCarryOver: (date) => set({ carryOverDeclinedOn: date }),
+
+      reofferCarryOver: () => set({ carryOverDeclinedOn: null }),
 
       startFocus: (totalSeconds, taskId = null) =>
         set({
@@ -892,6 +924,7 @@ export const usePlanStore = create<PlanState>()(
         layout: s.layout,
         remindersRevokedAt: s.remindersRevokedAt,
         routinesBuiltFor: s.routinesBuiltFor,
+        carryOverDeclinedOn: s.carryOverDeclinedOn,
       }),
     }
   )
@@ -911,6 +944,24 @@ export const PRIORITY_ORDER: Priority[] = ['high', 'medium', 'low', 'todo'];
 
 export function tasksForDate(tasks: Task[], key: string): Task[] {
   return tasks.filter((t) => t.date === key);
+}
+
+/**
+ * Unfinished work filed under a day before `date`, oldest day first.
+ *
+ * ONE DEFINITION, because three things now have to agree on it: the count on
+ * Today's overdue group, the "Show N unfinished" item that brings the group
+ * back after a "Not today", and the set `carryOver` actually moves. Spelled out
+ * separately, a change to one would have the banner offer one set and the
+ * button move another.
+ *
+ * Routines are excluded: today already has its own copy, so yesterday's
+ * leftover morning is yesterday's record, not outstanding work.
+ */
+export function overdueTasks(tasks: Task[], date: string): Task[] {
+  return tasks
+    .filter((t) => t.date != null && t.date < date && !t.done && !isRoutineTask(t.id))
+    .sort((a, b) => (a.date! < b.date! ? -1 : a.date! > b.date! ? 1 : 0));
 }
 
 export function inboxTasks(tasks: Task[]): Task[] {

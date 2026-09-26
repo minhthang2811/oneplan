@@ -932,6 +932,40 @@ header with a reschedule action, not a modal between someone and their day.
 Routines are excluded, because today already has its own copy: yesterday's
 half-finished morning is yesterday's record, not outstanding work.
 
+### It takes no for an answer
+
+With one button, the group was a question with one permitted reply: the only way
+to make it go away was to agree with it, which on a full day means piling more
+onto a plan that is already too long. So **"Not today"** sits beside **"Move to
+today"** as a peer, the same size with a quieter fill. If saying no is harder to
+reach than saying yes, it is not a real choice.
+
+The reference class agrees on the shape of a decline. Microsoft To Do only ever
+*suggests* yesterday's leftovers: you decline by not picking them, they stay in
+their list, and they are suggested again tomorrow. Sunsama's rollover can be
+switched from automatic to a prompt, so incomplete tasks are offered rather than
+imposed. Todoist and TickTick offer only a bulk reschedule, and that is the gap
+this closes.
+
+- **Declining touches no task.** Every activity stays on the day it was planned
+  for, still reachable by paging back and still movable one at a time from its
+  detail screen. The store records only that Today should stop asking.
+- **It is scoped to a date, not a list of tasks.** `carryOverDeclinedOn` holds
+  the day the answer was given. Tomorrow is a different day, so whatever is
+  still outstanding is offered again, and nothing has to clear the flag at
+  midnight: the stored date simply stops matching. This is the Microsoft To Do
+  behaviour, and it is the one that keeps the section above true. A permanent
+  dismissal would be a second way to quietly lose track of things.
+- **It asks nothing, because it changes nothing.** A confirmation in front of a
+  no-op would make no cost more than yes. "Move to today" still confirms,
+  because it relocates an unbounded set with no undo.
+- **It can be taken back.** The day options menu gains **"Show N unfinished"**
+  while a decline is in force, and it brings the group back open. There is no
+  toast to undo from, and the menu is already where "how this day is shown"
+  lives. VoiceOver announces the way back when the group disappears, because the
+  button that was just pressed has removed itself and left focus with nowhere
+  to land.
+
 ## An activity can be changed
 
 Title, duration, time of day, start time, tag and day were chosen once, in the
