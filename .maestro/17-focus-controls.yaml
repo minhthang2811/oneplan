@@ -27,8 +27,16 @@ name: Focus — pause, resume, add a minute, end early
 
 - tapOn: "Focus"
 - assertVisible: "Pick how long you want to disappear for"
-- tapOn: "15m"
-- tapOn: "Start.*"
+# "15m" IS TWO ELEMENTS while the dial reads 15: the preset chip (label "15m")
+# and the dial itself, an `adjustable` labelled "Focus length" whose VALUE is
+# "15m" — and Maestro matches values too. It picked the dial and tapped its
+# centre, where the angle-to-minutes maths has no angle, so the session started
+# at ONE minute and "15:xx" below could never appear. The chips are the ones
+# below the caption; the dial is above it.
+- tapOn:
+    text: "15m"
+    below: "Pick how long you want to disappear for"
+- tapOn: "Start 15m focus"
 - assertVisible: "Pause"
 - assertVisible: "Add one minute"
 

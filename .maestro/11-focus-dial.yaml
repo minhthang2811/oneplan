@@ -50,6 +50,16 @@ name: Focus dial — follows the activity it was opened for
 # "Start work" is the seeded 45-minute afternoon activity, and 45 is one of the
 # four presets, which is what makes this assertable at all.
 - tapOn: "Today"
+# SCROLLED CLEAR OF THE TAB BAR FIRST. On a 6.3" phone (iPhone 17 Pro) this
+# row rests UNDER the floating tab bar, and Maestro calls that "visible" — it
+# checks the window bounds, not what is drawn on top. The tap then goes to the
+# row's centre, x = 50%, which is the Focus tab's left edge: the flow bounced
+# straight back to Focus and read like a tab switch that never happened.
+# `centerElement` is what moves it; a plain `scrollUntilVisible` stops at once.
+- scrollUntilVisible:
+    element: "Start work, 45m"
+    direction: DOWN
+    centerElement: true
 - tapOn: "Start work, 45m"
 - assertVisible: "Steps"
 - tapOn: "Focus"

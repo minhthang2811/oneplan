@@ -40,7 +40,7 @@ name: Focus — completion celebration
 # "MINUTE" or "MINUTES" depending on the value.
 - assertVisible: "MINUTE.*"
 
-# The button's accessibilityLabel is "Start 1 minute focus", not "Start".
+# The button's accessibilityLabel is "Start 1m focus", not "Start".
 - tapOn: "Start.*"
 # Running state: the transport controls are the proof it actually started.
 # Transport controls carry accessibilityLabels, not their visible glyphs:

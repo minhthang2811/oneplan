@@ -74,7 +74,16 @@ name: Routine steps — rename one, and relength it
 - tapOn: "Step name"
 - eraseText
 - inputText: "Shower and shave"
-- hideKeyboard
+# THE KEYBOARD GOES BY A TAP ON THE EDITOR'S OWN CAPTION, NOT `hideKeyboard`.
+# It has to go — "Done" sits under it — but Maestro's `hideKeyboard` on iOS is
+# a 3% drag from the dead centre of the screen, and this ScrollView has no
+# `keyboardDismissMode`, so it only ever worked when that centre happened to be
+# blank space. On a 6.3" phone (iPhone 17 Pro) the centre is this very text
+# field, and the flow failed with "Couldn't hide the keyboard". A tap on static
+# text is what a person does: the list is `keyboardShouldPersistTaps="handled"`,
+# so an unhandled tap blurs the field — which also commits the rename, the same
+# `onBlur` a person would trigger.
+- tapOn: "HOW LONG"
 - tapOn: "Done"
 - assertVisible: "Shower and shave.*"
 - assertNotVisible: "Shower, 20m.*"
