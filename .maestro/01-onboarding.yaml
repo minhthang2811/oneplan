@@ -18,7 +18,7 @@
 #    Native text surfaces as an accessibility label, and `text` only carries
 #    native control values ("radio button"). The consequence: A BUTTON MATCHES
 #    ON ITS accessibilityLabel, NOT ITS VISIBLE WORDS. The focus Start button is
-#    "Start 1 minute focus"; "+ 1 min" is "Add one minute"; "End" is "End
+#    "Start 1m focus"; "+ 1 min" is "Add one minute"; "End" is "End
 #    session". Check the component before writing the selector.
 #
 # Also avoid the display headlines: they are hand-wrapped with a literal "\n"

@@ -70,13 +70,21 @@ name: Add activity — create one, and discard one
 - assertVisible: "New activity"
 
 # --- fill it in ------------------------------------------------------------
-# OPTIONAL, AND ONLY HERE-AND-BELOW. After the action sheet closes, iOS puts
-# the caret back in the title field but does not always bring the keyboard with
-# it, and a `hideKeyboard` with no keyboard to hide FAILS. The chips below are
-# reachable either way (`keyboardShouldPersistTaps="handled"`), so whether the
-# keyboard is up is not something this flow has an opinion about.
-- hideKeyboard:
-    optional: true
+# THE KEYBOARD IS PUT AWAY BY TAPPING A FIELD LABEL, and it has to be. After
+# the action sheet closes, iOS puts the caret back in the title field and
+# sometimes the keyboard with it — and a keyboard left up covers the step field
+# further down, which Maestro still calls "visible" (it checks the window, not
+# what is drawn over it). On a 6.3" phone the tap on "Break it into steps" then
+# landed on the keyboard's V key: a stray "v" in the title, "Fill the can"
+# typed after it, and Enter SUBMITTING THE TITLE, which saves the sheet.
+#
+# Not `hideKeyboard`: on iOS that is a 3% drag from the dead centre of the
+# screen, which this sheet's ScrollView does not dismiss on — and on a 6.3"
+# phone that centre is the "Human needs" chip, which the drag SELECTED. A tap
+# on static text is deterministic either way: the sheet is
+# `keyboardShouldPersistTaps="handled"`, so an unhandled tap blurs the title if
+# the keyboard is up, and does nothing at all if it is not.
+- tapOn: "HOW LONG"
 - tapOn: "30m"
 - tapOn: "Evening"
 # en-US clocks put a NARROW no-break space before "PM" (ICU 72+), so `.` rather
@@ -93,8 +101,10 @@ name: Add activity — create one, and discard one
 - inputText: "Fill the can"
 - pressKey: Enter
 - assertVisible: "Fill the can"
-- hideKeyboard:
-    optional: true
+# Same reason as above, and the label nearest the step field so it is still on
+# screen after the sheet scrolls it into view. `submitBehavior="submit"` keeps
+# the field focused for a second step, so the keyboard is up here.
+- tapOn: "STEPS"
 - takeScreenshot: artifacts/24-add-filled-in
 
 # The header's "Add", rather than the "Add activity" button at the foot of the

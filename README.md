@@ -295,7 +295,11 @@ Rules learned the hard way, documented in the flows themselves:
    so partial matches need an explicit `.*`.
 2. On iOS this app's text lives in `accessibilityText`, so **a control matches on
    its `accessibilityLabel`, not its visible words**: the focus Start button is
-   `Start 1 minute focus`, `+ 1 min` is `Add one minute`, `End` is `End session`.
+   `Start 1m focus`, `+ 1 min` is `Add one minute`, `End` is `End session`.
+   An `accessibilityValue` is matched too, which makes a bare selector
+   ambiguous in a way the screen does not show: while the focus dial reads 15,
+   `"15m"` is both the preset chip's label and the dial's value — and Maestro
+   tapped the dial. Anchor such a selector (`below:`) or give it `selected:`.
 3. `tapOn: point:` percentages must be **whole numbers**. `"16.4%,93%"` throws
    `NumberFormatException` at runtime, after the flow has already started.
 4. `launchApp` returns **before React has mounted**, so the first tap can land on
@@ -340,6 +344,16 @@ Rules learned the hard way, documented in the flows themselves:
     sheet closes, or after a compose row remounts on submit, iOS may leave the
     caret without the keyboard. Where the keyboard is legitimately optional the
     step is `optional: true`, and says why.
+    **And when there is a keyboard, it may not hide it either.** On iOS,
+    `hideKeyboard` is a 3% drag from the **dead centre of the screen**, so it
+    works only if whatever sits there dismisses the keyboard — and none of this
+    app's scroll views set `keyboardDismissMode`. Which control is at the centre
+    depends on the phone's height: on an iPhone 17 Pro it was the very text
+    field being edited (`13` failed outright) and a tag chip, which the drag
+    *selected* (`15`, where `optional: true` swallowed the failure). Where the
+    keyboard has to go, tap a piece of static text instead — every scroll view
+    here is `keyboardShouldPersistTaps="handled"`, so an unhandled tap blurs the
+    field if the keyboard is up and does nothing if it is not.
 12. **`openLink` is followed by iOS's own "Open in “Pupu”?" confirmation**, which
     belongs to SpringBoard rather than the app — so it survives a relaunch and,
     left unanswered, sits on top of every flow that runs after it. Tap "Open".
@@ -348,6 +362,17 @@ Rules learned the hard way, documented in the flows themselves:
     toggle nothing. A `rightOf:` selector whose reference carried `index: 0`
     found nothing — plain `rightOf:` was not tried — so the switch carries a
     `testID` instead.
+13. **"Visible" means inside the window, not uncovered.** A list row resting
+    under the floating tab bar, or a field under the keyboard, is visible to
+    Maestro — `scrollUntilVisible` stops at once — and `tapOn` sends the tap to
+    its centre, which whatever is drawn on top receives. This is rule 5 from the
+    other side, and it is why the suite has to be run on the phone it will be
+    trusted on: on an iPhone 17 Pro (874pt) rows that sit clear of the bar on a
+    Pro Max rest under it, and a full-width row's centre, x = 50%, is exactly
+    the Focus tab's left edge — so `11` and `20` bounced to Focus and looked like
+    a tab switch the bar had dropped. Scroll the row clear first:
+    `scrollUntilVisible` with `centerElement: true` where the list is long enough
+    to centre it, a plain `scroll` to the end where it is not.
 
 ## Publishing to the App Store
 

@@ -51,6 +51,14 @@ name: Run onboarding again — keeps the plan, no duplicates
 # --- start over -------------------------------------------------------------
 - tapOn:
     point: "83%,93%"   # Me
+# SCROLLED TO THE END FIRST. On a 6.3" phone (iPhone 17 Pro) this row rests
+# UNDER the floating tab bar, which Maestro still calls "visible" — and the
+# tap goes to the row's centre, x = 50%, the Focus tab's left edge. Me ends
+# with exactly enough padding to lift its last row clear of the bar, so the
+# end of the scroll is the one place the row is known to be tappable. (Not
+# `centerElement`, as `11-focus-dial.yaml` uses: this row is too near the end
+# of the content ever to reach the middle of the screen, and that times out.)
+- scroll
 - tapOn: "Run onboarding again"
 - assertVisible: "Run onboarding again\\?"
 - tapOn: "Start over"
